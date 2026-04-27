@@ -55,6 +55,69 @@ describe('cascade', () => {
     }
   });
 
+  it('impact cascade for Chicxulub reaches the long-term phase (year+ scale)', () => {
+    const result = simulateImpact(IMPACT_PRESETS.CHICXULUB.input);
+    const stages = buildImpactCascade(result);
+    const keys = stages.map((s) => s.key);
+    // Phase 2 / 3 long-range additions
+    expect(keys).toContain('cascade.impact.ejectaReentry');
+    expect(keys).toContain('cascade.impact.impactWinter');
+    // Phase 3 (EXTINCTION-tier only): photosynthesis collapse
+    expect(keys).toContain('cascade.impact.photoCollapse');
+    // Phase 4 long-term consequences
+    expect(keys).toContain('cascade.impact.oceanAcidification');
+    expect(keys).toContain('cascade.impact.planktonCollapse');
+    expect(keys).toContain('cascade.impact.co2Warming');
+    expect(keys).toContain('cascade.impact.massExtinction');
+  });
+
+  it('impact cascade for Tunguska stays in the immediate / short-term phases', () => {
+    const result = simulateImpact(IMPACT_PRESETS.TUNGUSKA.input);
+    const stages = buildImpactCascade(result);
+    const longTermStages = stages.filter((s) => s.phase === 'longTerm');
+    expect(longTermStages).toHaveLength(0);
+    const keys = stages.map((s) => s.key);
+    expect(keys).not.toContain('cascade.impact.ejectaReentry');
+    expect(keys).not.toContain('cascade.impact.impactWinter');
+    expect(keys).not.toContain('cascade.impact.massExtinction');
+  });
+
+  it('every cascade stage carries a phase that matches its onset bucket', () => {
+    const result = simulateImpact(IMPACT_PRESETS.CHICXULUB.input);
+    const stages = buildImpactCascade(result);
+    for (const s of stages) {
+      const t = s.onset as number;
+      if (t < 60) expect(s.phase).toBe('immediate');
+      else if (t < 86_400) expect(s.phase).toBe('shortTerm');
+      else if (t < 86_400 * 365) expect(s.phase).toBe('mediumTerm');
+      else expect(s.phase).toBe('longTerm');
+    }
+  });
+
+  it('explosion cascade for Tsar Bomba (> 50 Mt) adds the nuclear-winter stage', () => {
+    const result = simulateExplosion(EXPLOSION_PRESETS.TSAR_BOMBA_1961.input);
+    const stages = buildExplosionCascade(result);
+    expect(stages.map((s) => s.key)).toContain('cascade.explosion.nuclearWinter');
+  });
+
+  it('explosion cascade for Hiroshima (< 50 Mt) omits the nuclear-winter stage', () => {
+    const result = simulateExplosion(EXPLOSION_PRESETS.HIROSHIMA_1945.input);
+    const stages = buildExplosionCascade(result);
+    expect(stages.map((s) => s.key)).not.toContain('cascade.explosion.nuclearWinter');
+  });
+
+  it('volcano cascade for Tambora (VEI 7) adds the year-without-summer stage', () => {
+    const result = simulateVolcano(VOLCANO_PRESETS.TAMBORA_1815.input);
+    const stages = buildVolcanoCascade(result);
+    expect(stages.map((s) => s.key)).toContain('cascade.volcano.yearWithoutSummer');
+  });
+
+  it('volcano cascade for Krakatau (VEI 6) omits the year-without-summer stage', () => {
+    const result = simulateVolcano(VOLCANO_PRESETS.KRAKATAU_1883.input);
+    const stages = buildVolcanoCascade(result);
+    expect(stages.map((s) => s.key)).not.toContain('cascade.volcano.yearWithoutSummer');
+  });
+
   it('explosion cascade for Tsar Bomba adds the fallout stage (yield > 10 Mt)', () => {
     const result = simulateExplosion(EXPLOSION_PRESETS.TSAR_BOMBA_1961.input);
     const stages = buildExplosionCascade(result);

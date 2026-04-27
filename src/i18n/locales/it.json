@@ -351,6 +351,12 @@
   },
   "cascade": {
     "label": "Timeline a cascata",
+    "phase": {
+      "immediate": "Fase immediata · secondi",
+      "shortTerm": "Breve termine · minuti–ore",
+      "mediumTerm": "Medio termine · giorni–mesi",
+      "longTerm": "Lungo termine · anni–millenni"
+    },
     "time": {
       "instant": "t = 0"
     },
@@ -383,17 +389,45 @@
         "name": "Fronte tsunami",
         "desc": "Collasso della cavità d'acqua irradia uno tsunami a lunga lunghezza d'onda."
       },
+      "ejectaReentry": {
+        "name": "Rientro globale degli ejecta",
+        "desc": "La roccia rovente sub-orbitale rientra in tutto il pianeta; l'alta atmosfera supera i 1500 K e la vegetazione a foglia larga si incendia ben oltre l'impulso termico in linea di vista (Toon et al. 1997 §3; Goldin & Melosh 2009)."
+      },
       "stratDust": {
         "name": "Picco polveri stratosferiche",
         "desc": "Aerosol sub-μm si distribuiscono globalmente; il flusso solare si attenua."
       },
       "acidRain": {
         "name": "Piogge acide",
-        "desc": "HNO₃ da shock precipita come pioggia acida per settimane."
+        "desc": "HNO₃ da shock precipita come pioggia acida per settimane (Prinn & Fegley 1987)."
+      },
+      "impactWinter": {
+        "name": "Inverno da impatto",
+        "desc": "Fuliggine, aerosol di solfato e polveri tagliano l'insolazione superficiale di un ordine di grandezza; modelli climatici accoppiati danno -26 °C continentali per 3-4 anni post-K-Pg (Robertson et al. 2013, Brugger et al. 2017)."
       },
       "climate": {
         "name": "Inizio raffreddamento climatico",
-        "desc": "Fotosintesi cala; le temperature superficiali iniziano un declino pluriennale."
+        "desc": "Le temperature superficiali iniziano un declino pluriennale: la vita stratosferica della fuliggine prolunga il forzante di raffreddamento oltre il picco al primo anno."
+      },
+      "photoCollapse": {
+        "name": "Collasso della fotosintesi",
+        "desc": "Una profondità ottica di fuliggine sopra 50 ferma la fotosintesi al livello del mare per ≥ 1 anno; il picco di spore di felce al K-Pg documenta il collasso della catena alimentare in pochi mesi-anni (Pope 2002, Schulte et al. 2010)."
+      },
+      "oceanAcidification": {
+        "name": "Acidificazione oceanica",
+        "desc": "Aerosol di solfato e nitrato si dissolvono nell'oceano superficiale; il record degli isotopi del boro al K-Pg mostra un calo di pH di ≈ 0,25 unità in pochi decenni (Ohno et al. 2014)."
+      },
+      "planktonCollapse": {
+        "name": "Collasso del plancton",
+        "desc": "La produttività primaria marina crolla e il record dei nannoplancton calcarei attraversa un collo di bottiglia. L'intervallo \"Strangelove ocean\" al K-Pg dura ≈ 0,5–3 Myr; il suo inizio sono i primi anni (Vellekoop et al. 2014, Lowery et al. 2018)."
+      },
+      "co2Warming": {
+        "name": "Riscaldamento da CO₂",
+        "desc": "Gli aerosol solfati si lavano via in un decennio, ma la CO₂ volatilizzata dalle piattaforme carbonatiche persiste. I foraminiferi tunisini registrano +5 °C per ≈ 100 kyr post-K-Pg (MacLeod et al. 2018)."
+      },
+      "massExtinction": {
+        "name": "Marcatore di estinzione di massa",
+        "desc": "Eventi di classe Chicxulub provocano il ricambio del 70–75 % delle specie entro ≈ 10 kyr; la datazione ⁴⁰Ar/³⁹Ar lega il limite K-Pg all'impatto entro 32 ± 5 kyr (Schulte et al. 2010, Renne et al. 2013)."
       },
       "liquefaction": {
         "name": "Anello sismico di liquefazione",
@@ -424,6 +458,10 @@
       "tsunami": {
         "name": "Tsunami da burst subacqueo",
         "desc": "L'accoppiamento meccanico del burst alla colonna d'acqua genera un treno d'onde Glasstone-class attraverso il bacino."
+      },
+      "nuclearWinter": {
+        "name": "Inizio inverno nucleare",
+        "desc": "Le esplosioni groundburst da multimegatone iniettano fuliggine e aerosol solfato nella stratosfera. Il modello di scambio regionale di Robock-Oman-Stenchikov (2007) calcola 5 Tg di fuliggine stratosferica per 1,25 °C di raffreddamento globale per ≈ 4 anni."
       }
     },
     "earthquake": {
@@ -484,6 +522,10 @@
       "aerosol": {
         "name": "Raffreddamento da aerosol stratosferici",
         "desc": "SO₂ / aerosol di solfato si diffondono globalmente; le temperature scendono per 1–2 anni."
+      },
+      "yearWithoutSummer": {
+        "name": "Anno senza estate",
+        "desc": "Eventi VEI 7+ abbattono le temperature dell'emisfero nord di ≈ 0,5–1 °C per 2–3 anni; il Tambora 1815 innescò la carestia del 1816 in Europa e Nord America (Self & Rampino 1981, Oppenheimer 2003)."
       }
     },
     "landslide": {

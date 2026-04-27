@@ -351,6 +351,12 @@
   },
   "cascade": {
     "label": "Cascade timeline",
+    "phase": {
+      "immediate": "Immediate · seconds",
+      "shortTerm": "Short term · minutes to hours",
+      "mediumTerm": "Medium term · days to months",
+      "longTerm": "Long term · years to millennia"
+    },
     "time": {
       "instant": "t = 0"
     },
@@ -383,17 +389,45 @@
         "name": "Tsunami wavefront",
         "desc": "Water-cavity collapse radiates a long-wave tsunami across the basin."
       },
+      "ejectaReentry": {
+        "name": "Global ejecta re-entry",
+        "desc": "Sub-orbital hot rock re-enters worldwide; the upper atmosphere reaches > 1500 K and broadleaf vegetation ignites well beyond the line-of-sight thermal pulse (Toon et al. 1997 §3; Goldin & Melosh 2009)."
+      },
       "stratDust": {
         "name": "Stratospheric dust peak",
         "desc": "Sub-µm aerosols distribute globally; solar flux attenuates."
       },
       "acidRain": {
         "name": "Acid-rain washout",
-        "desc": "Shock-produced HNO₃ precipitates as acidic rainfall over weeks."
+        "desc": "Shock-produced HNO₃ precipitates as acidic rainfall over weeks (Prinn & Fegley 1987)."
+      },
+      "impactWinter": {
+        "name": "Impact winter",
+        "desc": "Soot, sulfate aerosols and dust cut surface insolation by an order of magnitude; coupled-climate models put continental cooling at -26 °C for 3-4 years post-K-Pg (Robertson et al. 2013, Brugger et al. 2017)."
       },
       "climate": {
         "name": "Climate cooling onset",
-        "desc": "Photosynthesis drops; surface temperatures begin a multi-year decline."
+        "desc": "Surface temperatures begin a multi-year decline as the soot lifetime in the stratosphere stretches the cooling forcing past the year-one peak."
+      },
+      "photoCollapse": {
+        "name": "Photosynthesis collapse",
+        "desc": "Soot optical depth above 50 halts photosynthesis at sea level for ≥ 1 yr; the K-Pg fern-spore spike documents the months-to-years food-chain failure (Pope 2002, Schulte et al. 2010)."
+      },
+      "oceanAcidification": {
+        "name": "Ocean acidification",
+        "desc": "Sulfate and nitrate aerosols dissolve into the surface ocean; the boron-isotope record at K-Pg shows a ≈ 0.25-unit pH drop within decades (Ohno et al. 2014)."
+      },
+      "planktonCollapse": {
+        "name": "Plankton collapse",
+        "desc": "Marine primary productivity falls and the calcareous-nannoplankton record bottlenecks. The K-Pg \"Strangelove ocean\" interval lasts ≈ 0.5–3 Myr; its onset is the first few years (Vellekoop et al. 2014, Lowery et al. 2018)."
+      },
+      "co2Warming": {
+        "name": "CO₂ rebound warming",
+        "desc": "Sulfate aerosols rain out within a decade, but volatilised carbonate-platform CO₂ persists. Tunisia foraminifera record +5 °C warming for ≈ 100 kyr post-K-Pg (MacLeod et al. 2018)."
+      },
+      "massExtinction": {
+        "name": "Mass-extinction marker",
+        "desc": "Chicxulub-class events drive 70–75 % species turnover within ≈ 10 kyr; ⁴⁰Ar/³⁹Ar dating ties the K-Pg boundary to the impact within 32 ± 5 kyr (Schulte et al. 2010, Renne et al. 2013)."
       },
       "liquefaction": {
         "name": "Seismic liquefaction ring",
@@ -424,6 +458,10 @@
       "tsunami": {
         "name": "Underwater-burst tsunami",
         "desc": "Mechanical coupling of the burst to the water column drives a Glasstone-class wave train across the basin."
+      },
+      "nuclearWinter": {
+        "name": "Nuclear-winter onset",
+        "desc": "Multi-megaton groundbursts loft soot and sulphate aerosol into the stratosphere. The Robock-Oman-Stenchikov (2007) regional-exchange model puts 5 Tg of stratospheric soot at 1.25 °C global cooling for ≈ 4 years."
       }
     },
     "earthquake": {
@@ -484,6 +522,10 @@
       "aerosol": {
         "name": "Stratospheric aerosol cooling",
         "desc": "SO₂ / sulfate aerosols spread globally; surface temperatures drop for 1–2 years."
+      },
+      "yearWithoutSummer": {
+        "name": "Year without a summer",
+        "desc": "VEI 7+ events suppress Northern Hemisphere temperatures by ≈ 0.5–1 °C for 2–3 years; Tambora 1815 triggered the 1816 famine across Europe and North America (Self & Rampino 1981, Oppenheimer 2003)."
       }
     },
     "landslide": {
