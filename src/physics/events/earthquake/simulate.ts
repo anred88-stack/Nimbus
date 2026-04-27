@@ -14,7 +14,13 @@ import {
   pgaFromMercalliIntensity,
 } from './intensity.js';
 import { liquefactionRadius } from './liquefaction.js';
-import { megathrustRuptureLength, type FaultType, surfaceRuptureLength } from './ruptureLength.js';
+import {
+  megathrustRuptureLength,
+  megathrustRuptureWidth,
+  surfaceRuptureLength,
+  surfaceRuptureWidth,
+  type FaultType,
+} from './ruptureLength.js';
 import { seismicMomentFromMagnitude } from './seismicMoment.js';
 import { seismicTsunamiFromMegathrust, type SeismicTsunamiResult } from './seismicTsunami.js';
 
@@ -50,6 +56,12 @@ export interface EarthquakeScenarioInput {
    *  DEM-driven value when the click point is on land with a
    *  meaningful slope. */
   coastalBeachSlopeRad?: number;
+  /** Strike azimuth (degrees clockwise from geographic North). Drives
+   *  the orientation of the extended-source rupture rectangle used by
+   *  the stadium MMI contours for Mw ≥ 7.5 / megathrust events. When
+   *  omitted, defaults to 0 (rupture aligned N–S) — fine for the small
+   *  point-source events where the stadium degenerates to a circle. */
+  strikeAzimuthDeg?: number;
 }
 
 /**
@@ -92,6 +104,19 @@ export interface EarthquakeScenarioResult {
   inputs: EarthquakeScenarioInput;
   seismicMoment: NewtonMeters;
   ruptureLength: Meters;
+  /** Down-dip rupture width W (m) — Wells & Coppersmith 1994 Table 2A
+   *  for crustal events, Strasser 2010 for explicit megathrusts. The
+   *  globe renderer uses (L, W, strikeAzimuthDeg) to lay out the
+   *  surface-projection rectangle that the stadium MMI contours
+   *  inflate around. */
+  ruptureWidth: Meters;
+  /** True when the renderer should treat this event as an extended
+   *  source (rupture rectangle ≫ point) for the MMI contours. Set
+   *  whenever Mw ≥ 7.5 OR the user toggled `subductionInterface`.
+   *  At smaller magnitudes the rupture is inside the MMI VII
+   *  point-source radius and the stadium degenerates to a circle, so
+   *  the existing point-source ring is kept. */
+  isExtendedSource: boolean;
   shaking: EarthquakeShakingResult;
   /** Cross-module bridge: when the event is a subduction-interface
    *  megathrust OR a shallow submarine thrust/normal at Mw ≥ 6.5,
@@ -132,6 +157,20 @@ export function simulateEarthquake(input: EarthquakeScenarioInput): EarthquakeSc
   const ruptureLength = input.subductionInterface
     ? megathrustRuptureLength(input.magnitude)
     : surfaceRuptureLength({ magnitude: input.magnitude, faultType });
+  const ruptureWidth = input.subductionInterface
+    ? megathrustRuptureWidth(input.magnitude)
+    : surfaceRuptureWidth({ magnitude: input.magnitude, faultType });
+  // Extended-source threshold: 7.5 sits at the elbow where the W&C
+  // surface-rupture length (≈ 50 km) starts to exceed the MMI VII
+  // point-source attenuation radius (≈ 35–55 km depending on faultType
+  // & Vs30). Below 7.5 the stadium contour collapses inside the
+  // existing point-source ring, so there is nothing to gain by
+  // upgrading the geometry; we keep the simpler renderer in that
+  // regime to avoid spurious "the circle squashed itself" visuals on
+  // small events. Subduction interface always upgrades regardless of
+  // Mw because the rupture rectangle is genuinely 2D (L≫W is rarely
+  // true for shallow megathrusts: Tōhoku 500×200 km).
+  const isExtendedSource = input.magnitude >= 7.5 || input.subductionInterface === true;
 
   const pgaAt20km = peakGroundAcceleration({ magnitude: input.magnitude, distance: m(20_000) });
   const pgaAt100km = peakGroundAcceleration({ magnitude: input.magnitude, distance: m(100_000) });
@@ -168,6 +207,8 @@ export function simulateEarthquake(input: EarthquakeScenarioInput): EarthquakeSc
     inputs: input,
     seismicMoment,
     ruptureLength,
+    ruptureWidth,
+    isExtendedSource,
     shaking: {
       pgaAt20km,
       pgaAt100km,
@@ -249,6 +290,8 @@ export const EARTHQUAKE_PRESETS = {
       depth: m(29_000),
       faultType: 'reverse',
       subductionInterface: true,
+      // Japan Trench strike ≈ 200° (NNE-SSW), Hayes USGS finite-fault.
+      strikeAzimuthDeg: 200,
     } satisfies EarthquakeScenarioInput,
   },
   /** 14 November 2001 Kokoxili, Tibet — strike-slip, Mw 7.8, shallow. */
@@ -259,6 +302,9 @@ export const EARTHQUAKE_PRESETS = {
       magnitude: 7.8,
       depth: m(10_000),
       faultType: 'strike-slip',
+      // Kunlun fault trace strikes ≈ 95° (almost due E–W). 400 km
+      // surface rupture documented by Lin et al. 2002, Science 296.
+      strikeAzimuthDeg: 95,
     } satisfies EarthquakeScenarioInput,
   },
   /** 26 December 2004 Sumatra–Andaman — Sunda subduction megathrust,
@@ -273,6 +319,9 @@ export const EARTHQUAKE_PRESETS = {
       depth: m(30_000),
       faultType: 'reverse',
       subductionInterface: true,
+      // Sunda Trench strike ≈ 330° (NW–SE), 1300 km rupture from
+      // northern Sumatra into the Andaman Islands (Lay 2005, Science).
+      strikeAzimuthDeg: 330,
     } satisfies EarthquakeScenarioInput,
   },
   /** 1 November 1755 Lisbon — Mw ≈ 8.5–9.0, source debated between
@@ -288,6 +337,9 @@ export const EARTHQUAKE_PRESETS = {
       depth: m(20_000),
       faultType: 'reverse',
       subductionInterface: true,
+      // Azores–Gibraltar fracture zone strikes ≈ 70° (ENE-WSW;
+      // Baptista & Miranda 2009, NHESS 9: 25, Fig. 5).
+      strikeAzimuthDeg: 70,
     } satisfies EarthquakeScenarioInput,
   },
   /** Valdivia, Chile — 22 May 1960. The largest earthquake ever
@@ -304,6 +356,9 @@ export const EARTHQUAKE_PRESETS = {
       depth: m(33_000),
       faultType: 'reverse',
       subductionInterface: true,
+      // Chile Trench strikes ≈ 10° (almost due N–S), 1000 km rupture
+      // from Concepción south to the Taitao Peninsula.
+      strikeAzimuthDeg: 10,
     } satisfies EarthquakeScenarioInput,
   },
   /** Great Alaska earthquake, 27 March 1964 — Mw 9.2, Aleutian
@@ -321,6 +376,9 @@ export const EARTHQUAKE_PRESETS = {
       depth: m(25_000),
       faultType: 'reverse',
       subductionInterface: true,
+      // Aleutian Megathrust strike ≈ 245° (W-SW from Prince William
+      // Sound to Kodiak), Plafker 1965 Fig. 2.
+      strikeAzimuthDeg: 245,
     } satisfies EarthquakeScenarioInput,
   },
   /** L'Aquila, Italy — 6 April 2009. Mw 6.3 normal-fault earthquake
@@ -371,6 +429,9 @@ export const EARTHQUAKE_PRESETS = {
       magnitude: 7.8,
       depth: m(8_000),
       faultType: 'reverse',
+      // Main Himalayan Thrust strikes ≈ 290° (WNW–ESE) along the
+      // arc; rupture propagated ~150 km eastward (Avouac 2015 Fig. 2).
+      strikeAzimuthDeg: 290,
     } satisfies EarthquakeScenarioInput,
   },
 } as const;

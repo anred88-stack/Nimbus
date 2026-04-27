@@ -25,6 +25,20 @@ export const WELLS_COPPERSMITH_1994_SRL: Record<FaultType, { a: number; b: numbe
   all: { a: -3.22, b: 0.69 },
 };
 
+/**
+ * Wells & Coppersmith (1994) "log₁₀(RW) = a + b·M" coefficients
+ * (Table 2A, Rupture Width). RW (down-dip rupture width) in km. Used
+ * to infer the across-strike extent of the rupture rectangle so the
+ * extended-source MMI contour rendering can build a stadium / rounded-
+ * rectangle polygon instead of a point-source disk for big events.
+ */
+export const WELLS_COPPERSMITH_1994_RW: Record<FaultType, { a: number; b: number }> = {
+  'strike-slip': { a: -0.76, b: 0.27 },
+  reverse: { a: -1.61, b: 0.41 },
+  normal: { a: -1.14, b: 0.35 },
+  all: { a: -1.01, b: 0.32 },
+};
+
 export interface SurfaceRuptureLengthInput {
   /** Moment magnitude Mw. */
   magnitude: number;
@@ -72,4 +86,39 @@ export function megathrustRuptureLength(magnitude: number): Meters {
   if (!Number.isFinite(magnitude) || magnitude <= 0) return m(0);
   const LkmLog = -2.477 + 0.585 * magnitude;
   return m(10 ** LkmLog * 1_000);
+}
+
+/**
+ * Down-dip rupture width W (m) from Wells & Coppersmith (1994):
+ *
+ *     log₁₀(RW_km) = a + b · Mw
+ *
+ * Companion to {@link surfaceRuptureLength}. Returned as a true
+ * down-dip distance (NOT the surface projection). For megathrusts
+ * with shallow dip the surface projection W·cos(δ) is within ~5 % of
+ * W; the renderer uses W directly when laying out the stadium
+ * polygon and absorbs the small projection mismatch into the contour
+ * caveat list.
+ */
+export function surfaceRuptureWidth(input: SurfaceRuptureLengthInput): Meters {
+  const { magnitude, faultType = 'all' } = input;
+  if (!Number.isFinite(magnitude) || magnitude <= 0) return m(0);
+  const { a, b } = WELLS_COPPERSMITH_1994_RW[faultType];
+  return m(10 ** (a + b * magnitude) * 1_000);
+}
+
+/**
+ * Megathrust (subduction-interface) down-dip rupture width from
+ * Strasser et al. (2010) Table 2:
+ *
+ *     log₁₀(W_km) = −0.882 + 0.351 · Mw    (interface events)
+ *
+ * Companion to {@link megathrustRuptureLength}. For Mw 9.1 Tōhoku
+ * this returns ≈ 200 km, matching Hayes et al. 2011 finite-fault
+ * inversions.
+ */
+export function megathrustRuptureWidth(magnitude: number): Meters {
+  if (!Number.isFinite(magnitude) || magnitude <= 0) return m(0);
+  const WkmLog = -0.882 + 0.351 * magnitude;
+  return m(10 ** WkmLog * 1_000);
 }

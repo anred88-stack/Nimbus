@@ -85,14 +85,30 @@ export function impactDamageRadii(
  * precision anywhere in that range. Monotonic decay of peakOverpressure
  * in R guarantees convergence.
  *
- * Throws if the requested `target` is higher than the overpressure at
- * 1 m (would require bringing the receiver inside the fireball) or
- * lower than the value at 10⁸ m (physical reach exhausted).
+ * Edge handling — Phase 14:
+ *
+ *   - If `target` exceeds the overpressure at 1 m, the device would
+ *     need a receiver inside the fireball. Throws (no physically
+ *     meaningful answer).
+ *   - If `target` is still BELOW the overpressure at 10⁸ m, the
+ *     wavefront physically wraps the planet — every receiver is
+ *     "within the threshold" because the air shock travels several
+ *     times around the Earth before damping below `target`. We
+ *     return the half-great-circle cap (~ 2.0 × 10⁷ m) so the
+ *     simulator degrades gracefully on continent-scale impactors
+ *     (e.g. a 100 km bolide) instead of throwing. The caller / UI
+ *     reads "saturation at planetary scale" via the `isPlanetary`
+ *     helper in src/physics/earthScale.ts; the visual contract for
+ *     the ring renders an extra "saturated" badge.
  */
 export function distanceForOverpressure(yieldEnergy: Joules, target: Pascals): Meters {
   const targetPa = target as number;
   let lo = 1;
-  let hi = 1e8;
+  // Half-great-circle on Earth ≈ 20 015 km. The bisection uses this
+  // as the upper bracket so a 100 km bolide saturates at planetary
+  // scale instead of throwing on a search outside [1, 10⁸] m.
+  const EARTH_HALF_GREAT_CIRCLE = Math.PI * 6_371_000;
+  let hi = EARTH_HALF_GREAT_CIRCLE;
 
   const pLo = peakOverpressure({ distance: m(lo), yieldEnergy }) as number;
   const pHi = peakOverpressure({ distance: m(hi), yieldEnergy }) as number;
@@ -102,9 +118,10 @@ export function distanceForOverpressure(yieldEnergy: Joules, target: Pascals): M
     );
   }
   if (pHi > targetPa) {
-    throw new Error(
-      `Target overpressure ${targetPa.toFixed(0)} Pa is still below the value at ${hi.toFixed(0)} m; extend the bracket.`
-    );
+    // Wavefront still above target at the half-great-circle cap.
+    // Return the cap — the simulator's caller knows to flag this
+    // as "planetary saturation".
+    return m(EARTH_HALF_GREAT_CIRCLE);
   }
 
   for (let i = 0; i < 60; i++) {

@@ -207,10 +207,19 @@ function buildExplosionInput(args: ParsedArgs): ExplosionScenarioInput {
     );
   }
   const base: ExplosionScenarioInput = EXPLOSION_PRESETS[presetId].input;
-  return {
+  const out: ExplosionScenarioInput = {
     yieldMegatons: args.yieldMegatons ?? base.yieldMegatons,
     groundType: args.ground ?? base.groundType ?? 'FIRM_GROUND',
   };
+  // Pre-Phase-14 the CLI dropped heightOfBurst and waterDepth on the
+  // floor when widening the preset to ExplosionScenarioInput. The
+  // Hiroshima preset (heightOfBurst=580) was therefore simulated as
+  // a contact surface burst, masking the HOB amplification factor
+  // 1.5 in the audit. Pass them through explicitly.
+  if (base.heightOfBurst !== undefined) out.heightOfBurst = base.heightOfBurst;
+  if (base.waterDepth !== undefined) out.waterDepth = base.waterDepth;
+  if (base.meanOceanDepth !== undefined) out.meanOceanDepth = base.meanOceanDepth;
+  return out;
 }
 
 function buildImpactInput(args: ParsedArgs): ImpactScenarioInput {

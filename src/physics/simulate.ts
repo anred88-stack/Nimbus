@@ -312,8 +312,28 @@ export function simulateImpact(input: ImpactScenarioInput): ImpactScenarioResult
   // dump most of their KE as a high-altitude thermal + blast pulse,
   // which this layer treats by scaling the ground-work quantities by
   // energyFractionToGround^(1/3.4) (Collins 2005 Eq. 22 exponent).
+  //
+  // Phase 14 — additional crater-suppression rule: a bolide that
+  // fragments well above its own size scale (Tunguska-class, burst
+  // altitude > 5 × diameter) does NOT leave a coherent ground crater
+  // even though `gf > 0` because of residual blast/thermal coupling.
+  // Boslough & Crawford 2008 (IJIE 35) and the 1908 field record
+  // confirm Tunguska left no measurable crater. The pre-Phase-14
+  // simulator dialed the crater down via the gf^(1/3.4) factor but
+  // still reported a 634 m crater for the 60 m / 11.7 km-burst
+  // Tunguska — the Phase 14 audit flagged this as historical-fidelity
+  // bug HIST.TUNGUSKA. A burst-altitude / diameter ratio > 5 is the
+  // non-arbitrary threshold: it discriminates "high airburst with
+  // residual blast" (no crater) from "low fragmentation with residual
+  // ground impact" (Sikhote-Alin-style crater field, kept on purpose
+  // as a single equivalent crater because Layer 2 doesn't model
+  // strewn fields). Strewn-field fragmentation is documented as a
+  // Layer-2 limitation in docs/Limitations.md.
   const gf = entry.energyFractionToGround;
-  const craterScale = gf > 0 ? Math.pow(gf, 1 / 3.4) : 0;
+  const burstAltitude = entry.burstAltitude as number;
+  const diameterM = input.impactorDiameter as number;
+  const fragmentsTooHigh = burstAltitude > diameterM * 5;
+  const craterScale = gf > 0 && !fragmentsTooHigh ? Math.pow(gf, 1 / 3.4) : 0;
 
   const Dtc = m((transientCraterDiameter(input) as number) * craterScale);
   const Dfr = m(finalCraterDiameter(Dtc));
@@ -460,17 +480,35 @@ export function simulateImpact(input: ImpactScenarioInput): ImpactScenarioResult
   };
 
   const waterDepth = (input.waterDepth as number | undefined) ?? 0;
-  // Tsunami cascade is emitted only when the impactor delivers a
-  // meaningful fraction of its kinetic energy to the water surface
-  // (gf > 0.10). Below that threshold the bolide deposits the bulk of
-  // its KE as a high-altitude blast pulse — a Tunguska-class airburst
-  // over the open ocean does not piston the water column the way the
-  // Ward & Asphaug (2000) cavity model assumes, so emitting a tsunami
-  // block would overstate the wave by 1–2 orders of magnitude. The
-  // cavity itself is computed from the *surface-coupled* energy
-  // (ke · gf), matching the same scaling already applied to the
-  // ground crater above.
-  if (waterDepth > 0 && gf > 0.1) {
+  // Tsunami cascade activation rule — Phase 14 tightening.
+  //
+  // The Ward & Asphaug (2000) cavity formula assumes a coherent
+  // solid impactor pistoning the water column. Real airbursts
+  // (Tunguska-class, partial airbursts at >1 km altitude) deposit
+  // their energy as a pressure/thermal pulse high in the atmosphere
+  // — not as a kinetic punch. The cavity formula is therefore
+  // invalid in those regimes and emitting a tsunami block produces
+  // a phantom wave that the renderer then propagates planet-wide.
+  //
+  // The previous gate `gf > 0.10` was too lenient: Tunguska in the
+  // Mediterranean (gf=0.111, burst at 11.7 km) was just barely above
+  // it, generating a 329 m source amplitude that propagated visibly
+  // around the Earth. The Phase 14 audit found the same pattern
+  // for a 100 m bolide (gf=0.119, A0=548 m).
+  //
+  // The new gate fires the tsunami branch only when the impactor
+  // genuinely reaches the water surface as a coherent body:
+  //   - regime === 'INTACT' (no atmospheric breakup): always fires.
+  //   - regime === 'PARTIAL_AIRBURST' AND gf ≥ 0.5: fragments-and-
+  //     debris case where most of the energy still couples downward
+  //     (large bolides whose terminal yield density is high enough
+  //     to plough through the atmosphere with ≥50 % KE left).
+  // Everything below that threshold is suppressed: the cavity model
+  // does not describe the physics, and a hydrocode-quality emulator
+  // is out of scope for Layer 2.
+  const regime = entry.regime;
+  const reachesSurface = regime === 'INTACT' || (regime === 'PARTIAL_AIRBURST' && gf >= 0.5);
+  if (waterDepth > 0 && reachesSurface) {
     const meanOceanDepth = input.meanOceanDepth ?? m(DEFAULT_MEAN_OCEAN_DEPTH);
     const surfaceCoupledKe = J((ke as number) * gf);
     const cavityRadius = impactCavityRadius({ kineticEnergy: surfaceCoupledKe });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { IMPACT_PRESETS, simulateImpact } from './simulate.js';
-import { m } from './units.js';
+import { deg, degreesToRadians, kgPerM3, m, mps } from './units.js';
 
 describe('simulateImpact (deterministic Layer-2 evaluator)', () => {
   it('produces an identical snapshot on repeated calls (determinism)', () => {
@@ -179,8 +179,22 @@ describe('simulateImpact — land vs. ocean cascade', () => {
     expect(sym.ejecta.asymmetryFactor).toBe(0);
     expect(sym.ejecta.downrangeOffset as number).toBe(0);
 
-    // Chelyabinsk at 18° grazing: asymmetryFactor ≈ 0.6.
-    const oblique = simulateImpact(IMPACT_PRESETS.CHELYABINSK.input);
+    // Oblique surface-impactor at 15° grazing — must reach the ground
+    // intact so a crater (and therefore an asymmetric ejecta blanket)
+    // exists. Phase 14 explicitly suppresses the crater for high-
+    // altitude airbursts (Tunguska / Chelyabinsk-class), so this
+    // assertion uses a 1 km bolide at 18° instead, which is safely
+    // INTACT regime and exercises the same asymmetry formula. The
+    // pre-Phase-14 version of this test used Chelyabinsk and started
+    // failing once the phantom-crater suppression landed.
+    const oblique = simulateImpact({
+      impactorDiameter: m(1000),
+      impactVelocity: mps(20000),
+      impactorDensity: kgPerM3(3000),
+      targetDensity: kgPerM3(2700),
+      impactAngle: degreesToRadians(deg(18)),
+    });
+    expect(oblique.entry.regime).toBe('INTACT');
     expect(oblique.ejecta.asymmetryFactor).toBeGreaterThan(0.55);
     expect(oblique.ejecta.asymmetryFactor).toBeLessThan(0.65);
     expect(oblique.ejecta.downrangeOffset as number).toBeGreaterThan(0);

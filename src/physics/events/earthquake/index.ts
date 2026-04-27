@@ -1,7 +1,11 @@
 export { momentMagnitudeFromSeismicMoment, seismicMomentFromMagnitude } from './seismicMoment.js';
 export {
   WELLS_COPPERSMITH_1994_SRL,
+  WELLS_COPPERSMITH_1994_RW,
+  megathrustRuptureLength,
+  megathrustRuptureWidth,
   surfaceRuptureLength,
+  surfaceRuptureWidth,
   type FaultType,
   type SurfaceRuptureLengthInput,
 } from './ruptureLength.js';

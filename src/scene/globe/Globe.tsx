@@ -1,14 +1,17 @@
 import {
+  ArcGISTiledElevationTerrainProvider,
   BoundingSphere,
   CallbackProperty,
   Cartesian3,
   Cartographic,
   Color,
   HeadingPitchRange,
+  HeightReference,
   ImageMaterialProperty,
   Ion,
   JulianDate,
   Math as CesiumMath,
+  PolygonHierarchy,
   Rectangle,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -48,6 +51,7 @@ import {
   fetchTerrainGridForLocation,
   getCachedGlobalBathymetricMosaic,
 } from '../terrainSampling.js';
+import { buildRuptureStadiumPolygon } from '../stadiumPolygon.js';
 import { AftershockDetailCard } from './AftershockDetailCard.js';
 import { spawnExplosionVfxFromJoules } from './explosionVfx.js';
 import { radialDamageMaterial } from './radialDamageMaterial.js';
@@ -270,7 +274,8 @@ const RING_RADIUS_SIGMA: Record<string, number> = {
 const SIM_ENTITY_PREFIXES: readonly string[] = [
   'impact-marker', // marker dot + halo
   'damage-ring-', // RING_ID_PREFIX
-  'mmi-ring-', // mmi-ring-7 / -8 / -9
+  'mmi-ring-', // mmi-ring-7 / -8 / -9 (point-source disks)
+  'mmi-stadium-', // mmi-stadium-7 / -8 / -9 (extended-source rupture polygons)
   'explosion-', // explosion-crater / -thermal / -5psi / -1psi / -emp / …
   'tsunami-', // cavity, wavefronts, FMM heatmaps, isochrones
   'aftershock-', // AFTERSHOCK_ID_PREFIX + AFTERSHOCK_DETAIL_IDS
@@ -494,6 +499,41 @@ export function Globe(): JSX.Element {
           maximumLevel: 18,
         })
       );
+
+      // Phase 14 — open-data 3D terrain provider.
+      //
+      // Pre-Phase-14 the simulator ran on the default
+      // EllipsoidTerrainProvider (a smooth sphere). Every entity drawn
+      // with `height: 0` therefore sat at sea level regardless of
+      // local elevation: rings around a Mt-Blanc click rendered half-
+      // buried in the mountain, tsunami contours hugged the geoid
+      // instead of real coastlines. The audit's "rappresentazione
+      // grafica non realistica" complaint had this as a root cause.
+      //
+      // We use Esri/AGI's WorldElevation3D Terrain3D ImageServer —
+      // the same global 30 m DEM mosaic NASA's Worldview surfaces.
+      // It is a public REST endpoint and does NOT require a Cesium
+      // Ion access token, matching the project's open-source policy
+      // (Ion.defaultAccessToken stays empty above).
+      //
+      // The fetch is async: we wire the provider after the viewer is
+      // constructed to keep the synchronous init path simple. If the
+      // network fetch fails we silently fall back to the ellipsoid
+      // surface — every entity below uses HeightReference.CLAMP_TO_
+      // GROUND so the visual "downgrades" gracefully to the previous
+      // flat-sphere look without throwing.
+      ArcGISTiledElevationTerrainProvider.fromUrl(
+        'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer'
+      )
+        .then((tp) => {
+          if (viewer && !viewer.isDestroyed()) {
+            viewer.terrainProvider = tp;
+            viewer.scene.requestRender();
+          }
+        })
+        .catch((err: unknown) => {
+          console.warn('[Globe] terrain provider fetch failed; falling back to ellipsoid:', err);
+        });
 
       // Live solar illumination: the globe is shaded by the sun's real
       // position at the clock's current time. When a location is later
@@ -810,12 +850,14 @@ export function Globe(): JSX.Element {
         color: tint.toCssHexString(),
       });
       const entity = viewer.entities.getById(entityId);
-      if (entity?.ellipse !== undefined) {
-        entity.ellipse.show = new CallbackProperty(
-          () => !hiddenRingKeysRef.current.has(kind),
-          false
-        );
-      }
+      if (entity === undefined) return;
+      const showProperty = new CallbackProperty(() => !hiddenRingKeysRef.current.has(kind), false);
+      // The ring may be rendered as either an ellipse (point-source
+      // disk) or a polygon (extended-source rupture stadium for big
+      // earthquakes). Wire the legend toggle to whichever Graphics
+      // primitive the entity actually carries.
+      if (entity.ellipse !== undefined) entity.ellipse.show = showProperty;
+      if (entity.polygon !== undefined) entity.polygon.show = showProperty;
     };
 
     /** Aftershock counterpart: stores the magnitude + onset so the
@@ -1087,6 +1129,10 @@ export function Globe(): JSX.Element {
               ],
               width,
               material: tier.color.withAlpha(alpha),
+              // Phase 14 — drape the wave-front polyline over the
+              // terrain so coastal isolines hug shorelines instead
+              // of cutting through hills at sea-level.
+              clampToGround: true,
             },
           });
           // Approximate ground-range distance to source for the
@@ -1168,7 +1214,7 @@ export function Globe(): JSX.Element {
             outline: true,
             outlineColor: target.color.withAlpha(outlineAlpha),
             outlineWidth: 4,
-            height: 0,
+            heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
         scheduleRing(entity, 'tsunamiCavity', clampedRadius);
@@ -1214,7 +1260,7 @@ export function Globe(): JSX.Element {
           material: color.withAlpha(0.08),
           outline: true,
           outlineColor: color.withAlpha(0.3),
-          height: 0,
+          heightReference: HeightReference.CLAMP_TO_GROUND,
         },
       });
       scheduleRing(bandEntity, kind, upperSemiMajor, upperSemiMinor);
@@ -1296,7 +1342,7 @@ export function Globe(): JSX.Element {
             material: radialDamageMaterial(RING_COLORS[key], 0.85),
             outline: true,
             outlineColor: RING_COLORS[key].withAlpha(0.5),
-            height: 0,
+            heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
         scheduleRing(entity, impactRingKind[key], geom.semiMajor, geom.semiMinor);
@@ -1329,7 +1375,7 @@ export function Globe(): JSX.Element {
               material: radialDamageMaterial(TSUNAMI_CAVITY_COLOR, 0.65),
               outline: true,
               outlineColor: TSUNAMI_CAVITY_COLOR.withAlpha(0.45),
-              height: 0,
+              heightReference: HeightReference.CLAMP_TO_GROUND,
             },
           });
           scheduleRing(entity, 'tsunamiCavity', cavityRadius);
@@ -1385,7 +1431,7 @@ export function Globe(): JSX.Element {
             material: radialDamageMaterial(EJECTA_BLANKET_COLOR, 0.7),
             outline: true,
             outlineColor: EJECTA_BLANKET_COLOR.withAlpha(0.45),
-            height: 0,
+            heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
         // Use the 'crater' kind so the ejecta reveals on the same
@@ -1451,16 +1497,6 @@ export function Globe(): JSX.Element {
     // --- Earthquake: three MMI felt-intensity contours ---------------
     if (result.type === 'earthquake') {
       const { mmi7Radius, mmi8Radius, mmi9Radius } = result.data.shaking;
-      const contours: { id: MmiRingId; radius: number; color: Color }[] = [
-        { id: 'mmi-ring-7', radius: mmi7Radius, color: MMI_RING_COLORS.mmi7 },
-        { id: 'mmi-ring-8', radius: mmi8Radius, color: MMI_RING_COLORS.mmi8 },
-        { id: 'mmi-ring-9', radius: mmi9Radius, color: MMI_RING_COLORS.mmi9 },
-      ];
-      const mmiKindFor: Record<MmiRingId, RingTooltipKind> = {
-        'mmi-ring-7': 'mmi7',
-        'mmi-ring-8': 'mmi8',
-        'mmi-ring-9': 'mmi9',
-      };
       // Submarine epicentres: the felt-intensity radii remain
       // physically valid (Joyner-Boore is a magnitude/distance
       // attenuation; both are well-defined under water) but on the
@@ -1473,24 +1509,105 @@ export function Globe(): JSX.Element {
       const isSubmarine = result.data.isSubmarine;
       const fillAlpha = isSubmarine ? 0.35 : 0.85;
       const outlineAlpha = isSubmarine ? 0.25 : 0.5;
-      contours.forEach(({ id, radius, color }) => {
-        if (!Number.isFinite(radius) || radius <= 0) return;
-        const entity = viewer.entities.add({
-          id,
-          position: centerCartesian,
-          ellipse: {
-            semiMajorAxis: 0,
-            semiMinorAxis: 0,
-            material: radialDamageMaterial(color, fillAlpha),
-            outline: true,
-            outlineColor: color.withAlpha(outlineAlpha),
-            height: 0,
+
+      if (result.data.isExtendedSource) {
+        // Phase 13b — extended-source MMI contour. The rupture is a
+        // surface-projection rectangle of (L × W) inflated by the
+        // Joyner-Boore distance r_jb at which the MMI level is
+        // reached. The polygon hugs that contour: a stadium when
+        // W → 0 (strike-slip line source), a rounded rectangle when
+        // W ~ L (megathrust). Visual contracts: mmi{7,8,9}Stadium in
+        // src/scene/visualContracts.ts.
+        //
+        // Animation: the polygon appears statically (no grow-from-0)
+        // because the extended-source contour is a footprint, not a
+        // propagating front. The point-source ring branch below keeps
+        // the cinematic cascade for small / continental events.
+        const halfL = (result.data.ruptureLength as number) / 2;
+        const halfW = (result.data.ruptureWidth as number) / 2;
+        const strikeAzimuthDeg = result.data.inputs.strikeAzimuthDeg ?? 0;
+        const stadiumContours: {
+          id: 'mmi-stadium-7' | 'mmi-stadium-8' | 'mmi-stadium-9';
+          radius: number;
+          color: Color;
+          tooltipKind: RingTooltipKind;
+        }[] = [
+          {
+            id: 'mmi-stadium-7',
+            radius: mmi7Radius,
+            color: MMI_RING_COLORS.mmi7,
+            tooltipKind: 'mmi7',
           },
+          {
+            id: 'mmi-stadium-8',
+            radius: mmi8Radius,
+            color: MMI_RING_COLORS.mmi8,
+            tooltipKind: 'mmi8',
+          },
+          {
+            id: 'mmi-stadium-9',
+            radius: mmi9Radius,
+            color: MMI_RING_COLORS.mmi9,
+            tooltipKind: 'mmi9',
+          },
+        ];
+        // Render outermost first (VII larger than IX) so the inner
+        // bands paint on top and remain visible.
+        for (const { id, radius, color, tooltipKind } of stadiumContours) {
+          if (!Number.isFinite(radius) || radius <= 0) continue;
+          const verts = buildRuptureStadiumPolygon({
+            centerLatDeg: ringAnchor.latitude,
+            centerLonDeg: ringAnchor.longitude,
+            strikeAzimuthDeg,
+            halfLengthAlongStrikeM: halfL,
+            halfWidthAcrossStrikeM: halfW,
+            contourRadiusM: radius,
+          });
+          viewer.entities.add({
+            id,
+            polygon: {
+              hierarchy: new PolygonHierarchy(verts),
+              material: color.withAlpha(fillAlpha * 0.4),
+              outline: true,
+              outlineColor: color.withAlpha(outlineAlpha),
+              heightReference: HeightReference.CLAMP_TO_GROUND,
+            },
+          });
+          registerRingTooltip(id, tooltipKind, radius, color);
+        }
+      } else {
+        // Small / continental event: the rupture rectangle is well
+        // inside the MMI VII point-source radius, so a circular ring
+        // is the geometrically correct representation.
+        const contours: { id: MmiRingId; radius: number; color: Color }[] = [
+          { id: 'mmi-ring-7', radius: mmi7Radius, color: MMI_RING_COLORS.mmi7 },
+          { id: 'mmi-ring-8', radius: mmi8Radius, color: MMI_RING_COLORS.mmi8 },
+          { id: 'mmi-ring-9', radius: mmi9Radius, color: MMI_RING_COLORS.mmi9 },
+        ];
+        const mmiKindFor: Record<MmiRingId, RingTooltipKind> = {
+          'mmi-ring-7': 'mmi7',
+          'mmi-ring-8': 'mmi8',
+          'mmi-ring-9': 'mmi9',
+        };
+        contours.forEach(({ id, radius, color }) => {
+          if (!Number.isFinite(radius) || radius <= 0) return;
+          const entity = viewer.entities.add({
+            id,
+            position: centerCartesian,
+            ellipse: {
+              semiMajorAxis: 0,
+              semiMinorAxis: 0,
+              material: radialDamageMaterial(color, fillAlpha),
+              outline: true,
+              outlineColor: color.withAlpha(outlineAlpha),
+              heightReference: HeightReference.CLAMP_TO_GROUND,
+            },
+          });
+          scheduleRing(entity, 'mmi', radius);
+          addUpperSigmaBand(id, mmiKindFor[id], 'mmi', radius, radius, centerCartesian, color, 0);
+          registerRingTooltip(id, mmiKindFor[id], radius, color);
         });
-        scheduleRing(entity, 'mmi', radius);
-        addUpperSigmaBand(id, mmiKindFor[id], 'mmi', radius, radius, centerCartesian, color, 0);
-        registerRingTooltip(id, mmiKindFor[id], radius, color);
-      });
+      }
     }
 
     // --- Explosion: blast / burn / crater rings + radiation / EMP ----
@@ -1635,7 +1752,7 @@ export function Globe(): JSX.Element {
             material: radialDamageMaterial(color, explosionFillAlpha),
             outline: true,
             outlineColor: color.withAlpha(explosionOutlineAlpha),
-            height: 0,
+            heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
         scheduleRing(entity, kind, geom.semiMajor, geom.semiMinor);
@@ -1666,7 +1783,7 @@ export function Globe(): JSX.Element {
               material: radialDamageMaterial(TSUNAMI_CAVITY_COLOR, 0.65),
               outline: true,
               outlineColor: TSUNAMI_CAVITY_COLOR.withAlpha(0.45),
-              height: 0,
+              heightReference: HeightReference.CLAMP_TO_GROUND,
             },
           });
           scheduleRing(entity, 'tsunamiCavity', cavityRadius);
@@ -1698,7 +1815,7 @@ export function Globe(): JSX.Element {
             material: radialDamageMaterial(TSUNAMI_CAVITY_COLOR, 0.65),
             outline: true,
             outlineColor: TSUNAMI_CAVITY_COLOR.withAlpha(0.45),
-            height: 0,
+            heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
         scheduleRing(entity, 'tsunamiCavity', cavityRadius);
@@ -1724,7 +1841,7 @@ export function Globe(): JSX.Element {
             material: radialDamageMaterial(TSUNAMI_CAVITY_COLOR, 0.65),
             outline: true,
             outlineColor: TSUNAMI_CAVITY_COLOR.withAlpha(0.45),
-            height: 0,
+            heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
         scheduleRing(entity, 'tsunamiCavity', cavityRadius);
@@ -1762,7 +1879,7 @@ export function Globe(): JSX.Element {
           material: radialDamageMaterial(PYROCLASTIC_RING_COLOR, 0.85),
           outline: true,
           outlineColor: PYROCLASTIC_RING_COLOR.withAlpha(0.5),
-          height: 0,
+          heightReference: HeightReference.CLAMP_TO_GROUND,
         },
       });
       scheduleRing(entity, 'overpressure', pyroRadius);
@@ -1817,7 +1934,7 @@ export function Globe(): JSX.Element {
           material: radialDamageMaterial(LATERAL_BLAST_COLOR, 0.9),
           outline: true,
           outlineColor: LATERAL_BLAST_COLOR.withAlpha(0.55),
-          height: 0,
+          heightReference: HeightReference.CLAMP_TO_GROUND,
         },
       });
       registerRingTooltip(LATERAL_BLAST_ID, 'lateralBlast', runout, LATERAL_BLAST_COLOR);
@@ -1858,7 +1975,7 @@ export function Globe(): JSX.Element {
           material: radialDamageMaterial(ASHFALL_PLUME_COLOR, 0.55),
           outline: true,
           outlineColor: ASHFALL_PLUME_COLOR.withAlpha(0.5),
-          height: 0,
+          heightReference: HeightReference.CLAMP_TO_GROUND,
         },
       });
       registerRingTooltip(ASHFALL_PLUME_ID, 'ashfallPlume', downwind, ASHFALL_PLUME_COLOR);
@@ -1890,10 +2007,22 @@ export function Globe(): JSX.Element {
       // tile is missing or unusable. Drawn at the BOTTOM of the
       // visual stack so the local high-res layer (if present) sits
       // on top and dominates near-source detail.
-      if (bathymetricTsunami.global?.amplitude !== undefined) {
+      //
+      // Phase 14 amplitude gate: if the global amplitude field's
+      // peak value is below 0.5 m there is nothing rendered anyway
+      // (every pixel falls under the `transparentBelow` threshold)
+      // and we'd just be paying the planet-wide rectangle cost for
+      // an invisible result. More importantly, we never want to add
+      // the rectangle entity for a tsunami that doesn't materially
+      // exist — under the previous logic a 100 m bolide partial
+      // airburst still produced a 0.5–1 m peak field that painted
+      // sparse pixels world-wide and read as "covers half the globe".
+      // Skipping the entity entirely keeps the visualisation honest.
+      const globalAmpField = bathymetricTsunami.global?.amplitude;
+      if (globalAmpField !== undefined && globalAmpField.maxAmplitude > 0.5) {
         const tGlobalStart = performance.now();
         try {
-          const gAmp = bathymetricTsunami.global.amplitude;
+          const gAmp = globalAmpField;
           const gHeatmap = renderScalarFieldHeatmap(gAmp.amplitudes, gAmp.nLat, gAmp.nLon, {
             colormap: 'inferno',
             opacity: 0.32,
@@ -1914,14 +2043,14 @@ export function Globe(): JSX.Element {
                 image: gHeatmap.canvas,
                 transparent: true,
               }),
-              height: 0,
+              heightReference: HeightReference.CLAMP_TO_GROUND,
             },
           });
         } catch (err: unknown) {
           console.warn('[Globe] global amplitude heatmap render failed:', err);
         }
         try {
-          const gAmp = bathymetricTsunami.global.amplitude;
+          const gAmp = globalAmpField;
           const gGrid = useAppStore.getState().globalBathymetricGrid;
           if (gGrid !== null) {
             const bands = extractAmplitudeContours({
@@ -1966,6 +2095,7 @@ export function Globe(): JSX.Element {
                     ],
                     width,
                     material: color.withAlpha(alpha),
+                    clampToGround: true,
                   },
                 });
                 totalSegments++;
@@ -2024,7 +2154,7 @@ export function Globe(): JSX.Element {
                 image: heatmap.canvas,
                 transparent: true,
               }),
-              height: 0,
+              heightReference: HeightReference.CLAMP_TO_GROUND,
             },
           });
         } catch (err: unknown) {
@@ -2068,7 +2198,7 @@ export function Globe(): JSX.Element {
                   image: ampHeatmap.canvas,
                   transparent: true,
                 }),
-                height: 0,
+                heightReference: HeightReference.CLAMP_TO_GROUND,
               },
             });
           } catch (err: unknown) {
@@ -2152,6 +2282,7 @@ export function Globe(): JSX.Element {
               // without nano-precision aim.
               width: 4,
               material: color.withAlpha(0.95),
+              clampToGround: true,
             },
           });
           const latSpan1 = Math.abs(seg.lat1 - ringAnchor.latitude);
@@ -2212,7 +2343,7 @@ export function Globe(): JSX.Element {
               semiMinorAxis: clampToGreatCircle(radius),
               material: radialDamageMaterial(color, alpha * 0.18),
               outline: false,
-              height: 0,
+              heightReference: HeightReference.CLAMP_TO_GROUND,
             },
           });
         };
@@ -2264,7 +2395,7 @@ export function Globe(): JSX.Element {
                     image: bitmap.canvas,
                     transparent: true,
                   }),
-                  height: 0,
+                  heightReference: HeightReference.CLAMP_TO_GROUND,
                 },
               });
             }
@@ -2331,7 +2462,7 @@ export function Globe(): JSX.Element {
             outline: true,
             outlineColor: Color.fromCssColorString('#facc15').withAlpha(0.95),
             outlineWidth: 6,
-            height: 0,
+            heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
         // Stand-alone rAF loop for the wavefront — runs alongside the
@@ -2511,7 +2642,7 @@ export function Globe(): JSX.Element {
           material: radialDamageMaterial(color, alpha),
           outline: true,
           outlineColor: color.withAlpha(0.55),
-          height: 0,
+          heightReference: HeightReference.CLAMP_TO_GROUND,
         },
       });
     });

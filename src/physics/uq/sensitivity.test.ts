@@ -21,8 +21,16 @@ import { IMPACT_INPUT_SIGMA, asLinearHalfRange } from './conventions.js';
  *      the headline output (kineticEnergy).
  */
 
-const TUNGUSKA_CLASS = {
-  diameter: 60,
+// Phase 14 — bumped from 60 m (Tunguska) to 500 m so the bolide
+// reaches the surface intact and the crater-driven outputs
+// (finalCraterDiameter, seismicMw) remain non-zero under input
+// perturbation. Tunguska-class bolides now correctly produce no
+// crater under the airburst-suppression rule, which collapsed the
+// finalCraterDiameter elasticity to zero and broke the OAT ranking
+// assertion. The test still exercises the generic OAT machinery —
+// the specific impactor size is not the asserted physics.
+const MEDIUM_BOLIDE_CLASS = {
+  diameter: 500,
   velocity: 15_000,
   density: CHONDRITIC_DENSITY as number,
 };
@@ -47,15 +55,15 @@ function simulate(params: {
   };
 }
 
-describe('OAT sensitivity — Tunguska-class impact', () => {
+describe('OAT sensitivity — medium-bolide impact (500 m, INTACT regime)', () => {
   const sigmas = {
-    diameter: TUNGUSKA_CLASS.diameter * asLinearHalfRange(IMPACT_INPUT_SIGMA.diameter),
-    velocity: TUNGUSKA_CLASS.velocity * asLinearHalfRange(IMPACT_INPUT_SIGMA.velocity),
-    density: TUNGUSKA_CLASS.density * asLinearHalfRange(IMPACT_INPUT_SIGMA.density),
+    diameter: MEDIUM_BOLIDE_CLASS.diameter * asLinearHalfRange(IMPACT_INPUT_SIGMA.diameter),
+    velocity: MEDIUM_BOLIDE_CLASS.velocity * asLinearHalfRange(IMPACT_INPUT_SIGMA.velocity),
+    density: MEDIUM_BOLIDE_CLASS.density * asLinearHalfRange(IMPACT_INPUT_SIGMA.density),
   };
 
   const result = oatSensitivity({
-    nominal: TUNGUSKA_CLASS,
+    nominal: MEDIUM_BOLIDE_CLASS,
     sigmas,
     simulate,
   });
@@ -99,7 +107,7 @@ describe('OAT sensitivity — Tunguska-class impact', () => {
 
   it('zero-sigma inputs produce zero elasticity (no division by zero)', () => {
     const zeroResult = oatSensitivity({
-      nominal: TUNGUSKA_CLASS,
+      nominal: MEDIUM_BOLIDE_CLASS,
       sigmas: { diameter: 0, velocity: 0, density: 0 },
       simulate,
     });
