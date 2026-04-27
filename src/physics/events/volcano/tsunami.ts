@@ -89,7 +89,9 @@ export interface VolcanoTsunamiResult {
 
 /**
  * Compute the volcanic-collapse tsunami source. Returns null when the
- * inputs cannot drive a wave (zero or negative volume / slope).
+ * inputs cannot drive a wave (zero or negative volume / slope, or no
+ * water column for the slide to displace — Elm 1881 sturzstrom in the
+ * Glarus Alps is the canonical "subaerial, dry" archetype).
  */
 export function volcanoTsunami(input: VolcanoTsunamiInput): VolcanoTsunamiResult | null {
   const V = input.collapseVolumeM3;
@@ -98,6 +100,9 @@ export function volcanoTsunami(input: VolcanoTsunamiInput): VolcanoTsunamiResult
   if (!Number.isFinite(theta) || theta <= 0) return null;
 
   const meanOceanDepth = input.meanOceanDepth ?? m(1_000);
+  // No water → no Watts source. Catches the dry-runout flank failure
+  // case where a caller plumbs meanOceanDepth = 0 to flag "no basin".
+  if ((meanOceanDepth as number) <= 0) return null;
   const eta0 = VOLCANO_TSUNAMI_PREFACTOR * Math.cbrt(V) * Math.sin(theta);
   const sourceAmplitude = m(eta0);
   // Back-derive an equivalent cavity radius so impactAmplitudeAtDistance
