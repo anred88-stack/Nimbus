@@ -1,5 +1,6 @@
 import { simulateEarthquake, type EarthquakeScenarioInput } from '../events/earthquake/index.js';
 import { m } from '../units.js';
+import { EARTHQUAKE_INPUT_SIGMA } from '../uq/conventions.js';
 import type { MonteCarloOutput } from './engine.js';
 import { runMonteCarlo } from './engine.js';
 import { sampleNormal, type Rng } from './sampling.js';
@@ -48,12 +49,15 @@ function earthquakeSampler(
   nominal: EarthquakeScenarioInput
 ): (rng: Rng) => EarthquakeScenarioInput {
   return (rng: Rng): EarthquakeScenarioInput => {
-    const magnitude = Math.max(sampleNormal(rng, nominal.magnitude, 0.15), 1);
+    const magnitude = Math.max(
+      sampleNormal(rng, nominal.magnitude, EARTHQUAKE_INPUT_SIGMA.magnitude.sigma),
+      1
+    );
     const depthNominal = nominal.depth === undefined ? 15_000 : (nominal.depth as number);
-    const depthSigma = Math.max(2_000, 0.2 * depthNominal);
+    const depthSigma = Math.max(2_000, EARTHQUAKE_INPUT_SIGMA.depth.sigma * depthNominal);
     const depth = Math.max(sampleNormal(rng, depthNominal, depthSigma), 1_000);
     const vs30Nominal = nominal.vs30 ?? 760;
-    const vs30Sigma = 0.3 * vs30Nominal;
+    const vs30Sigma = EARTHQUAKE_INPUT_SIGMA.vs30.sigma * vs30Nominal;
     const vs30 = Math.max(sampleNormal(rng, vs30Nominal, vs30Sigma), 100);
     const out: EarthquakeScenarioInput = {
       magnitude,

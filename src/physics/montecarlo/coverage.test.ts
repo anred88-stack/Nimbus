@@ -108,8 +108,9 @@ describe('Monte-Carlo determinism — same seed produces identical percentiles',
     for (const k of Object.keys(a.metrics)) {
       const fa = a.metrics[k as keyof typeof a.metrics];
       const fb = b.metrics[k as keyof typeof b.metrics];
-      expect(fa).toBeDefined();
-      expect(fb).toBeDefined();
+      if (!fa || !fb) {
+        throw new Error(`metric ${k} missing on one side`);
+      }
       expect(fa.p10).toBe(fb.p10);
       expect(fa.p50).toBe(fb.p50);
       expect(fa.p90).toBe(fb.p90);

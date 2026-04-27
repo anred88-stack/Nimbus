@@ -24,6 +24,7 @@
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
     "simulate": "tsx scripts/simulate-impact.ts",
+    "sensitivity": "tsx scripts/sensitivity.ts",
     "lighthouse": "lhci autorun",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",

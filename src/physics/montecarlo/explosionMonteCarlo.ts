@@ -1,5 +1,6 @@
 import { simulateExplosion, type ExplosionScenarioInput } from '../events/explosion/index.js';
 import { m } from '../units.js';
+import { EXPLOSION_INPUT_SIGMA } from '../uq/conventions.js';
 import type { MonteCarloOutput } from './engine.js';
 import { runMonteCarlo } from './engine.js';
 import { sampleLognormal, sampleNormal, type Rng } from './sampling.js';
@@ -48,9 +49,12 @@ export interface ExplosionMonteCarloMetrics extends Record<string, number> {
 
 function explosionSampler(nominal: ExplosionScenarioInput): (rng: Rng) => ExplosionScenarioInput {
   return (rng: Rng): ExplosionScenarioInput => {
-    const yieldMt = Math.max(sampleLognormal(rng, nominal.yieldMegatons, 0.1), 1e-6);
+    const yieldMt = Math.max(
+      sampleLognormal(rng, nominal.yieldMegatons, EXPLOSION_INPUT_SIGMA.yield.sigma),
+      1e-6
+    );
     const hobNominal = nominal.heightOfBurst === undefined ? 0 : (nominal.heightOfBurst as number);
-    const hobSigma = Math.max(50, 0.05 * hobNominal);
+    const hobSigma = Math.max(EXPLOSION_INPUT_SIGMA.heightOfBurst.sigma, 0.05 * hobNominal);
     const hob = Math.max(sampleNormal(rng, hobNominal, hobSigma), 0);
     const out: ExplosionScenarioInput = {
       yieldMegatons: yieldMt,

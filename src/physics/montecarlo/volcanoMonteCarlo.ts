@@ -1,4 +1,5 @@
 import { simulateVolcano, type VolcanoScenarioInput } from '../events/volcano/index.js';
+import { VOLCANO_INPUT_SIGMA } from '../uq/conventions.js';
 import type { MonteCarloOutput } from './engine.js';
 import { runMonteCarlo } from './engine.js';
 import { sampleLognormal, type Rng } from './sampling.js';
@@ -43,14 +44,26 @@ export interface VolcanoMonteCarloMetrics extends Record<string, number> {
 
 function volcanoSampler(nominal: VolcanoScenarioInput): (rng: Rng) => VolcanoScenarioInput {
   return (rng: Rng): VolcanoScenarioInput => {
-    const vDot = sampleLognormal(rng, nominal.volumeEruptionRate, 0.5);
-    const totalV = sampleLognormal(rng, nominal.totalEjectaVolume, 0.3);
+    const vDot = sampleLognormal(
+      rng,
+      nominal.volumeEruptionRate,
+      VOLCANO_INPUT_SIGMA.volumeEruptionRate.sigma
+    );
+    const totalV = sampleLognormal(
+      rng,
+      nominal.totalEjectaVolume,
+      VOLCANO_INPUT_SIGMA.totalEjectaVolume.sigma
+    );
     const out: VolcanoScenarioInput = {
       volumeEruptionRate: Math.max(vDot, 1),
       totalEjectaVolume: Math.max(totalV, 1),
     };
     if (nominal.laharVolume !== undefined && nominal.laharVolume > 0) {
-      out.laharVolume = sampleLognormal(rng, nominal.laharVolume, 0.5);
+      out.laharVolume = sampleLognormal(
+        rng,
+        nominal.laharVolume,
+        VOLCANO_INPUT_SIGMA.laharVolume.sigma
+      );
     }
     if (nominal.windSpeed !== undefined) out.windSpeed = nominal.windSpeed;
     if (nominal.windDirectionDegrees !== undefined)

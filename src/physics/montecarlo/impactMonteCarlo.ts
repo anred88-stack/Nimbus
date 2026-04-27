@@ -1,5 +1,6 @@
 import { simulateImpact, type ImpactScenarioInput } from '../simulate.js';
 import { kgPerM3, m, mps } from '../units.js';
+import { IMPACT_INPUT_SIGMA } from '../uq/conventions.js';
 import type { MonteCarloOutput } from './engine.js';
 import { runMonteCarlo } from './engine.js';
 import { sampleImpactAngle, sampleLognormal, sampleNormal, type Rng } from './sampling.js';
@@ -62,12 +63,24 @@ export interface ImpactMonteCarloMetrics extends Record<string, number> {
 
 function impactSampler(nominal: ImpactScenarioInput): (rng: Rng) => ImpactScenarioInput {
   return (rng: Rng): ImpactScenarioInput => {
-    const diameter = sampleLognormal(rng, nominal.impactorDiameter, 0.15);
+    const diameter = sampleLognormal(
+      rng,
+      nominal.impactorDiameter,
+      IMPACT_INPUT_SIGMA.diameter.sigma
+    );
     const velocity = Math.max(
-      sampleNormal(rng, nominal.impactVelocity, 0.1 * (nominal.impactVelocity as number)),
+      sampleNormal(
+        rng,
+        nominal.impactVelocity,
+        IMPACT_INPUT_SIGMA.velocity.sigma * (nominal.impactVelocity as number)
+      ),
       500 // physical lower bound — below ~500 m/s we leave the hypervelocity regime
     );
-    const impactorDensity = sampleLognormal(rng, nominal.impactorDensity, 0.15);
+    const impactorDensity = sampleLognormal(
+      rng,
+      nominal.impactorDensity,
+      IMPACT_INPUT_SIGMA.density.sigma
+    );
     const targetDensity = nominal.targetDensity; // ground-fixed, not sampled
     const angleRad = sampleImpactAngle(rng);
     const out: ImpactScenarioInput = {

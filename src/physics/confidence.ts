@@ -3,6 +3,12 @@
  * large enough that rendering a single sharp number — or a crisp ring
  * on a map — is scientifically misleading.
  *
+ * The numerical σ values listed here mirror the OUTPUT_SIGMA dictionary
+ * in src/physics/uq/conventions.ts — that module is the single source
+ * of truth and carries the per-quantity citation. This file is kept
+ * for back-compat with existing callers (`bandFor()` is widely used
+ * across the UI); future code should import from `uq/conventions.ts`.
+ *
  * The physics modules still emit point estimates; this module only
  * declares the ±σ% band the UI should draw around each value.
  *
