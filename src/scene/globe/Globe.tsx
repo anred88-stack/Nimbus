@@ -1884,6 +1884,78 @@ export function Globe(): JSX.Element {
       // that happen to use 200°E (= −160°) still render — Cesium
       // handles antimeridian crossing when east < west.
       const normLon = (lon: number): number => ((((lon + 180) % 360) + 360) % 360) - 180;
+
+      // ---- Phase 11 GLOBAL layer FIRST (independent of local tile) ----
+      // The Phase 11 global layer must render even when the local
+      // tile is missing or unusable. Drawn at the BOTTOM of the
+      // visual stack so the local high-res layer (if present) sits
+      // on top and dominates near-source detail.
+      if (bathymetricTsunami.global?.amplitude !== undefined) {
+        try {
+          const gAmp = bathymetricTsunami.global.amplitude;
+          const gHeatmap = renderScalarFieldHeatmap(gAmp.amplitudes, gAmp.nLat, gAmp.nLon, {
+            colormap: 'inferno',
+            opacity: 0.32,
+            transparentBelow: 0.5,
+          });
+          viewer.entities.add({
+            id: 'tsunami-fmm-amplitude-global',
+            rectangle: {
+              coordinates: Rectangle.fromDegrees(-180, -85, 180, 85),
+              material: new ImageMaterialProperty({
+                image: gHeatmap.canvas,
+                transparent: true,
+              }),
+              height: 0,
+            },
+          });
+        } catch (err: unknown) {
+          console.warn('[Globe] global amplitude heatmap render failed:', err);
+        }
+        try {
+          const gAmp = bathymetricTsunami.global.amplitude;
+          const gGrid = useAppStore.getState().globalBathymetricGrid;
+          if (gGrid !== null) {
+            const bands = extractAmplitudeContours({
+              amplitudes: gAmp.amplitudes,
+              nLat: gAmp.nLat,
+              nLon: gAmp.nLon,
+              minLat: gGrid.minLat,
+              maxLat: gGrid.maxLat,
+              minLon: gGrid.minLon,
+              maxLon: gGrid.maxLon,
+              thresholds: [5, 1, 0.3],
+            });
+            const tierColors = [
+              Color.fromCssColorString('#DB2777'),
+              Color.fromCssColorString('#22D3EE'),
+              Color.fromCssColorString('#A5F3FC'),
+            ];
+            const tierAlpha = [0.7, 0.55, 0.4] as const;
+            const tierWidth = [3, 2.5, 2] as const;
+            bands.forEach((band, bandIdx) => {
+              const color = tierColors[bandIdx] ?? Color.WHITE;
+              const alpha = tierAlpha[bandIdx] ?? 0.4;
+              const width = tierWidth[bandIdx] ?? 2;
+              band.segments.forEach((seg, segIdx) => {
+                viewer.entities.add({
+                  id: `tsunami-global-iso-${bandIdx.toString()}-${segIdx.toString()}`,
+                  polyline: {
+                    positions: [
+                      Cartesian3.fromDegrees(seg.lon1, seg.lat1),
+                      Cartesian3.fromDegrees(seg.lon2, seg.lat2),
+                    ],
+                    width,
+                    material: color.withAlpha(alpha),
+                  },
+                });
+              });
+            });
+          }
+        } catch (err: unknown) {
+          console.warn('[Globe] global iso-amplitude render failed:', err);
+        }
+      }
       if (
         grid !== null &&
         Number.isFinite(grid.minLat) &&
@@ -1926,88 +1998,6 @@ export function Globe(): JSX.Element {
           });
         } catch (err: unknown) {
           console.warn('[Globe] FMM heatmap render failed:', err);
-        }
-        // ---- Phase 11 global layer (zoom-2 mosaic) ------------------
-        // When the orchestrator emitted a global low-res layer alongside
-        // the local one, render its amplitude heatmap as the BOTTOM of
-        // the visual stack. The local high-res inferno heatmap and the
-        // local iso-amplitude polylines drawn after this rectangle stay
-        // on top, so near-source detail is unaffected — the global
-        // layer just fills in the trans-oceanic field that used to be
-        // empty outside the local tile bbox.
-        if (bathymetricTsunami.global?.amplitude !== undefined) {
-          try {
-            const gAmp = bathymetricTsunami.global.amplitude;
-            const gHeatmap = renderScalarFieldHeatmap(gAmp.amplitudes, gAmp.nLat, gAmp.nLon, {
-              colormap: 'inferno',
-              // Slightly dimmer than the local layer (0.4) so when the
-              // two overlap near the source the local layer reads
-              // brighter and the global layer fades out as a halo.
-              opacity: 0.32,
-              transparentBelow: 0.5,
-            });
-            viewer.entities.add({
-              id: 'tsunami-fmm-amplitude-global',
-              rectangle: {
-                coordinates: Rectangle.fromDegrees(-180, -85, 180, 85),
-                material: new ImageMaterialProperty({
-                  image: gHeatmap.canvas,
-                  transparent: true,
-                }),
-                height: 0,
-              },
-            });
-          } catch (err: unknown) {
-            console.warn('[Globe] global amplitude heatmap render failed:', err);
-          }
-
-          // Global iso-amplitude contours at the SAME tier thresholds
-          // (5 / 1 / 0.3 m). Drawn slightly thinner than the local-tile
-          // contours so when both layers cross the same threshold near
-          // the source, the local one reads as the primary contour.
-          try {
-            const gAmp = bathymetricTsunami.global.amplitude;
-            const gGrid = useAppStore.getState().globalBathymetricGrid;
-            if (gGrid !== null) {
-              const bands = extractAmplitudeContours({
-                amplitudes: gAmp.amplitudes,
-                nLat: gAmp.nLat,
-                nLon: gAmp.nLon,
-                minLat: gGrid.minLat,
-                maxLat: gGrid.maxLat,
-                minLon: gGrid.minLon,
-                maxLon: gGrid.maxLon,
-                thresholds: [5, 1, 0.3],
-              });
-              const tierColors = [
-                Color.fromCssColorString('#DB2777'),
-                Color.fromCssColorString('#22D3EE'),
-                Color.fromCssColorString('#A5F3FC'),
-              ];
-              const tierAlpha = [0.7, 0.55, 0.4] as const;
-              const tierWidth = [3, 2.5, 2] as const;
-              bands.forEach((band, bandIdx) => {
-                const color = tierColors[bandIdx] ?? Color.WHITE;
-                const alpha = tierAlpha[bandIdx] ?? 0.4;
-                const width = tierWidth[bandIdx] ?? 2;
-                band.segments.forEach((seg, segIdx) => {
-                  viewer.entities.add({
-                    id: `tsunami-global-iso-${bandIdx.toString()}-${segIdx.toString()}`,
-                    polyline: {
-                      positions: [
-                        Cartesian3.fromDegrees(seg.lon1, seg.lat1),
-                        Cartesian3.fromDegrees(seg.lon2, seg.lat2),
-                      ],
-                      width,
-                      material: color.withAlpha(alpha),
-                    },
-                  });
-                });
-              });
-            }
-          } catch (err: unknown) {
-            console.warn('[Globe] global iso-amplitude render failed:', err);
-          }
         }
         // When the orchestrator passed source-amplitude metadata to the
         // FMM, the bathymetric block carries an amplitude field too —
