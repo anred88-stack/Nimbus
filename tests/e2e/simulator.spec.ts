@@ -76,12 +76,13 @@ test.describe('simulator flow', () => {
     // Default Chicxulub preset has the K-Pg impactor note.
     await expect(page.getByText(/Hildebrand et al\. 1991/)).toBeVisible();
 
-    // Switching to a volcano preset updates the caption.
+    // Switching to a volcano preset updates the caption. The first volcano
+    // in the panel is Vesuvius 79 CE — its note cites Pompeii / Herculaneum.
     await page.getByLabel('Event type').selectOption('volcano');
-    await expect(page.getByText(/Sunda Strait paroxysmal eruption/)).toBeVisible();
+    await expect(page.getByText(/Pompeii and Herculaneum/)).toBeVisible();
   });
 
-  test('preset dropdown offers all five impact scenarios by default', async ({ page }) => {
+  test('preset dropdown offers every impact scenario by default', async ({ page }) => {
     await page.goto('/?lng=en');
     await page.getByRole('button', { name: 'Try the simulator →' }).click();
 
@@ -90,8 +91,11 @@ test.describe('simulator flow', () => {
     await expect(select.locator('option')).toHaveText([
       'Chicxulub',
       'Chicxulub (ocean variant)',
+      'Popigai 35.7 Ma',
+      'Boltysh 65.4 Ma',
       'Tunguska',
       'Meteor Crater (Barringer)',
+      'Sikhote-Alin 1947',
       'Chelyabinsk 2013',
     ]);
   });
@@ -107,7 +111,10 @@ test.describe('simulator flow', () => {
     await expect(page.getByLabel('Preset').locator('option')).toHaveText([
       'Hiroshima 1945',
       'Nagasaki 1945',
+      'Halifax 1917',
+      'Texas City 1947',
       'Beirut port 2020',
+      'Ivy Mike 1952',
       'Castle Bravo 1954',
       'Tsar Bomba 1961',
       'Starfish Prime 1962',
@@ -116,27 +123,39 @@ test.describe('simulator flow', () => {
 
     await eventTypeSelect.selectOption('earthquake');
     await expect(page.getByLabel('Preset').locator('option')).toHaveText([
+      'Valdivia 1960',
+      'Great Alaska 1964',
       'Tōhoku 2011',
       'Sumatra–Andaman 2004',
       'Lisbon 1755',
+      'Nepal Gorkha 2015',
       'Northridge 1994',
       'Kokoxili (Kunlun) 2001',
+      "L'Aquila 2009",
+      'Amatrice 2016',
     ]);
 
     await eventTypeSelect.selectOption('volcano');
     await expect(page.getByLabel('Preset').locator('option')).toHaveText([
+      'Vesuvius 79 CE',
       'Krakatau 1883',
-      'Anak Krakatau 2018',
-      'Mount St. Helens 1980',
       'Tambora 1815',
+      'Mount St. Helens 1980',
+      'Mount Pelée 1902',
+      'Etna 1669',
       'Pinatubo 1991',
+      'Eyjafjallajökull 2010',
+      'Hunga Tonga 2022',
+      'Anak Krakatau 2018',
     ]);
 
     await eventTypeSelect.selectOption('landslide');
     await expect(page.getByLabel('Preset').locator('option')).toHaveText([
       'Storegga ≈ 8 200 BP',
+      'Vaiont 1963',
       'Anak Krakatau 2018 (slide framing)',
       'Lituya Bay 1958',
+      'Elm 1881',
     ]);
   });
 
