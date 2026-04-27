@@ -316,6 +316,14 @@ export function Globe(): JSX.Element {
   const selectAftershock = useAppStore((s) => s.selectAftershock);
   const selectedAftershockIndex = useAppStore((s) => s.selectedAftershockIndex);
   const location = useAppStore((s) => s.location);
+  // The location at which the most recent simulation was actually
+  // run. Pin marker follows the live `location` (so the user sees
+  // their click move the dot), but the result entities — damage rings,
+  // tsunami cavity, isochrones, all the cascading payload — stay
+  // anchored on this so the previous simulation's overlay doesn't
+  // teleport across the globe when the user clicks somewhere new
+  // without pressing Launch.
+  const lastEvaluatedAtLocation = useAppStore((s) => s.lastEvaluatedAtLocation);
   const result = useAppStore((s) => s.result);
   const bathymetricTsunami = useAppStore((s) => s.bathymetricTsunami);
   const monteCarlo = useAppStore((s) => s.monteCarlo);
@@ -443,7 +451,11 @@ export function Globe(): JSX.Element {
       // camera to a north-up trackball: pan + zoom + click-pick is
       // the entire interaction surface.
       const ctrl = viewer.scene.screenSpaceCameraController;
-      ctrl.enableRotate = false;
+      // Left-drag (Cesium's "rotate" gesture in 3D mode) stays on —
+      // that's the natural "spin the globe under the camera" feel
+      // people expect from a 3D Earth. We only disable the gestures
+      // that lose orientation: middle-drag tilt and ctrl-drag look.
+      ctrl.enableRotate = true;
       ctrl.enableTilt = false;
       ctrl.enableLook = false;
       // Bound the zoom so a wheel-spin off the limb doesn't fling the
@@ -652,6 +664,15 @@ export function Globe(): JSX.Element {
   // on every re-evaluate so stale loops don't keep mutating an entity
   // that's about to be removed by the stale-entity sweep.
   const cancelWavefrontRef = useRef<(() => void) | null>(null);
+  // Track the previous result/MC/bathy references so the render
+  // effect can short-circuit when only `location` changed: we still
+  // want the pin marker to move with the click, but the heavy
+  // result-rendering work (sweep + ring rebuild + cascade + camera
+  // fly) must NOT re-run, otherwise panning the pin looks like a
+  // fresh simulation kicked off.
+  const prevResultRef = useRef<typeof result>(null);
+  const prevBathymetricRef = useRef<typeof bathymetricTsunami>(null);
+  const prevMonteCarloRef = useRef<typeof monteCarlo>(null);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -730,21 +751,79 @@ export function Globe(): JSX.Element {
       });
     };
 
-    // Wipe every overlay entity left over from the previous scenario.
-    // The old code enumerated each id (or id-prefix) one by one, which
-    // worked until the next contributor added a new entity type and
-    // forgot to extend the sweep — the user reported pink tsunami
-    // wave-fronts and an FMM heatmap rectangle hanging around after
-    // re-clicking inland, exactly the failure mode an enumeration miss
-    // produces. The defensive prefix sweep below catches anything whose
-    // id matches SIM_ENTITY_PREFIXES, so future additions stay covered
-    // as long as the new id starts with one of those tokens.
-    purgeSimulationEntities(viewer);
+    // Detect whether anything has changed beyond the pin position. If
+    // only `location` shifted (the user clicked a new point without
+    // pressing Launch) we just want to move the marker — the result
+    // rings, tsunami cavity, isochrones and FMM heatmap should keep
+    // pointing at wherever evaluate last ran. Comparing references is
+    // enough: every store action that mutates these slices writes a
+    // new object via Zustand's set, so a stable reference means the
+    // payload genuinely hasn't changed.
+    const resultChanged =
+      prevResultRef.current !== result ||
+      prevBathymetricRef.current !== bathymetricTsunami ||
+      prevMonteCarloRef.current !== monteCarlo;
+    prevResultRef.current = result;
+    prevBathymetricRef.current = bathymetricTsunami;
+    prevMonteCarloRef.current = monteCarlo;
+
+    // The marker (pin + halo) always tracks the live click position,
+    // so we tear it down and rebuild it on every render — cheap, two
+    // entities. The heavier result-derived sweep is gated below.
+    const existingMarker = viewer.entities.getById(MARKER_ID);
+    if (existingMarker) viewer.entities.remove(existingMarker);
+    const existingHalo = viewer.entities.getById(MARKER_HALO_ID);
+    if (existingHalo) viewer.entities.remove(existingHalo);
 
     if (!location) {
+      // No pin → wipe everything (result + marker) and bail.
+      purgeSimulationEntities(viewer);
       viewer.scene.requestRender();
       return;
     }
+
+    // Result didn't change since the last render — just refresh the
+    // marker and stop. Skips the prefix sweep, the cascade animation
+    // and the camera fly-to, so panning the pin doesn't replay the
+    // ring-grow sequence on the screen.
+    if (!resultChanged) {
+      // Re-create the marker at the new pin and exit.
+      const movedPin = Cartesian3.fromDegrees(location.longitude, location.latitude);
+      const haloOutlineProp = new CallbackProperty(() => {
+        if (!terrainPulsingRef.current) return MARKER_COLOR.withAlpha(0.5);
+        const t = (Date.now() % 1_400) / 1_400;
+        const alpha = 0.55 + 0.3 * Math.sin(t * Math.PI * 2);
+        return MARKER_COLOR.withAlpha(alpha);
+      }, false);
+      viewer.entities.add({
+        id: MARKER_HALO_ID,
+        position: movedPin,
+        point: {
+          pixelSize: 18,
+          color: MARKER_COLOR.withAlpha(0.0),
+          outlineColor: haloOutlineProp,
+          outlineWidth: 1.5,
+        },
+      });
+      viewer.entities.add({
+        id: MARKER_ID,
+        position: movedPin,
+        point: {
+          pixelSize: 8,
+          color: MARKER_COLOR,
+          outlineColor: Color.WHITE.withAlpha(0.55),
+          outlineWidth: 1.5,
+        },
+      });
+      viewer.scene.requestRender();
+      return;
+    }
+
+    // Result genuinely changed — sweep the previous run's overlays
+    // (tsunami contours, MMI rings, FMM heatmap, etc.) and rebuild
+    // from the new payload. The prefix sweep also pulls down the
+    // stale marker, which the block below re-creates.
+    purgeSimulationEntities(viewer);
 
     // Anchor the sun to local solar noon over the picked longitude.
     // Driven from the rendering effect (not the viewer-init effect) so
@@ -755,7 +834,13 @@ export function Globe(): JSX.Element {
     // same URL within the same day.
     viewer.clock.currentTime = localSolarNoonForLongitude(location.longitude);
 
-    const centerCartesian = Cartesian3.fromDegrees(location.longitude, location.latitude);
+    // Pin marker is at the live click point. Result-derived overlays
+    // (rings, tsunami cavity, FMM heatmap, …) anchor on the location
+    // the simulator was last run against — so panning the pin to a
+    // new spot does not drag the previous run's rings along with it.
+    const pinCartesian = Cartesian3.fromDegrees(location.longitude, location.latitude);
+    const ringAnchor = lastEvaluatedAtLocation ?? location;
+    const centerCartesian = Cartesian3.fromDegrees(ringAnchor.longitude, ringAnchor.latitude);
     /** Accumulates ring-animation specs as we register entities with
      *  initial semiMajor/Minor = 0. After every branch has added its
      *  entities we fire `animateRingsImperatively(specs)` to ramp
@@ -940,7 +1025,7 @@ export function Globe(): JSX.Element {
     }, false);
     viewer.entities.add({
       id: MARKER_HALO_ID,
-      position: centerCartesian,
+      position: pinCartesian,
       point: {
         pixelSize: 18,
         color: MARKER_COLOR.withAlpha(0.0),
@@ -950,7 +1035,7 @@ export function Globe(): JSX.Element {
     });
     viewer.entities.add({
       id: MARKER_ID,
-      position: centerCartesian,
+      position: pinCartesian,
       point: {
         pixelSize: 8,
         color: MARKER_COLOR,
@@ -984,8 +1069,8 @@ export function Globe(): JSX.Element {
         const geom = computeAsymmetricGeometry(
           asymmetries[key],
           radius,
-          location.latitude,
-          location.longitude
+          ringAnchor.latitude,
+          ringAnchor.longitude
         );
         const entity = viewer.entities.add({
           id: entityId,
@@ -1052,12 +1137,12 @@ export function Globe(): JSX.Element {
         const semiMajor = blanketRadius * (1 + 0.4 * f);
         const semiMinor = blanketRadius * (1 - 0.25 * f);
         // Convert (north, east) offset in metres to lat/lon deltas.
-        const latRad = (location.latitude * Math.PI) / 180;
+        const latRad = (ringAnchor.latitude * Math.PI) / 180;
         const northOffsetDeg = (offsetMeters * Math.cos(azimuthRad)) / 111_000;
         const eastOffsetDeg =
           (offsetMeters * Math.sin(azimuthRad)) / (111_000 * Math.max(Math.cos(latRad), 1e-6));
-        const blanketLat = location.latitude + northOffsetDeg;
-        const blanketLon = location.longitude + eastOffsetDeg;
+        const blanketLat = ringAnchor.latitude + northOffsetDeg;
+        const blanketLon = ringAnchor.longitude + eastOffsetDeg;
         // Cesium ellipse rotation: CCW from East (+x). Azimuth is CW
         // from North → cesiumRotation = π/2 − azimuthRad.
         const cesiumRotation = Math.PI / 2 - azimuthRad;
@@ -1099,7 +1184,7 @@ export function Globe(): JSX.Element {
 
     // --- Earthquake: aftershock point cloud ------------------------
     if (result.type === 'earthquake' && result.data.aftershocks.events.length > 0) {
-      const latRad = (location.latitude * Math.PI) / 180;
+      const latRad = (ringAnchor.latitude * Math.PI) / 180;
       const cosLat = Math.max(Math.cos(latRad), 1e-6);
       const bath = result.data.aftershocks.bathCeiling;
       const mc = result.data.aftershocks.completenessCutoff;
@@ -1117,7 +1202,7 @@ export function Globe(): JSX.Element {
         const entityId = `${AFTERSHOCK_ID_PREFIX}${idx.toString()}`;
         const entity = viewer.entities.add({
           id: entityId,
-          position: Cartesian3.fromDegrees(location.longitude + dlon, location.latitude + dlat),
+          position: Cartesian3.fromDegrees(ringAnchor.longitude + dlon, ringAnchor.latitude + dlat),
           point: {
             // animateAftershocksImperatively flips show=true at the
             // log-compressed onset; we start hidden so the loop owns
@@ -1309,7 +1394,12 @@ export function Globe(): JSX.Element {
         // is supplied (Glasstone & Dolan §7.20). The same geometry
         // helper applies regardless: it short-circuits to a centred
         // circle when the multipliers are 1 and the offset is 0.
-        const geom = computeAsymmetricGeometry(asym, radius, location.latitude, location.longitude);
+        const geom = computeAsymmetricGeometry(
+          asym,
+          radius,
+          ringAnchor.latitude,
+          ringAnchor.longitude
+        );
         const entity = viewer.entities.add({
           id,
           position: geom.position,
@@ -1465,12 +1555,12 @@ export function Globe(): JSX.Element {
       const halfRange = runout / 2;
       const crosswindHalfWidth =
         runout * Math.sin(((lateralBlast.sectorAngleDeg / 2) * Math.PI) / 180);
-      const latRad = (location.latitude * Math.PI) / 180;
+      const latRad = (ringAnchor.latitude * Math.PI) / 180;
       const northOffsetDeg = (halfRange * Math.cos(dirRad)) / 111_000;
       const eastOffsetDeg =
         (halfRange * Math.sin(dirRad)) / (111_000 * Math.max(Math.cos(latRad), 1e-6));
-      const blastLat = location.latitude + northOffsetDeg;
-      const blastLon = location.longitude + eastOffsetDeg;
+      const blastLat = ringAnchor.latitude + northOffsetDeg;
+      const blastLon = ringAnchor.longitude + eastOffsetDeg;
       const cesiumRotation = Math.PI / 2 - dirRad;
       viewer.entities.add({
         id: LATERAL_BLAST_ID,
@@ -1503,12 +1593,12 @@ export function Globe(): JSX.Element {
       // the plume extends from ~vent to vent + downwindRange.
       const halfRange = downwind / 2;
       // Convert (north, east) offsets in metres to lat/lon deltas.
-      const latRad = (location.latitude * Math.PI) / 180;
+      const latRad = (ringAnchor.latitude * Math.PI) / 180;
       const northOffsetDeg = (halfRange * Math.cos(windDirRad)) / 111_000;
       const eastOffsetDeg =
         (halfRange * Math.sin(windDirRad)) / (111_000 * Math.max(Math.cos(latRad), 1e-6));
-      const plumeLat = location.latitude + northOffsetDeg;
-      const plumeLon = location.longitude + eastOffsetDeg;
+      const plumeLat = ringAnchor.latitude + northOffsetDeg;
+      const plumeLon = ringAnchor.longitude + eastOffsetDeg;
       // Cesium ellipse rotation is counter-clockwise from East (+x).
       // Wind direction is clockwise from North. Convert: ccwFromEast =
       // π/2 − windDirRad.
@@ -1672,10 +1762,10 @@ export function Globe(): JSX.Element {
               material: color.withAlpha(0.95),
             },
           });
-          const latSpan1 = Math.abs(seg.lat1 - location.latitude);
-          const lonSpan1 = Math.abs(seg.lon1 - location.longitude);
-          const latSpan2 = Math.abs(seg.lat2 - location.latitude);
-          const lonSpan2 = Math.abs(seg.lon2 - location.longitude);
+          const latSpan1 = Math.abs(seg.lat1 - ringAnchor.latitude);
+          const lonSpan1 = Math.abs(seg.lon1 - ringAnchor.longitude);
+          const latSpan2 = Math.abs(seg.lat2 - ringAnchor.latitude);
+          const lonSpan2 = Math.abs(seg.lon2 - ringAnchor.longitude);
           const r1 = Math.sqrt(latSpan1 * latSpan1 + lonSpan1 * lonSpan1) * 111_000;
           const r2 = Math.sqrt(latSpan2 * latSpan2 + lonSpan2 * lonSpan2) * 111_000;
           bandRadiusSum += (r1 + r2) / 2;
@@ -1857,15 +1947,15 @@ export function Globe(): JSX.Element {
       if (result.type === 'impact') {
         cancelExplosionVfxRef.current = spawnExplosionVfxFromJoules({
           viewer,
-          latitude: location.latitude,
-          longitude: location.longitude,
+          latitude: ringAnchor.latitude,
+          longitude: ringAnchor.longitude,
           energyJoules: result.data.impactor.kineticEnergy,
         });
       } else if (result.type === 'explosion') {
         cancelExplosionVfxRef.current = spawnExplosionVfxFromJoules({
           viewer,
-          latitude: location.latitude,
-          longitude: location.longitude,
+          latitude: ringAnchor.latitude,
+          longitude: ringAnchor.longitude,
           energyJoules: result.data.yield.joules,
         });
       }
@@ -1903,7 +1993,7 @@ export function Globe(): JSX.Element {
     // FMM heatmap appear on the very next frame instead of waiting for
     // the user to mouse over the canvas.
     viewer.scene.requestRender();
-  }, [location, result, bathymetricTsunami, monteCarlo]);
+  }, [location, lastEvaluatedAtLocation, result, bathymetricTsunami, monteCarlo]);
 
   // --- Aftershock click-through detail rings ---------------------------
   // When the user clicks an aftershock dot, paint three dim MMI V/VI/VII
