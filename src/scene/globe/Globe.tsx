@@ -432,6 +432,33 @@ export function Globe(): JSX.Element {
         viewer.scene.skyAtmosphere.brightnessShift = -0.05;
       }
 
+      // --- Camera controls -------------------------------------------
+      // Cesium ships with all six gestures wired to the trackball
+      // (left-drag pan, wheel zoom, right-drag rotate, mid-drag tilt,
+      // shift-drag spin, ctrl-drag look). For a popular-science
+      // simulator targeting users who don't regularly fly cameras
+      // around 3D scenes, the rotate / tilt / look set is the source
+      // of "I lost the globe" reports — a stray right-drag flips the
+      // pole and the user has no anchor to recover from. Lock the
+      // camera to a north-up trackball: pan + zoom + click-pick is
+      // the entire interaction surface.
+      const ctrl = viewer.scene.screenSpaceCameraController;
+      ctrl.enableRotate = false;
+      ctrl.enableTilt = false;
+      ctrl.enableLook = false;
+      // Bound the zoom so a wheel-spin off the limb doesn't fling the
+      // camera into deep space. 1 km close is enough for "smallest
+      // ring still readable" framings; 30 000 km out fits the entire
+      // visible disc without showing the void around it.
+      ctrl.minimumZoomDistance = 1_000;
+      ctrl.maximumZoomDistance = 30_000_000;
+      // Tone down the inertia so a gentle drag doesn't drift for
+      // half a second after release — predictable feels less
+      // "lost in space".
+      ctrl.inertiaTranslate = 0.5;
+      ctrl.inertiaZoom = 0.4;
+      ctrl.inertiaSpin = 0;
+
       handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
       handler.setInputAction((event: ScreenSpaceEventHandler.PositionedEvent) => {
         const activeViewer = viewerRef.current;
