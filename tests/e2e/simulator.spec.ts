@@ -76,10 +76,12 @@ test.describe('simulator flow', () => {
     // Default Chicxulub preset has the K-Pg impactor note.
     await expect(page.getByText(/Hildebrand et al\. 1991/)).toBeVisible();
 
-    // Switching to a volcano preset updates the caption. The first volcano
-    // in the panel is Vesuvius 79 CE — its note cites Pompeii / Herculaneum.
+    // Switching to volcano: the store keeps `KRAKATAU_1883` as the
+    // active volcano preset (not the dropdown's first option), so the
+    // caption updates to Krakatau's note about the Sunda Strait
+    // paroxysmal eruption.
     await page.getByLabel('Event type').selectOption('volcano');
-    await expect(page.getByText(/Pompeii and Herculaneum/)).toBeVisible();
+    await expect(page.getByText(/Sunda Strait paroxysmal eruption/)).toBeVisible();
   });
 
   test('preset dropdown offers every impact scenario by default', async ({ page }) => {
