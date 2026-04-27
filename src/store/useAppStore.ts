@@ -57,7 +57,7 @@ import {
   type ImpactScenarioInput,
   type ImpactScenarioResult,
 } from '../physics/simulate.js';
-import { deg, degreesToRadians, kgPerM3, m, mps } from '../physics/units.js';
+import { deg, degreesToRadians, kgPerM3, m, mps, sqm } from '../physics/units.js';
 
 /** Top-level event categories the simulator supports. */
 export type EventType = 'impact' | 'explosion' | 'earthquake' | 'volcano' | 'landslide';
@@ -489,6 +489,99 @@ function deriveBeachSlope(
   if (!Number.isFinite(slope)) return undefined;
   if (slope < MIN_BEACH_SLOPE_RAD || slope > MAX_BEACH_SLOPE_RAD) return undefined;
   return slope;
+}
+
+/**
+ * Strip terrestrial-only effects from an impact result when the click
+ * is over open water. Two cascade entries depend on having continental
+ * crust and saturated sediment under the impactor:
+ *
+ *   - the local firestorm — Glasstone & Dolan §7 burn-fluence radii
+ *     are computed from incident thermal flux, but the cascade only
+ *     develops in the presence of flammable terrestrial fuel; mid-
+ *     ocean fireballs irradiate water, not forests. (The global
+ *     ejecta-reentry ignition pulse, modelled separately as
+ *     `cascade.impact.ejectaReentry`, still fires for GLOBAL- and
+ *     EXTINCTION-tier events regardless of the click point.)
+ *   - the impact-induced liquefaction ring — Youd & Idriss (2001)
+ *     explicitly ties the trigger to saturated sandy soils within
+ *     reach of the seismic radiator, which doesn't apply when the
+ *     epicentre is itself in a deep-ocean basin.
+ *
+ * Returns the result with those fields zeroed when the click is in
+ * open water, otherwise hands the result back unchanged. Cascade
+ * builders and the globe renderer both treat the zero radii as "no
+ * stage".
+ */
+function gateImpactByTerrain(
+  data: ImpactScenarioResult,
+  isOpenWater: boolean
+): ImpactScenarioResult {
+  if (!isOpenWater) return data;
+  return {
+    ...data,
+    firestorm: {
+      ...data.firestorm,
+      ignitionRadius: m(0),
+      sustainRadius: m(0),
+      ignitionArea: sqm(0),
+    },
+    seismic: {
+      ...data.seismic,
+      liquefactionRadius: m(0),
+    },
+  };
+}
+
+/**
+ * Same idea for explosions: a detonation in open water (mid-Pacific
+ * test, abyssal-ocean click) leaves no surface crater — the energy
+ * goes into a steam/gas bubble pulse, not into excavating bedrock —
+ * and there is no flammable terrestrial fuel inside the ignition
+ * radius. Coastal contact-water bursts (Beirut, Castle Bravo on the
+ * Bikini reef) sit at z >= -10 and are therefore not gated here:
+ * they keep their firestorm and crater outputs because real-world
+ * observations confirm both happen.
+ */
+function gateExplosionByTerrain(
+  data: ExplosionScenarioResult,
+  isOpenWater: boolean
+): ExplosionScenarioResult {
+  if (!isOpenWater) return data;
+  return {
+    ...data,
+    firestorm: {
+      ...data.firestorm,
+      ignitionRadius: m(0),
+      sustainRadius: m(0),
+      ignitionArea: sqm(0),
+      sustainArea: sqm(0),
+    },
+    crater: {
+      ...data.crater,
+      apparentDiameter: m(0),
+    },
+  };
+}
+
+/**
+ * Liquefaction needs saturated cohesionless terrestrial sediment
+ * (Youd & Idriss 2001). For a submarine epicentre the centre of the
+ * ring sits in seafloor sediments where neither the surface-PGA
+ * correlation nor the resulting structural-damage interpretation
+ * carry over. Tōhoku-class coastal liquefaction is still flagged via
+ * the MMI contour rings, which the renderer keeps drawing across the
+ * shoreline at a dimmed alpha.
+ */
+function gateEarthquakeByTerrain(data: EarthquakeScenarioResult): EarthquakeScenarioResult {
+  if (!data.isSubmarine) return data;
+  return {
+    ...data,
+    shaking: {
+      ...data.shaking,
+      liquefactionRadius: m(0),
+    },
+  };
 }
 
 /** True when the loaded DEM tile actually contains the click point.
@@ -997,17 +1090,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
         //      the coastline so a sandbar one pixel below MSL doesn't
         //      misfire the tsunami cascade.
         let impactInput = state.impact.input;
-        if (
-          impactInput.waterDepth === undefined &&
+        // Sample terrain once and reuse: the same z drives both the
+        // waterDepth auto-derivation and the post-simulation gate
+        // for terrestrial-only effects (firestorm / liquefaction).
+        const impactClickZ =
           state.elevationGrid !== null &&
           state.location !== null &&
           gridCoversLocation(state.elevationGrid, state.location)
-        ) {
-          const z = sampleElevation(
-            state.elevationGrid,
-            state.location.latitude,
-            state.location.longitude
-          );
+            ? sampleElevation(
+                state.elevationGrid,
+                state.location.latitude,
+                state.location.longitude
+              )
+            : undefined;
+        const impactClickIsOpenWater = impactClickZ !== undefined && impactClickZ < OCEAN_FLOOR_M;
+        if (impactInput.waterDepth === undefined && impactClickZ !== undefined) {
           // Tsunami source needs the impactor to actually piston a
           // water column, which only happens when the click point is
           // itself below sea level. Earlier code synthesised a ~200 m
@@ -1015,12 +1112,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
           // spurious wave train for inland-near-coast clicks (Tunguska
           // dropped on Sicily auto-fired the Ward-Asphaug cavity even
           // though the cavity itself is ~1 km across and never reaches
-          // the sea). For impacts we now require the click cell to be
-          // open water — the explosion branch keeps the coastal
-          // synthesis because Beirut / Castle Bravo really did couple
-          // into a quayside basin.
-          if (z < OCEAN_FLOOR_M) {
-            impactInput = { ...impactInput, waterDepth: m(-z) };
+          // the sea). The explosion branch keeps the coastal synthesis
+          // because Beirut / Castle Bravo did couple into a quayside
+          // basin.
+          if (impactClickIsOpenWater) {
+            impactInput = { ...impactInput, waterDepth: m(-impactClickZ) };
           }
         }
         // DEM-driven beach slope for the Synolakis run-up — see
@@ -1035,7 +1131,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
             impactInput = { ...impactInput, coastalBeachSlopeRad: beachSlope };
           }
         }
-        result = { type: 'impact', data: await sim.simulateImpact(impactInput) };
+        const impactData = await sim.simulateImpact(impactInput);
+        result = { type: 'impact', data: gateImpactByTerrain(impactData, impactClickIsOpenWater) };
       } else if (state.eventType === 'explosion') {
         // Auto-derive waterDepth from bathymetry (same pattern as
         // impact above): if the user picked an ocean point and the
@@ -1056,8 +1153,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
         // dampen the headline amplitude — a separate follow-up will
         // introduce a "near-shore" coupling correction proper.
         let explosionInput = state.explosion.input;
+        let explosionClickIsOpenWater = false;
         if (
-          explosionInput.waterDepth === undefined &&
           state.elevationGrid !== null &&
           state.location !== null &&
           gridCoversLocation(state.elevationGrid, state.location)
@@ -1067,19 +1164,22 @@ export const useAppStore = create<AppStore>((set, get) => ({
             state.location.latitude,
             state.location.longitude
           );
-          if (z < OCEAN_FLOOR_M) {
-            explosionInput = { ...explosionInput, waterDepth: m(-z) };
-          } else {
-            // Land cell — try the 5 km neighbourhood.
-            const coastalDepth = findNearbyOceanDepth(
-              state.elevationGrid,
-              state.location.latitude,
-              state.location.longitude,
-              5_000
-            );
-            if (coastalDepth !== null) {
-              const cappedDepth = Math.min(coastalDepth, 200);
-              explosionInput = { ...explosionInput, waterDepth: m(cappedDepth) };
+          explosionClickIsOpenWater = z < OCEAN_FLOOR_M;
+          if (explosionInput.waterDepth === undefined) {
+            if (explosionClickIsOpenWater) {
+              explosionInput = { ...explosionInput, waterDepth: m(-z) };
+            } else {
+              // Land cell — try the 5 km neighbourhood.
+              const coastalDepth = findNearbyOceanDepth(
+                state.elevationGrid,
+                state.location.latitude,
+                state.location.longitude,
+                5_000
+              );
+              if (coastalDepth !== null) {
+                const cappedDepth = Math.min(coastalDepth, 200);
+                explosionInput = { ...explosionInput, waterDepth: m(cappedDepth) };
+              }
             }
           }
         }
@@ -1093,7 +1193,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
             explosionInput = { ...explosionInput, coastalBeachSlopeRad: beachSlope };
           }
         }
-        result = { type: 'explosion', data: await sim.simulateExplosion(explosionInput) };
+        const explosionData = await sim.simulateExplosion(explosionInput);
+        result = {
+          type: 'explosion',
+          data: gateExplosionByTerrain(explosionData, explosionClickIsOpenWater),
+        };
       } else if (state.eventType === 'earthquake') {
         // Auto-derive Vs30 from the topographic-slope proxy when the
         // user has not specified one AND an elevation grid is loaded.
@@ -1145,7 +1249,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
             earthquakeInput = { ...earthquakeInput, coastalBeachSlopeRad: beachSlope };
           }
         }
-        result = { type: 'earthquake', data: await sim.simulateEarthquake(earthquakeInput) };
+        const earthquakeData = await sim.simulateEarthquake(earthquakeInput);
+        result = { type: 'earthquake', data: gateEarthquakeByTerrain(earthquakeData) };
       } else if (state.eventType === 'volcano') {
         result = { type: 'volcano', data: await sim.simulateVolcano(state.volcano.input) };
       } else {
