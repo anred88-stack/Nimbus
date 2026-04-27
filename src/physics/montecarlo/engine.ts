@@ -37,6 +37,11 @@ export interface MonteCarloOutput<TMetrics extends Record<string, number>> {
   iterations: number;
   /** Per-metric percentile summaries. */
   metrics: { [K in keyof TMetrics]: PercentileSummary };
+  /** Per-metric raw sample sets (sorted ascending), kept for the
+   *  ECDF-driven ring rendering in Phase 8c. Only the keys that
+   *  collected ≥ 1 finite sample appear here; pathological metrics
+   *  with all-NaN columns are dropped. */
+  rawSamples: { [K in keyof TMetrics]?: readonly number[] };
 }
 
 export interface MonteCarloInput<TInput, TOutput, TMetrics extends Record<string, number>> {
@@ -106,8 +111,13 @@ export function runMonteCarlo<TInput, TOutput, TMetrics extends Record<string, n
     }
   }
   const summary = {} as { [K in keyof TMetrics]: PercentileSummary };
+  const rawSamples = {} as { [K in keyof TMetrics]?: readonly number[] };
   for (const [key, values] of columns.entries()) {
     (summary as Record<string, PercentileSummary>)[key] = percentileSummary(values);
+    // Sort ascending and freeze: callers may build ECDFs against
+    // the same array repeatedly without re-sorting.
+    const sorted = [...values].filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
+    (rawSamples as Record<string, readonly number[]>)[key] = Object.freeze(sorted);
   }
-  return { iterations: successful, metrics: summary };
+  return { iterations: successful, metrics: summary, rawSamples };
 }

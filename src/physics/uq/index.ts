@@ -12,3 +12,4 @@ export {
   type OatSensitivityResult,
   type OatSensitivityRow,
 } from './sensitivity.js';
+export { buildExceedanceProbability, type ExceedanceProbability } from './ecdf.js';

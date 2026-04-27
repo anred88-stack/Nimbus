@@ -31,7 +31,9 @@ import {
 } from '../../store/index.js';
 import type { WindAdvectedAshfall } from '../../physics/events/volcano/index.js';
 import { extractAmplitudeContours } from '../../physics/tsunami/isochrones.js';
+import { buildExceedanceProbability } from '../../physics/uq/ecdf.js';
 import { renderScalarFieldHeatmap } from '../heatmap.js';
+import { renderRadialEcdfBitmap } from '../radialEcdfBitmap.js';
 import {
   animateAftershocksImperatively,
   type AftershockAnimationSpec,
@@ -2077,6 +2079,60 @@ export function Globe(): JSX.Element {
         };
         drawBand('p10', spec.p10, spec.color, 0.4);
         drawBand('p90', spec.p90, spec.color, 0.4);
+
+        // Phase 8c — radial ECDF heatmap underneath the bands. When
+        // the MC engine returned the raw sample set, build an
+        // exceedance-probability oracle and render its 256-step
+        // radial alpha gradient as a Cesium Rectangle. The result
+        // visually conveys "darker = very likely, fading = rare worst
+        // case" on top of the existing P10/P90 reference rings.
+        if (spec.samples !== undefined && spec.samples.length > 0) {
+          // Convert diameter samples to radii so the bitmap's
+          // halfEdge matches the ground-range radius the rings live
+          // in.
+          const radiusSamples =
+            spec.scale === 'diameter' ? spec.samples.map((s) => s / 2) : spec.samples;
+          const ecdf = buildExceedanceProbability(radiusSamples);
+          try {
+            const bitmap = renderRadialEcdfBitmap(ecdf, {
+              size: 256,
+              maxAlpha: 0.35,
+              rgb: [
+                Math.round(spec.color.red * 255),
+                Math.round(spec.color.green * 255),
+                Math.round(spec.color.blue * 255),
+              ],
+            });
+            if (bitmap !== null) {
+              const halfEdgeM = bitmap.halfEdgeMeters;
+              // Convert metres to a Cesium Rectangle in degrees,
+              // adjusting the longitude span by cos(latitude) so the
+              // bitmap stays geometrically square at non-equatorial
+              // latitudes.
+              const latDeg = halfEdgeM / 111_000;
+              const cosLat = Math.max(Math.cos((ringAnchor.latitude * Math.PI) / 180), 1e-6);
+              const lonDeg = latDeg / cosLat;
+              viewer.entities.add({
+                id: `${FUZZY_RING_ID_PREFIX}${idx.toString()}-ecdf`,
+                rectangle: {
+                  coordinates: Rectangle.fromDegrees(
+                    ringAnchor.longitude - lonDeg,
+                    ringAnchor.latitude - latDeg,
+                    ringAnchor.longitude + lonDeg,
+                    ringAnchor.latitude + latDeg
+                  ),
+                  material: new ImageMaterialProperty({
+                    image: bitmap.canvas,
+                    transparent: true,
+                  }),
+                  height: 0,
+                },
+              });
+            }
+          } catch (err: unknown) {
+            console.warn('[Globe] radial ECDF heatmap render failed:', err);
+          }
+        }
       });
     }
 
@@ -2369,7 +2425,22 @@ export function Globe(): JSX.Element {
  * = eight extra rings on a busy globe. We pick the metric the user
  * most often asks "how confident are we about this?" about.
  */
-function pickFuzzyMetrics(mc: ActiveMonteCarlo): { p10: number; p90: number; color: Color }[] {
+interface FuzzyMetric {
+  p10: number;
+  p90: number;
+  color: Color;
+  /** Sorted ascending raw samples behind this metric. Optional —
+   *  only populated when the MC engine returned them (Phase 8c).
+   *  Used to render the radial ECDF heatmap underneath the
+   *  deterministic ring. */
+  samples?: readonly number[];
+  /** True when the metric is a *radius* in metres, false when it is
+   *  a diameter (e.g. finalCraterDiameter). Drives the per-sample
+   *  ÷2 transform used for the ECDF bitmap. */
+  scale: 'radius' | 'diameter';
+}
+
+function pickFuzzyMetrics(mc: ActiveMonteCarlo): FuzzyMetric[] {
   switch (mc.type) {
     case 'impact':
       return [
@@ -2377,11 +2448,19 @@ function pickFuzzyMetrics(mc: ActiveMonteCarlo): { p10: number; p90: number; col
           p10: mc.data.metrics.finalCraterDiameter.p10 / 2,
           p90: mc.data.metrics.finalCraterDiameter.p90 / 2,
           color: RING_COLORS.craterRim,
+          ...(mc.data.rawSamples.finalCraterDiameter !== undefined && {
+            samples: mc.data.rawSamples.finalCraterDiameter,
+          }),
+          scale: 'diameter',
         },
         {
           p10: mc.data.metrics.firestormIgnition.p10,
           p90: mc.data.metrics.firestormIgnition.p90,
           color: RING_COLORS.thirdDegreeBurn,
+          ...(mc.data.rawSamples.firestormIgnition !== undefined && {
+            samples: mc.data.rawSamples.firestormIgnition,
+          }),
+          scale: 'radius',
         },
       ];
     case 'explosion':
@@ -2390,11 +2469,19 @@ function pickFuzzyMetrics(mc: ActiveMonteCarlo): { p10: number; p90: number; col
           p10: mc.data.metrics.fivePsiRadius.p10,
           p90: mc.data.metrics.fivePsiRadius.p90,
           color: RING_COLORS.overpressure5psi,
+          ...(mc.data.rawSamples.fivePsiRadius !== undefined && {
+            samples: mc.data.rawSamples.fivePsiRadius,
+          }),
+          scale: 'radius',
         },
         {
           p10: mc.data.metrics.onePsiRadius.p10,
           p90: mc.data.metrics.onePsiRadius.p90,
           color: RING_COLORS.overpressure1psi,
+          ...(mc.data.rawSamples.onePsiRadius !== undefined && {
+            samples: mc.data.rawSamples.onePsiRadius,
+          }),
+          scale: 'radius',
         },
       ];
     case 'earthquake':
@@ -2403,11 +2490,19 @@ function pickFuzzyMetrics(mc: ActiveMonteCarlo): { p10: number; p90: number; col
           p10: mc.data.metrics.mmi8Radius.p10,
           p90: mc.data.metrics.mmi8Radius.p90,
           color: MMI_RING_COLORS.mmi8,
+          ...(mc.data.rawSamples.mmi8Radius !== undefined && {
+            samples: mc.data.rawSamples.mmi8Radius,
+          }),
+          scale: 'radius',
         },
         {
           p10: mc.data.metrics.liquefactionRadius.p10,
           p90: mc.data.metrics.liquefactionRadius.p90,
           color: MMI_RING_COLORS.mmi7,
+          ...(mc.data.rawSamples.liquefactionRadius !== undefined && {
+            samples: mc.data.rawSamples.liquefactionRadius,
+          }),
+          scale: 'radius',
         },
       ];
     case 'volcano':
@@ -2416,6 +2511,10 @@ function pickFuzzyMetrics(mc: ActiveMonteCarlo): { p10: number; p90: number; col
           p10: mc.data.metrics.pyroclasticRunout.p10,
           p90: mc.data.metrics.pyroclasticRunout.p90,
           color: PYROCLASTIC_RING_COLOR,
+          ...(mc.data.rawSamples.pyroclasticRunout !== undefined && {
+            samples: mc.data.rawSamples.pyroclasticRunout,
+          }),
+          scale: 'radius',
         },
       ];
   }
