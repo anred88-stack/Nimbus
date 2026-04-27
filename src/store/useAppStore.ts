@@ -1055,51 +1055,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   setElevationGrid: (grid) => {
+    // Just store the tile. Earlier versions ran a "race-condition
+    // catch-up" here — when a Launch click landed before the Terrarium
+    // tile arrived, the catch-up re-fired evaluate behind the scenes
+    // so the tsunami cascade would still appear. The user-facing
+    // contract turned out to be more important than that convenience:
+    // Launch is the only thing that should ever start a simulation,
+    // and clicking elsewhere on the globe must not surprise the user
+    // with an auto-restart. If the first Launch happened before the
+    // tile loaded, the next Launch will pick up the populated grid
+    // and produce the full result.
     set({ elevationGrid: grid });
-    if (grid === null) return;
-    // Race-condition catch-up: the user may have clicked "Simula" in
-    // the brief window between picking an ocean point and the
-    // Terrarium tile arriving. If the prior evaluate produced an
-    // impact / explosion result without a tsunami AND the freshly-
-    // loaded grid puts the pick at or near water, transparently
-    // re-run so the tsunami cascade appears without a second
-    // "Simula" click. "Near" means a 5 km neighbourhood — same
-    // search radius used by the evaluators below — so coastal
-    // clicks (Yucatán shore, Beirut quay) catch up too, not only
-    // open-ocean picks.
-    //
-    // Crucially, the catch-up only fires when the user is still
-    // pointing at the same location as the most recent evaluate.
-    // Clicking elsewhere on the globe must NOT auto-start a new
-    // simulation: Launch is the only trigger. We compare against
-    // `lastEvaluatedAtLocation` so a fresh DEM tile arriving for the
-    // new pin position simply updates the grid and stops there.
-    const state = get();
-    if (state.location === null || !gridCoversLocation(grid, state.location)) return;
-    const last = state.lastEvaluatedAtLocation;
-    if (last?.latitude !== state.location.latitude || last.longitude !== state.location.longitude) {
-      return;
-    }
-    const z = sampleElevation(grid, state.location.latitude, state.location.longitude);
-    // Re-evaluate when:
-    //   - impact is pending and the click is over open water (impact
-    //     tsunami requires the source itself to be submerged), or
-    //   - explosion is pending and the click is at or near water (Beirut
-    //     / Castle Bravo coastal coupling — see the evaluator).
-    const isOceanic = z < OCEAN_FLOOR_M;
-    const hasNearbyOcean =
-      findNearbyOceanDepth(grid, state.location.latitude, state.location.longitude, 5_000) !== null;
-    const impactPending =
-      state.eventType === 'impact' &&
-      state.result?.type === 'impact' &&
-      state.impact.input.waterDepth === undefined;
-    const explosionPending =
-      state.eventType === 'explosion' &&
-      state.result?.type === 'explosion' &&
-      state.explosion.input.waterDepth === undefined;
-    if ((impactPending && isOceanic) || (explosionPending && (isOceanic || hasNearbyOcean))) {
-      void get().evaluate();
-    }
   },
 
   evaluate: async () => {

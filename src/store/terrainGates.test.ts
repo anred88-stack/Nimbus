@@ -136,34 +136,24 @@ describe('coastal-explosion tsunami flow', () => {
     useAppStore.getState().setElevationGrid(null);
   });
 
-  it('Castle Bravo on a coastal click eventually emits tsunami once the DEM tile arrives', async () => {
+  it('Castle Bravo on a coastal click emits tsunami when Launch runs with the grid loaded', async () => {
     const s = useAppStore.getState();
     s.selectPreset('CASTLE_BRAVO_1954');
     s.setMode('globe');
     s.setLocation({ latitude: 11.583, longitude: 165.383 });
-
-    // First evaluate runs before the elevation tile lands — the
-    // coastal-fall-through can't fire, so no tsunami.
-    await s.evaluate();
-    const r1 = useAppStore.getState().result;
-    expect(r1?.type).toBe('explosion');
-    if (r1?.type === 'explosion') {
-      expect(r1.data.isContactWaterBurst).toBe(false);
-      expect(r1.data.tsunami).toBeUndefined();
-    }
-
-    // Tile arrives; the catch-up sees an explosion result with no
-    // waterDepth in the input AND nearby ocean cells, and re-runs.
+    // Tile arrives BEFORE the user presses Launch. The store no
+    // longer auto-fires a catch-up evaluate — Launch is the sole
+    // trigger — so the test mirrors the user-facing flow: place
+    // the pin, wait for the tile, then evaluate.
     useAppStore.getState().setElevationGrid(makeCoastalGrid());
-    // Allow the catch-up's microtask + worker fallback to settle.
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await s.evaluate();
 
-    const r2 = useAppStore.getState().result;
-    expect(r2?.type).toBe('explosion');
-    if (r2?.type === 'explosion') {
-      expect(r2.data.isContactWaterBurst).toBe(true);
-      expect(r2.data.tsunami).toBeDefined();
-      expect(r2.data.tsunami?.cavityRadius as number | undefined).toBeGreaterThan(0);
+    const r = useAppStore.getState().result;
+    expect(r?.type).toBe('explosion');
+    if (r?.type === 'explosion') {
+      expect(r.data.isContactWaterBurst).toBe(true);
+      expect(r.data.tsunami).toBeDefined();
+      expect(r.data.tsunami?.cavityRadius as number | undefined).toBeGreaterThan(0);
     }
     expect(useAppStore.getState().bathymetricTsunami).not.toBeNull();
   });
@@ -172,17 +162,15 @@ describe('coastal-explosion tsunami flow', () => {
     const s = useAppStore.getState();
     s.selectPreset('CASTLE_BRAVO_1954');
     s.setMode('globe');
-    // First Launch on point A, with the grid already in the store so
-    // the result carries a real lastEvaluatedAtLocation.
     s.setLocation({ latitude: 11.583, longitude: 165.383 });
     useAppStore.getState().setElevationGrid(makeCoastalGrid());
     await s.evaluate();
     const stampA = useAppStore.getState().lastEvaluatedAt;
     expect(stampA).not.toBeNull();
 
-    // User pans to point B but does NOT click Launch. A fresh DEM
-    // tile for B then lands. The catch-up must keep its hands off
-    // the result — Launch is the only trigger.
+    // Move the pin elsewhere and let a fresh tile land. With the
+    // DEM catch-up removed, evaluate stays put — only handleLaunch
+    // can fire a new run.
     useAppStore.getState().setLocation({ latitude: 0, longitude: 0 });
     useAppStore.getState().setElevationGrid(makeCoastalGrid());
     await new Promise((resolve) => setTimeout(resolve, 30));
