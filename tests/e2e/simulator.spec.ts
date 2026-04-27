@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /**
  * Simulator-flow smoke tests. Every test runs with
@@ -15,6 +15,27 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
+/**
+ * The simulator panel ships default-collapsed on narrow viewports
+ * (Pixel 7, iPhone 14) so the globe stays reachable for the
+ * pick-a-location gesture. Every assertion that touches the panel
+ * body (Launch button, preset dropdown, Copy link, …) calls this
+ * first so the same test suite runs unchanged against the desktop
+ * and mobile projects.
+ */
+async function expandSimulatorPanelIfCollapsed(page: Page): Promise<void> {
+  // Wait for the panel landmark first — the goto can resolve before
+  // React mounts the simulator UI on slower CI runners, in which
+  // case the toggle button doesn't exist yet and our isVisible check
+  // returns false against thin air.
+  await expect(page.getByRole('complementary', { name: 'Simulator controls' })).toBeVisible();
+  const expandButton = page.getByRole('button', { name: 'Expand simulator panel' });
+  if (await expandButton.isVisible().catch(() => false)) {
+    await expandButton.click();
+    await expect(page.getByRole('button', { name: 'Collapse simulator panel' })).toBeVisible();
+  }
+}
+
 test.describe('simulator flow', () => {
   test('landing → globe mode: Try-the-simulator CTA mounts the panel', async ({ page }) => {
     await page.goto('/?lng=en');
@@ -23,6 +44,8 @@ test.describe('simulator flow', () => {
 
     const panel = page.getByRole('complementary', { name: 'Simulator controls' });
     await expect(panel).toBeVisible();
+
+    await expandSimulatorPanelIfCollapsed(page);
 
     // Launch is disabled until the user picks a location on the globe.
     const launchButton = page.getByRole('button', { name: 'Launch simulation' });
@@ -36,6 +59,12 @@ test.describe('simulator flow', () => {
   test('About dialog opens via Radix, closes with Escape', async ({ page }) => {
     await page.goto('/?lng=en');
     await page.getByRole('button', { name: 'Try the simulator →' }).click();
+    // The About / Glossary triggers are floating buttons OUTSIDE the
+    // simulator panel (top-left on every viewport — see
+    // AboutDialog.module.css). We deliberately do NOT expand the
+    // panel here: on narrow viewports the expanded panel covers the
+    // bottom-left quadrant, but the triggers live at the TOP, so
+    // they're reachable whether the panel is collapsed or expanded.
 
     // Radix renders the trigger with role="button".
     await page.getByRole('button', { name: 'About' }).click();
@@ -52,6 +81,8 @@ test.describe('simulator flow', () => {
   test('Glossary dialog surfaces term definitions', async ({ page }) => {
     await page.goto('/?lng=en');
     await page.getByRole('button', { name: 'Try the simulator →' }).click();
+    // Same as About: trigger lives outside the panel at top-left,
+    // so no panel expansion is required.
 
     await page.getByRole('button', { name: 'Glossary' }).click();
 
@@ -72,6 +103,7 @@ test.describe('simulator flow', () => {
   }) => {
     await page.goto('/?lng=en');
     await page.getByRole('button', { name: 'Try the simulator →' }).click();
+    await expandSimulatorPanelIfCollapsed(page);
 
     // Default Chicxulub preset has the K-Pg impactor note.
     await expect(page.getByText(/Hildebrand et al\. 1991/)).toBeVisible();
@@ -87,6 +119,7 @@ test.describe('simulator flow', () => {
   test('preset dropdown offers every impact scenario by default', async ({ page }) => {
     await page.goto('/?lng=en');
     await page.getByRole('button', { name: 'Try the simulator →' }).click();
+    await expandSimulatorPanelIfCollapsed(page);
 
     const select = page.getByLabel('Preset');
     await expect(select).toBeVisible();
@@ -105,6 +138,7 @@ test.describe('simulator flow', () => {
   test('event-type selector swaps the preset list across all five categories', async ({ page }) => {
     await page.goto('/?lng=en');
     await page.getByRole('button', { name: 'Try the simulator →' }).click();
+    await expandSimulatorPanelIfCollapsed(page);
 
     const eventTypeSelect = page.getByLabel('Event type');
     await expect(eventTypeSelect).toBeVisible();
@@ -164,6 +198,7 @@ test.describe('simulator flow', () => {
   test('URL updates as the user selects preset and mode', async ({ page }) => {
     await page.goto('/?lng=en');
     await page.getByRole('button', { name: 'Try the simulator →' }).click();
+    await expandSimulatorPanelIfCollapsed(page);
 
     // After entering globe mode, the URL should carry t=impact + m=globe.
     await expect.poll(() => new URL(page.url()).searchParams.get('m')).toBe('globe');
@@ -183,6 +218,7 @@ test.describe('simulator flow', () => {
 
   test('shared URL hydrates the event type + preset + mode on load', async ({ page }) => {
     await page.goto('/?lng=en&t=earthquake&p=NORTHRIDGE_1994&m=globe');
+    await expandSimulatorPanelIfCollapsed(page);
 
     // The landing CTA is bypassed because mode=globe, so the panel is
     // already mounted with the earthquake preset pre-selected.
@@ -244,6 +280,7 @@ test.describe('simulator flow', () => {
       await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     }
     await page.goto('/?lng=en&t=volcano&p=KRAKATAU_1883&m=globe');
+    await expandSimulatorPanelIfCollapsed(page);
 
     const copyButton = page.getByRole('button', { name: 'Copy shareable link' });
     await expect(copyButton).toBeVisible();

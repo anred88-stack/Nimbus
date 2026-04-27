@@ -16,12 +16,8 @@
   z-index: 10;
 }
 
-@media (max-width: 520px) {
-  .trigger {
-    top: auto;
-    bottom: 16px;
-  }
-}
+/* Mobile: keep the trigger in the top-left where the SimulatorPanel
+ * does NOT extend — see AboutDialog.module.css for the rationale. */
 
 .trigger:hover {
   background: rgba(30, 34, 46, 0.9);

@@ -2,6 +2,16 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
+ * About / Glossary triggers live OUTSIDE the SimulatorPanel at the
+ * top-left of the viewport — see {@link AboutDialog.module.css}. The
+ * mobile media-query that previously snapped them to the bottom-left
+ * (where the panel itself lives on narrow viewports) was the cause of
+ * the E2E failures on Pixel 7 / iPhone 14: the panel covered the
+ * triggers and clicks timed out. Now both triggers are reachable on
+ * every viewport without expanding the panel.
+ */
+
+/**
  * Accessibility audits run with axe-core against the WCAG 2.1 AA
  * ruleset (the project's stated target per CLAUDE.md). We fail the
  * test on any violation — not just criticals — because M5's exit
@@ -55,6 +65,8 @@ test.describe('accessibility', () => {
 
   test('About dialog has no WCAG 2.1 AA violations when open', async ({ page }) => {
     await page.goto('/?lng=en&t=impact&p=CHICXULUB&m=globe');
+    // About / Glossary triggers live at top-left, OUTSIDE the
+    // simulator panel — no panel expansion needed on mobile.
     await page.getByRole('button', { name: 'About' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await auditPage(page);

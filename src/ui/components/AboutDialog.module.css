@@ -16,12 +16,13 @@
   z-index: 10;
 }
 
-@media (max-width: 520px) {
-  .trigger {
-    top: auto;
-    bottom: 16px;
-  }
-}
+/* Mobile: keep the trigger in the top-left corner where the
+ * SimulatorPanel does NOT extend (the panel snaps to the bottom-left
+ * quadrant on narrow viewports — see SimulatorPanel.module.css).
+ * Putting the About / Glossary triggers at the bottom would overlap
+ * the panel and make them unclickable; the previous mobile rule
+ * 'bottom: 16px' was the cause of the E2E mobile-chrome /
+ * mobile-safari failures. */
 
 .trigger:hover {
   background: rgba(30, 34, 46, 0.9);
