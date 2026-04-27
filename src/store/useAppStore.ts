@@ -115,6 +115,17 @@ type SimulationProxy = {
     : never;
 };
 let simWorker: SimulationProxy | null = null;
+
+/**
+ * Phase 12a — monotone evaluation token. Each evaluate() invocation
+ * bumps this counter and stashes its value; when the asynchronous
+ * physics worker eventually resolves, the resolution checks whether
+ * the token still matches `currentEvaluationId`. Mismatched (i.e.
+ * superseded by a newer Launch) writes are dropped, so a stale
+ * bathymetricTsunami can never overwrite a fresh one — fixes the
+ * "square comes back occasionally" race the user observed.
+ */
+let currentEvaluationId = 0;
 function getSimulationWorker(): SimulationProxy {
   if (simWorker !== null) return simWorker;
 
@@ -1117,6 +1128,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   evaluate: async () => {
     const state = get();
+    // Phase 12a — cancellation token. Bumped every evaluate() so that
+    // a previous in-flight run whose physics finishes AFTER a fresh
+    // Launch is detected and its writes are dropped. Prevents the
+    // "square comes back" race where a stale bathymetricTsunami with
+    // an undefined .global field overwrites a fresh one.
+    const evaluationId = (currentEvaluationId += 1);
     set({ status: 'running', error: null });
     const sim = getSimulationWorker();
     try {
@@ -1344,6 +1361,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         (result.type === 'volcano' && result.data.tsunami !== undefined) ||
         (result.type === 'landslide' && result.data.tsunami !== null);
       if (triggersTsunami && state.elevationGrid !== null && state.location !== null) {
+        const tsunamiStart = performance.now();
         try {
           // Pull the source amplitude + cavity radius from whichever
           // event-type tsunami block fired. The amplitude module
@@ -1367,13 +1385,33 @@ export const useAppStore = create<AppStore>((set, get) => ({
               globalGrid: state.globalBathymetricGrid,
             }),
           });
-        } catch {
+        } catch (err) {
           // If the grid doesn't cover the source, FMM won't throw but
           // isochrones may be empty — fall back to null silently.
+          // We still log the error in dev mode so a real bug doesn't
+          // hide behind the "expected silent fallback" semantics.
+          if (import.meta.env.DEV) {
+            console.warn('[store] bathymetric tsunami compute failed:', err);
+          }
           bathymetricTsunami = null;
+        }
+        if (import.meta.env.DEV) {
+          const elapsed = performance.now() - tsunamiStart;
+          const hasGlobal = bathymetricTsunami?.global !== undefined;
+          console.info(
+            `[store] bathymetric tsunami: ${elapsed.toFixed(0)}ms ${hasGlobal ? '(local + global)' : '(local only)'}`
+          );
         }
       }
 
+      // Cancellation guard — drop the write if a newer evaluate()
+      // has been kicked off while this one was awaiting the physics
+      // worker. The freshly-issued evaluation will land its own
+      // result and bathymetricTsunami; this stale resolution must
+      // not overwrite it.
+      if (evaluationId !== currentEvaluationId) {
+        return;
+      }
       set({
         result,
         bathymetricTsunami,
@@ -1414,6 +1452,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
         set({ populationStatus: 'idle' });
       }
     } catch (err) {
+      // Same cancellation guard as the success path: if a newer
+      // evaluate() superseded this one, do not let its error
+      // propagate into the visible store state.
+      if (evaluationId !== currentEvaluationId) return;
       set({
         status: 'error',
         error: err instanceof Error ? err.message : String(err),

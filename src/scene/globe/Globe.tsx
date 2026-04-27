@@ -1891,6 +1891,7 @@ export function Globe(): JSX.Element {
       // visual stack so the local high-res layer (if present) sits
       // on top and dominates near-source detail.
       if (bathymetricTsunami.global?.amplitude !== undefined) {
+        const tGlobalStart = performance.now();
         try {
           const gAmp = bathymetricTsunami.global.amplitude;
           const gHeatmap = renderScalarFieldHeatmap(gAmp.amplitudes, gAmp.nLat, gAmp.nLon, {
@@ -1933,11 +1934,22 @@ export function Globe(): JSX.Element {
             ];
             const tierAlpha = [0.7, 0.55, 0.4] as const;
             const tierWidth = [3, 2.5, 2] as const;
+            // Phase 12a — segment cap. On a 1024×1024 grid the global
+            // 0.3 m iso-amplitude can return 5 000+ tiny segments, and
+            // each one is a separate Cesium Entity (~0.3 ms creation +
+            // scene re-tessellation). Capping per band keeps the main
+            // thread responsive without changing the visible contour
+            // shape: we sample uniformly so the silhouette is preserved.
+            const MAX_SEGMENTS_PER_BAND = 800;
+            let totalSegments = 0;
             bands.forEach((band, bandIdx) => {
               const color = tierColors[bandIdx] ?? Color.WHITE;
               const alpha = tierAlpha[bandIdx] ?? 0.4;
               const width = tierWidth[bandIdx] ?? 2;
-              band.segments.forEach((seg, segIdx) => {
+              const stride = Math.max(1, Math.ceil(band.segments.length / MAX_SEGMENTS_PER_BAND));
+              for (let segIdx = 0; segIdx < band.segments.length; segIdx += stride) {
+                const seg = band.segments[segIdx];
+                if (seg === undefined) continue;
                 viewer.entities.add({
                   id: `tsunami-global-iso-${bandIdx.toString()}-${segIdx.toString()}`,
                   polyline: {
@@ -1949,11 +1961,23 @@ export function Globe(): JSX.Element {
                     material: color.withAlpha(alpha),
                   },
                 });
-              });
+                totalSegments++;
+              }
             });
+            if (import.meta.env.DEV) {
+              const total = bands.reduce((s, b) => s + b.segments.length, 0);
+              console.info(
+                `[Globe] global iso-amplitude: extracted ${total.toString()} segments, rendered ${totalSegments.toString()} (cap ${MAX_SEGMENTS_PER_BAND.toString()}/band)`
+              );
+            }
           }
         } catch (err: unknown) {
           console.warn('[Globe] global iso-amplitude render failed:', err);
+        }
+        if (import.meta.env.DEV) {
+          console.info(
+            `[Globe] global tsunami layer render: ${(performance.now() - tGlobalStart).toFixed(0)}ms`
+          );
         }
       }
       if (
