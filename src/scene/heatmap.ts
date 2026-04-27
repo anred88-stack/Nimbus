@@ -95,6 +95,11 @@ export interface HeatmapOptions {
   /** Value to treat as "transparent" (e.g. Infinity for unreachable
    *  tsunami cells, 0 for no-deposit ashfall pixels). */
   transparentBelow?: number;
+  /** Stride sampling factor. When > 1, the canvas is rendered at
+   *  (nLon/d) × (nLat/d) pixels and Cesium stretches it back to the
+   *  full geographic rectangle. Cuts main-thread render time by d².
+   *  Defaults to 1 (full resolution). */
+  downsample?: number;
 }
 
 export interface HeatmapResult {
@@ -150,6 +155,15 @@ export function renderScalarFieldHeatmap(
   const opacity = options.opacity ?? 0.55;
   const colormap = options.colormap ?? 'viridis';
   const transparentBelow = options.transparentBelow ?? Number.NEGATIVE_INFINITY;
+  // Phase 12b — downsample factor. When > 1, the heatmap canvas is
+  // rendered at (nLon / d) × (nLat / d) pixels, sampling the source
+  // field via stride-d nearest-neighbour reads. The output canvas is
+  // then stretched by Cesium when attached to the rectangle, so the
+  // visible coverage is unchanged — only the per-pixel cost on the
+  // main thread drops by d² (factor 4 at d=2, factor 16 at d=4). Used
+  // for the 1024² global tsunami heatmap to keep main-thread render
+  // under 50 ms; the local high-res tile keeps d=1 for sub-km detail.
+  const downsample = Math.max(1, Math.floor(options.downsample ?? 1));
 
   const { valueMin: vMin, valueMax: vMax } = computeValueRange(
     samples,
@@ -158,9 +172,12 @@ export function renderScalarFieldHeatmap(
     options.valueMax
   );
 
+  const outNLat = Math.max(1, Math.floor(nLat / downsample));
+  const outNLon = Math.max(1, Math.floor(nLon / downsample));
+
   const canvas = document.createElement('canvas');
-  canvas.width = nLon;
-  canvas.height = nLat;
+  canvas.width = outNLon;
+  canvas.height = outNLat;
   const ctx = canvas.getContext('2d');
   if (ctx === null) throw new Error('renderScalarFieldHeatmap: 2D context unavailable');
 
@@ -169,22 +186,26 @@ export function renderScalarFieldHeatmap(
     return { canvas, valueMin: 0, valueMax: 0 };
   }
 
-  const img = ctx.createImageData(nLon, nLat);
+  const img = ctx.createImageData(outNLon, outNLat);
   const range = vMax - vMin;
   const alpha = Math.round(opacity * 255);
-  for (let i = 0; i < samples.length; i++) {
-    const v = samples[i] ?? Number.NaN;
-    const base = i * 4;
-    if (!Number.isFinite(v) || v <= transparentBelow) {
-      img.data[base + 3] = 0;
-      continue;
+  for (let oi = 0; oi < outNLat; oi++) {
+    const sourceI = oi * downsample;
+    for (let oj = 0; oj < outNLon; oj++) {
+      const sourceJ = oj * downsample;
+      const v = samples[sourceI * nLon + sourceJ] ?? Number.NaN;
+      const base = (oi * outNLon + oj) * 4;
+      if (!Number.isFinite(v) || v <= transparentBelow) {
+        img.data[base + 3] = 0;
+        continue;
+      }
+      const t = Math.max(0, Math.min(1, (v - vMin) / range));
+      const [r, g, b] = sampleColormap(t, colormap);
+      img.data[base] = r;
+      img.data[base + 1] = g;
+      img.data[base + 2] = b;
+      img.data[base + 3] = alpha;
     }
-    const t = Math.max(0, Math.min(1, (v - vMin) / range));
-    const [r, g, b] = sampleColormap(t, colormap);
-    img.data[base] = r;
-    img.data[base + 1] = g;
-    img.data[base + 2] = b;
-    img.data[base + 3] = alpha;
   }
   ctx.putImageData(img, 0, 0);
   return { canvas, valueMin: vMin, valueMax: vMax };

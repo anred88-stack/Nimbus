@@ -1898,6 +1898,13 @@ export function Globe(): JSX.Element {
             colormap: 'inferno',
             opacity: 0.32,
             transparentBelow: 0.5,
+            // Phase 12b — downsample 2× for the global 1024² heatmap.
+            // The canvas drops to 512², the main-thread loop runs in
+            // ~10-30 ms instead of 50-150 ms, and Cesium stretches it
+            // back to the planet-wide rectangle so visible coverage
+            // is unchanged. The local high-res tile keeps full
+            // resolution for sub-km coastal detail.
+            downsample: 2,
           });
           viewer.entities.add({
             id: 'tsunami-fmm-amplitude-global',
