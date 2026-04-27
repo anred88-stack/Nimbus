@@ -523,24 +523,48 @@ function deriveBeachSlope(
  * builders and the globe renderer both treat the zero radii as "no
  * stage".
  */
+/** 5 km — the lattice radius `findNearbyOceanDepth` walks in search
+ *  of nearby ocean cells. Used here as the credibility threshold for
+ *  the coastal-impact tsunami gate (see {@link gateImpactByTerrain}). */
+const COASTAL_OCEAN_SEARCH_RADIUS_M = 5_000;
+
 export function gateImpactByTerrain(
   data: ImpactScenarioResult,
-  isOpenWater: boolean
+  isOpenWater: boolean,
+  isCoastalSynth: boolean
 ): ImpactScenarioResult {
-  if (!isOpenWater) return data;
-  return {
-    ...data,
-    firestorm: {
-      ...data.firestorm,
-      ignitionRadius: m(0),
-      sustainRadius: m(0),
-      ignitionArea: sqm(0),
-    },
-    seismic: {
-      ...data.seismic,
-      liquefactionRadius: m(0),
-    },
-  };
+  let gated: ImpactScenarioResult = data;
+  if (isOpenWater) {
+    gated = {
+      ...gated,
+      firestorm: {
+        ...gated.firestorm,
+        ignitionRadius: m(0),
+        sustainRadius: m(0),
+        ignitionArea: sqm(0),
+      },
+      seismic: {
+        ...gated.seismic,
+        liquefactionRadius: m(0),
+      },
+    };
+  }
+  // Coastal-synth tsunami credibility check. The store synthesises a
+  // ~200 m water depth when the click is on land within 5 km of the
+  // sea, which handles Chicxulub-class events (cavity ~150 km easily
+  // engulfs the surrounding shelf). For small impactors the cavity
+  // is far smaller than that 5 km gap and the bubble never reaches
+  // the water — Tunguska on Sicily produces a ~1 km cavity that
+  // wouldn't generate a wave. Keep the synthesised result only when
+  // the cavity actually couples to the basin.
+  if (isCoastalSynth && gated.tsunami !== undefined) {
+    const cavity = gated.tsunami.cavityRadius as number;
+    if (!Number.isFinite(cavity) || cavity < COASTAL_OCEAN_SEARCH_RADIUS_M) {
+      const { tsunami: _dropped, ...rest } = gated;
+      gated = rest;
+    }
+  }
+  return gated;
 }
 
 /**
@@ -1102,19 +1126,41 @@ export const useAppStore = create<AppStore>((set, get) => ({
               )
             : undefined;
         const impactClickIsOpenWater = impactClickZ !== undefined && impactClickZ < OCEAN_FLOOR_M;
-        if (impactInput.waterDepth === undefined && impactClickZ !== undefined) {
-          // Tsunami source needs the impactor to actually piston a
-          // water column, which only happens when the click point is
-          // itself below sea level. Earlier code synthesised a ~200 m
-          // depth from any ocean cell within 5 km; that produced a
-          // spurious wave train for inland-near-coast clicks (Tunguska
-          // dropped on Sicily auto-fired the Ward-Asphaug cavity even
-          // though the cavity itself is ~1 km across and never reaches
-          // the sea). The explosion branch keeps the coastal synthesis
-          // because Beirut / Castle Bravo did couple into a quayside
-          // basin.
+        // Coastal-synthesis flag — true when the click cell itself is
+        // land but we faked a water depth from a nearby ocean cell.
+        // Used downstream by gateImpactByTerrain to decide whether the
+        // computed cavity is large enough for a tsunami to be physically
+        // credible (small impactors don't reach the sea even when it's
+        // 5 km away; Chicxulub-class events do).
+        let impactClickIsCoastalSynth = false;
+        if (
+          impactInput.waterDepth === undefined &&
+          impactClickZ !== undefined &&
+          state.elevationGrid !== null &&
+          state.location !== null
+        ) {
           if (impactClickIsOpenWater) {
             impactInput = { ...impactInput, waterDepth: m(-impactClickZ) };
+          } else {
+            // Coastal land: search a 5 km lattice for ocean. If found,
+            // synthesise a 200 m basin depth so the simulator's
+            // tsunami branch fires and writes a cavity radius. The
+            // post-process gate in gateImpactByTerrain then drops the
+            // tsunami when the cavity is too small to reach the
+            // surrounding water — preserves realism for a Tunguska on
+            // Sicily while letting a Chicxulub-class event on the
+            // Yucatán shore still produce its mega-tsunami.
+            const coastalDepth = findNearbyOceanDepth(
+              state.elevationGrid,
+              state.location.latitude,
+              state.location.longitude,
+              COASTAL_OCEAN_SEARCH_RADIUS_M
+            );
+            if (coastalDepth !== null) {
+              const cappedDepth = Math.min(coastalDepth, 200);
+              impactInput = { ...impactInput, waterDepth: m(cappedDepth) };
+              impactClickIsCoastalSynth = true;
+            }
           }
         }
         // DEM-driven beach slope for the Synolakis run-up — see
@@ -1130,7 +1176,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
           }
         }
         const impactData = await sim.simulateImpact(impactInput);
-        result = { type: 'impact', data: gateImpactByTerrain(impactData, impactClickIsOpenWater) };
+        result = {
+          type: 'impact',
+          data: gateImpactByTerrain(impactData, impactClickIsOpenWater, impactClickIsCoastalSynth),
+        };
       } else if (state.eventType === 'explosion') {
         // Auto-derive waterDepth from bathymetry (same pattern as
         // impact above): if the user picked an ocean point and the

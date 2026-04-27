@@ -23,15 +23,15 @@ const CHICXULUB_LAND = simulateImpact(IMPACT_PRESETS.CHICXULUB.input);
 const CHICXULUB_OCEAN = simulateImpact(IMPACT_PRESETS.CHICXULUB_OCEAN.input);
 
 describe('gateImpactByTerrain', () => {
-  it('hands back the original result when the click is on land', () => {
-    const out = gateImpactByTerrain(CHICXULUB_LAND, false);
+  it('hands back the original result when the click is on land and tsunami is absent', () => {
+    const out = gateImpactByTerrain(CHICXULUB_LAND, false, false);
     expect(out).toBe(CHICXULUB_LAND);
   });
 
   it('zeroes firestorm + liquefaction when the click is in open water', () => {
     expect(CHICXULUB_OCEAN.firestorm.ignitionRadius as number).toBeGreaterThan(0);
     expect(CHICXULUB_OCEAN.seismic.liquefactionRadius as number).toBeGreaterThan(0);
-    const out = gateImpactByTerrain(CHICXULUB_OCEAN, true);
+    const out = gateImpactByTerrain(CHICXULUB_OCEAN, true, false);
     expect(out.firestorm.ignitionRadius as number).toBe(0);
     expect(out.firestorm.sustainRadius as number).toBe(0);
     expect(out.firestorm.ignitionArea as number).toBe(0);
@@ -39,10 +39,36 @@ describe('gateImpactByTerrain', () => {
   });
 
   it('preserves crater + tsunami output for an oceanic impact', () => {
-    const out = gateImpactByTerrain(CHICXULUB_OCEAN, true);
+    const out = gateImpactByTerrain(CHICXULUB_OCEAN, true, false);
     expect(out.crater.finalDiameter as number).toBeGreaterThan(0);
     expect(out.tsunami).not.toBeNull();
     expect(out.tsunami).toEqual(CHICXULUB_OCEAN.tsunami);
+  });
+
+  it('keeps the tsunami on a Chicxulub-class coastal-synth click (cavity engulfs the basin)', () => {
+    // Build a Chicxulub-class result with the synthetic 200 m basin
+    // depth the store would use for a coastal click. The cavity is on
+    // the order of 150 km — well past the 5 km credibility threshold.
+    const synth = simulateImpact({
+      ...IMPACT_PRESETS.CHICXULUB.input,
+      waterDepth: m(200),
+    });
+    expect(synth.tsunami).toBeDefined();
+    const out = gateImpactByTerrain(synth, false, true);
+    expect(out.tsunami).toBeDefined();
+    expect(out.tsunami?.cavityRadius as number | undefined).toBeGreaterThan(5_000);
+  });
+
+  it('drops the tsunami on a Tunguska-class coastal-synth click (cavity never reaches the sea)', () => {
+    const synth = simulateImpact({
+      ...IMPACT_PRESETS.TUNGUSKA.input,
+      waterDepth: m(200),
+    });
+    // The simulator may or may not emit a tiny cavity here — the
+    // gate just has to drop it in either case for the coastal-synth
+    // flag.
+    const out = gateImpactByTerrain(synth, false, true);
+    expect(out.tsunami).toBeUndefined();
   });
 });
 
