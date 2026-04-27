@@ -498,6 +498,19 @@ export function Globe(): JSX.Element {
       canvasEl.addEventListener('webglcontextlost', onContextLost, false);
       canvasEl.addEventListener('webglcontextrestored', onContextRestored, false);
 
+      // Cesium's MOUSE_MOVE only fires while the cursor is over the
+      // canvas. When the cursor crosses into an overlay (the
+      // SimulatorPanel, the ring legend, a Radix dialog) no leave
+      // event reaches the screen-space handler, so the ring tooltip
+      // stays stuck at its last canvas-relative position — which on
+      // screen ends up sitting on top of the panel the user just
+      // moved over. A DOM-level mouseleave on the canvas dismisses
+      // the tooltip the moment the cursor exits the WebGL surface.
+      const onCanvasLeave = (): void => {
+        setHoverInfo(null);
+      };
+      canvasEl.addEventListener('mouseleave', onCanvasLeave, false);
+
       // Belt-and-braces resize observer. Cesium has its own internal
       // resize listener wired to the window-level `resize` event, but
       // it doesn't fire when the *parent container* resizes
@@ -525,6 +538,7 @@ export function Globe(): JSX.Element {
       ).__visTeardown = (): void => {
         canvasEl.removeEventListener('webglcontextlost', onContextLost, false);
         canvasEl.removeEventListener('webglcontextrestored', onContextRestored, false);
+        canvasEl.removeEventListener('mouseleave', onCanvasLeave, false);
         resizeObserver?.disconnect();
       };
     } catch (err) {
