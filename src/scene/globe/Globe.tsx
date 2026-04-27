@@ -1815,6 +1815,50 @@ export function Globe(): JSX.Element {
             console.warn('[Globe] amplitude heatmap render failed:', err);
           }
         }
+        // Synolakis 1987 coastal run-up band — the *quantitative*
+        // counterpart to the iso-amplitude polylines. Renders one
+        // small coloured point per coastal cell, with the colour
+        // mapped to run-up height on a 5-tier inferno-style ramp:
+        //
+        //   < 1 m   neutral grey  (decorative — below felt threshold)
+        //   1–3 m   yellow         (alarm)
+        //   3–10 m  orange         (severe)
+        //   10–30 m red            (catastrophic, e.g. Sendai 2011 9 m)
+        //   > 30 m  magenta        (mega — Krakatau 1883 35 m, Lituya '58)
+        //
+        // Renders only when the orchestrator produced a runup field
+        // (which itself only happens when the source amplitude was
+        // passed in). Skipping this layer for tiny tsunamis keeps the
+        // map uncluttered for sub-metre events.
+        if (bathymetricTsunami.runup !== undefined) {
+          const runup = bathymetricTsunami.runup;
+          for (const cell of runup.cells) {
+            if (!Number.isFinite(cell.runupM) || cell.runupM <= 0.5) continue;
+            // Tier colour pick — must match the legend semantics
+            // exactly so a hover tooltip reads consistently.
+            let tierColor: Color;
+            if (cell.runupM < 1) tierColor = Color.fromCssColorString('#9CA3AF');
+            else if (cell.runupM < 3) tierColor = Color.fromCssColorString('#FACC15');
+            else if (cell.runupM < 10) tierColor = Color.fromCssColorString('#F97316');
+            else if (cell.runupM < 30) tierColor = Color.fromCssColorString('#DC2626');
+            else tierColor = Color.fromCssColorString('#D946EF');
+            // Cesium clamps the GPU pixelSize to the platform's
+            // ALIASED_POINT_SIZE_RANGE; values >12 are commonly
+            // ignored on integrated GPUs so we keep the dot small
+            // and rely on the colour gradient to carry the signal.
+            const radius = cell.runupM < 1 ? 4 : cell.runupM < 10 ? 6 : 8;
+            viewer.entities.add({
+              id: `tsunami-runup-${cell.latitude.toFixed(3)}-${cell.longitude.toFixed(3)}`,
+              position: Cartesian3.fromDegrees(cell.longitude, cell.latitude),
+              point: {
+                pixelSize: radius,
+                color: tierColor.withAlpha(0.85),
+                outlineColor: Color.BLACK.withAlpha(0.5),
+                outlineWidth: 1,
+              },
+            });
+          }
+        }
       }
       const fallbackColor = ISOCHRONE_COLORS[ISOCHRONE_COLORS.length - 1] ?? Color.WHITE;
       const isochroneTooltipKindFor: RingTooltipKind[] = [

@@ -16,3 +16,10 @@ export {
   type BathymetricTsunamiInput,
   type BathymetricTsunamiResult,
 } from './bathymetricTsunami.js';
+export {
+  computeRunupField,
+  type RunupField,
+  type RunupCell,
+  type RunupFieldInput,
+} from './runupField.js';
+export { extractAmplitudeContours, type ContourBand } from './isochrones.js';

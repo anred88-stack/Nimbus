@@ -3,6 +3,7 @@ import { computeAmplitudeField, type AmplitudeField } from './amplitudeField.js'
 import { coastalBeachSlope } from './coastalSlope.js';
 import { computeTsunamiArrivalField, type FastMarchingResult } from './fastMarching.js';
 import { extractIsochrones, type IsochroneBand } from './isochrones.js';
+import { computeRunupField, type RunupField } from './runupField.js';
 
 /**
  * High-level orchestrator that runs the Fast-Marching arrival-time
@@ -52,6 +53,10 @@ export interface BathymetricTsunamiResult {
    *  `field`. Present only when the caller passed sourceAmplitudeM
    *  and sourceCavityRadiusM. */
   amplitude?: AmplitudeField;
+  /** Optional Synolakis 1987 run-up field — vertical run-up height at
+   *  each coastal cell. Present only when an amplitude field was
+   *  produced (depends on sourceAmplitudeM + sourceCavityRadiusM). */
+  runup?: RunupField;
 }
 
 export function computeBathymetricTsunami(
@@ -83,13 +88,15 @@ export function computeBathymetricTsunami(
     input.sourceAmplitudeM > 0 &&
     input.sourceCavityRadiusM > 0
   ) {
-    result.amplitude = computeAmplitudeField({
+    const amplitude = computeAmplitudeField({
       arrivalField: field,
       grid: input.grid,
       sourceAmplitudeM: input.sourceAmplitudeM,
       sourceCavityRadiusM: input.sourceCavityRadiusM,
       ...(input.sourceDepthM !== undefined && { sourceDepthM: input.sourceDepthM }),
     });
+    result.amplitude = amplitude;
+    result.runup = computeRunupField({ amplitudeField: amplitude, grid: input.grid });
   }
   return result;
 }
