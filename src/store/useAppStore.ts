@@ -513,7 +513,7 @@ function deriveBeachSlope(
  * builders and the globe renderer both treat the zero radii as "no
  * stage".
  */
-function gateImpactByTerrain(
+export function gateImpactByTerrain(
   data: ImpactScenarioResult,
   isOpenWater: boolean
 ): ImpactScenarioResult {
@@ -543,7 +543,7 @@ function gateImpactByTerrain(
  * they keep their firestorm and crater outputs because real-world
  * observations confirm both happen.
  */
-function gateExplosionByTerrain(
+export function gateExplosionByTerrain(
   data: ExplosionScenarioResult,
   isOpenWater: boolean
 ): ExplosionScenarioResult {
@@ -573,7 +573,7 @@ function gateExplosionByTerrain(
  * the MMI contour rings, which the renderer keeps drawing across the
  * shoreline at a dimmed alpha.
  */
-function gateEarthquakeByTerrain(data: EarthquakeScenarioResult): EarthquakeScenarioResult {
+export function gateEarthquakeByTerrain(data: EarthquakeScenarioResult): EarthquakeScenarioResult {
   if (!data.isSubmarine) return data;
   return {
     ...data,
