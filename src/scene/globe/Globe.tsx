@@ -700,9 +700,11 @@ export function Globe(): JSX.Element {
     // id matches SIM_ENTITY_PREFIXES, so future additions stay covered
     // as long as the new id starts with one of those tokens.
     purgeSimulationEntities(viewer);
-    viewer.scene.requestRender();
 
-    if (!location) return;
+    if (!location) {
+      viewer.scene.requestRender();
+      return;
+    }
 
     // Anchor the sun to local solar noon over the picked longitude.
     // Driven from the rendering effect (not the viewer-init effect) so
@@ -1852,6 +1854,15 @@ export function Globe(): JSX.Element {
       // tsunami cavity still gets its expansion animation.
       startCascade();
     }
+
+    // Cesium runs in request-render mode by default once initialised;
+    // entity adds usually wake it up but a few of the heatmap and
+    // isochrone branches above wire their primitives through async
+    // CallbackProperties that don't trigger an automatic render. Nudge
+    // the scene at the end so the new tsunami cavity / wave-fronts /
+    // FMM heatmap appear on the very next frame instead of waiting for
+    // the user to mouse over the canvas.
+    viewer.scene.requestRender();
   }, [location, result, bathymetricTsunami, monteCarlo]);
 
   // --- Aftershock click-through detail rings ---------------------------
