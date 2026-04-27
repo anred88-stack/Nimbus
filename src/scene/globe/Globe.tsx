@@ -30,6 +30,7 @@ import {
   type Coordinates,
 } from '../../store/index.js';
 import type { WindAdvectedAshfall } from '../../physics/events/volcano/index.js';
+import { extractAmplitudeContours } from '../../physics/tsunami/isochrones.js';
 import { renderScalarFieldHeatmap } from '../heatmap.js';
 import {
   animateAftershocksImperatively,
@@ -898,59 +899,146 @@ export function Globe(): JSX.Element {
     };
 
     /**
-     * Paint three concentric tsunami wave-front rings around the
-     * source at the radii where the open-ocean amplitude drops to
-     * 5 m / 1 m / 0.3 m. Outline-only (fill: false) so they read as
-     * propagating wave fronts, not as filled damage zones. Each ring
-     * is registered in the hover-tooltip map so the user gets a
-     * plain-language explanation of "what happens at this distance"
-     * when the cursor lands on the contour.
+     * Paint the three tsunami wave-front contours at the radii where
+     * the open-ocean amplitude drops to 5 m / 1 m / 0.3 m.
      *
-     * Two amplitude-vs-distance laws cover every tsunami source we
-     * simulate:
-     *   - Cavity-collapse (Ward & Asphaug 2000) for impact, explosion,
-     *     volcano-collapse, and submarine-landslide sources:
+     * Two rendering paths, picked at call time:
+     *
+     *   - **Bathymetric path (preferred).** When `bathymetricTsunami
+     *     .amplitude` is populated by the orchestrator (i.e. an
+     *     elevation grid was available at simulate time), we extract
+     *     iso-amplitude contours from the Green-shoaled FMM amplitude
+     *     field via marching squares. The resulting polylines follow
+     *     the actual coastlines — no more circles cutting across the
+     *     Alps or the Tibetan plateau.
+     *   - **Closed-form fallback.** When no bathymetric grid is
+     *     available, we draw concentric circles using the inverse of
+     *     the same amplitude-vs-distance law the simulator uses:
+     *       Cavity sources (Ward & Asphaug 2000):
      *         A(r) = A₀ · R_C / r          ⇒  r = A₀ · R_C / A_target
-     *   - Cylindrical line-source (Hanks-Kanamori → Okada → 1/√r) for
-     *     megathrust earthquakes:
+     *       Cylindrical line sources (megathrust):
      *         A(r) = A₀ · √(R₀ / r)        ⇒  r = R₀ · (A₀ / A_target)²
-     *     with R₀ = ruptureLength / 2 (the half-length of the fault).
      *
-     * Rings whose computed radius would exceed the great-circle
-     * antipode (≈ π·R_E) are clamped via {@link clampToGreatCircle};
-     * rings that remain below the source-cavity radius (i.e. the
-     * amplitude target is *higher* than the source amplitude itself)
-     * are skipped — they do not exist physically.
+     * Both paths register the same hover-tooltip vocabulary so the
+     * user reads identical "what happens at this distance" text on
+     * both circle and polyline contours. Rings clamped past the
+     * great-circle antipode use {@link clampToGreatCircle}; tiers
+     * whose amplitude exceeds the source value are skipped.
      */
     type TsunamiSourceMode =
       | { mode: 'cavity'; sourceAmplitude: number; cavityRadius: number }
       | { mode: 'cylindrical'; sourceAmplitude: number; halfLength: number };
+    interface WaveFrontTier {
+      id: TsunamiWaveFrontId;
+      amplitude: number;
+      color: Color;
+      tooltipKind: RingTooltipKind;
+    }
+    const WAVE_FRONT_TIERS: WaveFrontTier[] = [
+      {
+        id: 'tsunami-wavefront-5m',
+        amplitude: 5,
+        color: TSUNAMI_WAVE_FRONT_5M_COLOR,
+        tooltipKind: 'tsunamiWaveFront5m',
+      },
+      {
+        id: 'tsunami-wavefront-1m',
+        amplitude: 1,
+        color: TSUNAMI_WAVE_FRONT_1M_COLOR,
+        tooltipKind: 'tsunamiWaveFront1m',
+      },
+      {
+        id: 'tsunami-wavefront-03m',
+        amplitude: 0.3,
+        color: TSUNAMI_WAVE_FRONT_03M_COLOR,
+        tooltipKind: 'tsunamiWaveFront03m',
+      },
+    ];
+
+    /**
+     * Bathymetric path: extract iso-amplitude contours from the
+     * Green-shoaled FMM amplitude field and render each tier as
+     * polyline segments that follow the coastlines. Falls back to
+     * the closed-form path silently when the field is missing.
+     * Returns true if it emitted at least one tier — caller uses
+     * the boolean to decide whether the closed-form fallback runs.
+     */
+    const addBathymetricWaveFronts = (sourceAmplitude: number): boolean => {
+      if (bathymetricTsunami?.amplitude === undefined) return false;
+      const grid = useAppStore.getState().elevationGrid;
+      if (grid === null) return false;
+      const ampField = bathymetricTsunami.amplitude;
+      const thresholds = WAVE_FRONT_TIERS.filter((t) => sourceAmplitude > t.amplitude).map(
+        (t) => t.amplitude
+      );
+      if (thresholds.length === 0) return false;
+      const bands = extractAmplitudeContours({
+        amplitudes: ampField.amplitudes,
+        nLat: ampField.nLat,
+        nLon: ampField.nLon,
+        minLat: grid.minLat,
+        maxLat: grid.maxLat,
+        minLon: grid.minLon,
+        maxLon: grid.maxLon,
+        thresholds,
+      });
+      let anyEmitted = false;
+      const tierAlpha = [0.95, 0.9, 0.8] as const;
+      const tierWidth = [4, 3.5, 3] as const;
+      bands.forEach((band, bandIdx) => {
+        const tier = WAVE_FRONT_TIERS.find((t) => t.amplitude === band.threshold);
+        if (tier === undefined) return;
+        if (band.segments.length === 0) return;
+        anyEmitted = true;
+        const alpha = tierAlpha[bandIdx] ?? 0.85;
+        const width = tierWidth[bandIdx] ?? 3;
+        let bandRadiusSum = 0;
+        let bandRadiusCount = 0;
+        band.segments.forEach((seg, segIdx) => {
+          const id = `${tier.id}-seg-${segIdx.toString()}`;
+          viewer.entities.add({
+            id,
+            polyline: {
+              positions: [
+                Cartesian3.fromDegrees(seg.lon1, seg.lat1),
+                Cartesian3.fromDegrees(seg.lon2, seg.lat2),
+              ],
+              width,
+              material: tier.color.withAlpha(alpha),
+            },
+          });
+          // Approximate ground-range distance to source for the
+          // hover tooltip. Lat/lon equirectangular at the source
+          // latitude — fine for tooltip-level precision.
+          const latDeg = ringAnchor.latitude;
+          const lonScale = Math.max(Math.cos((latDeg * Math.PI) / 180), 1e-6);
+          const dLat1 = (seg.lat1 - latDeg) * 111_000;
+          const dLon1 = (seg.lon1 - ringAnchor.longitude) * 111_000 * lonScale;
+          const dLat2 = (seg.lat2 - latDeg) * 111_000;
+          const dLon2 = (seg.lon2 - ringAnchor.longitude) * 111_000 * lonScale;
+          const r1 = Math.sqrt(dLat1 * dLat1 + dLon1 * dLon1);
+          const r2 = Math.sqrt(dLat2 * dLat2 + dLon2 * dLon2);
+          bandRadiusSum += (r1 + r2) / 2;
+          bandRadiusCount += 1;
+        });
+        const meanRadius = bandRadiusCount > 0 ? bandRadiusSum / bandRadiusCount : 0;
+        // Register one tooltip metadata row per segment so the hover
+        // detector picks any of them. They all carry the same tier
+        // identity and a shared "average distance" — consistent
+        // message anywhere along the front.
+        band.segments.forEach((_seg, segIdx) => {
+          const id = `${tier.id}-seg-${segIdx.toString()}`;
+          registerRingTooltip(id, tier.tooltipKind, meanRadius, tier.color);
+        });
+      });
+      return anyEmitted;
+    };
+
     const addTsunamiWaveFronts = (source: TsunamiSourceMode): void => {
-      const targets: {
-        id: TsunamiWaveFrontId;
-        amplitude: number;
-        color: Color;
-        tooltipKind: RingTooltipKind;
-      }[] = [
-        {
-          id: 'tsunami-wavefront-5m',
-          amplitude: 5,
-          color: TSUNAMI_WAVE_FRONT_5M_COLOR,
-          tooltipKind: 'tsunamiWaveFront5m',
-        },
-        {
-          id: 'tsunami-wavefront-1m',
-          amplitude: 1,
-          color: TSUNAMI_WAVE_FRONT_1M_COLOR,
-          tooltipKind: 'tsunamiWaveFront1m',
-        },
-        {
-          id: 'tsunami-wavefront-03m',
-          amplitude: 0.3,
-          color: TSUNAMI_WAVE_FRONT_03M_COLOR,
-          tooltipKind: 'tsunamiWaveFront03m',
-        },
-      ];
+      // Try the bathymetric path first; if it emitted any contour
+      // we are done. Otherwise fall through to closed-form circles.
+      if (addBathymetricWaveFronts(source.sourceAmplitude)) return;
+      const targets = WAVE_FRONT_TIERS;
       // Per-tier alpha schedule. The 5 m ring (innermost, most
       // severe) gets the highest fill so it reads with visual
       // weight; the 0.3 m ring (outermost, mildest) is the most
