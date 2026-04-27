@@ -1129,10 +1129,15 @@ export function Globe(): JSX.Element {
               ],
               width,
               material: tier.color.withAlpha(alpha),
-              // Phase 14 — drape the wave-front polyline over the
-              // terrain so coastal isolines hug shorelines instead
-              // of cutting through hills at sea-level.
-              clampToGround: true,
+              // Phase 14a hotfix — clampToGround removed. Each tsunami
+              // iso-contour generates 200-800 polyline segments per
+              // band × 3 bands; with clampToGround Cesium creates a
+              // GroundPolylinePrimitive per segment (terrain-mesh
+              // sampling + GPU drape upload), which froze Launch for
+              // several seconds on wide tsunamis. Iso-contours are
+              // overwhelmingly in the open ocean where the drape
+              // effect is invisible anyway, so they stay flat at sea
+              // level and Launch returns to sub-second responsiveness.
             },
           });
           // Approximate ground-range distance to source for the
@@ -2043,7 +2048,15 @@ export function Globe(): JSX.Element {
                 image: gHeatmap.canvas,
                 transparent: true,
               }),
-              heightReference: HeightReference.CLAMP_TO_GROUND,
+              // Phase 14a hotfix — flat at sea level instead of
+              // CLAMP_TO_GROUND. Draping a planet-wide rectangle over
+              // the streamed terrain mesh forces Cesium to fetch terrain
+              // tiles for the entire globe synchronously, which froze
+              // Launch for several seconds. The amplitude information
+              // is in the colour gradient, not in the drape geometry —
+              // flat overlay reads identically once the camera tilts
+              // back to nadir.
+              height: 0,
             },
           });
         } catch (err: unknown) {
@@ -2095,7 +2108,7 @@ export function Globe(): JSX.Element {
                     ],
                     width,
                     material: color.withAlpha(alpha),
-                    clampToGround: true,
+                    // Phase 14a hotfix — see local iso-contour above.
                   },
                 });
                 totalSegments++;
@@ -2154,7 +2167,10 @@ export function Globe(): JSX.Element {
                 image: heatmap.canvas,
                 transparent: true,
               }),
-              heightReference: HeightReference.CLAMP_TO_GROUND,
+              // Phase 14a hotfix — see global heatmap above. Local tile
+              // rectangle is smaller (~150 km) but still expensive to
+              // drape over terrain on Launch.
+              height: 0,
             },
           });
         } catch (err: unknown) {
@@ -2198,7 +2214,8 @@ export function Globe(): JSX.Element {
                   image: ampHeatmap.canvas,
                   transparent: true,
                 }),
-                heightReference: HeightReference.CLAMP_TO_GROUND,
+                // Phase 14a hotfix — flat at sea level (see comments above).
+                height: 0,
               },
             });
           } catch (err: unknown) {
@@ -2282,7 +2299,8 @@ export function Globe(): JSX.Element {
               // without nano-precision aim.
               width: 4,
               material: color.withAlpha(0.95),
-              clampToGround: true,
+              // Phase 14a hotfix — clampToGround removed; isochrones
+              // are open-ocean polylines, drape adds no visual.
             },
           });
           const latSpan1 = Math.abs(seg.lat1 - ringAnchor.latitude);
@@ -2395,7 +2413,8 @@ export function Globe(): JSX.Element {
                     image: bitmap.canvas,
                     transparent: true,
                   }),
-                  heightReference: HeightReference.CLAMP_TO_GROUND,
+                  // Phase 14a hotfix — flat at sea level (see above).
+                  height: 0,
                 },
               });
             }
