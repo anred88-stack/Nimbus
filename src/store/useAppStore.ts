@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import {
   findNearbyOceanDepth,
+  OCEAN_FLOOR_M,
   sampleElevation,
   sampleSlope,
   waldAllen2007Vs30FromSlope,
@@ -955,19 +956,23 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const state = get();
     if (state.location === null || !gridCoversLocation(grid, state.location)) return;
     const z = sampleElevation(grid, state.location.latitude, state.location.longitude);
-    const hasWaterNearby =
-      z < -10 ||
+    // Re-evaluate when:
+    //   - impact is pending and the click is over open water (impact
+    //     tsunami requires the source itself to be submerged), or
+    //   - explosion is pending and the click is at or near water (Beirut
+    //     / Castle Bravo coastal coupling — see the evaluator).
+    const isOceanic = z < OCEAN_FLOOR_M;
+    const hasNearbyOcean =
       findNearbyOceanDepth(grid, state.location.latitude, state.location.longitude, 5_000) !== null;
-    if (!hasWaterNearby) return;
-    const impactNeedsRerun =
+    const impactPending =
       state.eventType === 'impact' &&
       state.result?.type === 'impact' &&
       state.impact.input.waterDepth === undefined;
-    const explosionNeedsRerun =
+    const explosionPending =
       state.eventType === 'explosion' &&
       state.result?.type === 'explosion' &&
       state.explosion.input.waterDepth === undefined;
-    if (impactNeedsRerun || explosionNeedsRerun) {
+    if ((impactPending && isOceanic) || (explosionPending && (isOceanic || hasNearbyOcean))) {
       void get().evaluate();
     }
   },
@@ -1003,30 +1008,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
             state.location.latitude,
             state.location.longitude
           );
-          if (z < -10) {
+          // Tsunami source needs the impactor to actually piston a
+          // water column, which only happens when the click point is
+          // itself below sea level. Earlier code synthesised a ~200 m
+          // depth from any ocean cell within 5 km; that produced a
+          // spurious wave train for inland-near-coast clicks (Tunguska
+          // dropped on Sicily auto-fired the Ward-Asphaug cavity even
+          // though the cavity itself is ~1 km across and never reaches
+          // the sea). For impacts we now require the click cell to be
+          // open water — the explosion branch keeps the coastal
+          // synthesis because Beirut / Castle Bravo really did couple
+          // into a quayside basin.
+          if (z < OCEAN_FLOOR_M) {
             impactInput = { ...impactInput, waterDepth: m(-z) };
-          } else {
-            // Coastal fall-through: the click cell is land but the
-            // event sits next to water (Yucatán, the Maremma, Beirut
-            // promontory, …). Without this, the impact-tsunami branch
-            // silently drops and the user sees no wave train even
-            // though a body of that scale would couple into the
-            // adjacent basin. Mirrors the explosion-evaluator path:
-            // search a 5 km lattice for ocean cells, take the median
-            // depth, cap at 200 m so the Ward & Asphaug cavity is
-            // sized to a near-shore basin rather than to the open
-            // ocean. The energy-coupling cap-off in the cavity model
-            // keeps the amplitude honest at the synthesised depth.
-            const coastalDepth = findNearbyOceanDepth(
-              state.elevationGrid,
-              state.location.latitude,
-              state.location.longitude,
-              5_000
-            );
-            if (coastalDepth !== null) {
-              const cappedDepth = Math.min(coastalDepth, 200);
-              impactInput = { ...impactInput, waterDepth: m(cappedDepth) };
-            }
           }
         }
         // DEM-driven beach slope for the Synolakis run-up — see
@@ -1073,7 +1067,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
             state.location.latitude,
             state.location.longitude
           );
-          if (z < -10) {
+          if (z < OCEAN_FLOOR_M) {
             explosionInput = { ...explosionInput, waterDepth: m(-z) };
           } else {
             // Land cell — try the 5 km neighbourhood.
@@ -1134,7 +1128,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
             state.location.latitude,
             state.location.longitude
           );
-          if (z < -10) {
+          if (z < OCEAN_FLOOR_M) {
             earthquakeInput = { ...earthquakeInput, waterDepth: m(-z) };
           }
         }
