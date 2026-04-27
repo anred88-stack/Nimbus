@@ -55,8 +55,21 @@ import styles from './Globe.module.css';
  */
 Ion.defaultAccessToken = '';
 
-const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const OSM_ATTRIBUTION = '© OpenStreetMap contributors';
+// Stadia Maps' "Stamen Terrain" basemap: shaded-relief topography
+// rendered from OpenStreetMap data. Two reasons we use it instead
+// of the raw OSM tiles served at tile.openstreetmap.org:
+//   1. Place names are localised to English (`name:en` from OSM),
+//      so the globe stays legible when the user pans into Asia
+//      where OSM serves CJK / Devanagari / Thai script by default.
+//   2. The tiles bake in hill-shading, which gives the otherwise
+//      flat ellipsoid a sense of 3D relief without us having to
+//      load a Cesium terrain provider.
+// Stadia allows keyless requests for non-commercial use; production
+// builds should set VITE_STADIA_API_KEY (see docs/ASSETS.md and
+// docs/RELEASE_CHECKLIST.md).
+const BASE_TILE_URL = 'https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}@2x.png';
+const BASE_TILE_ATTRIBUTION =
+  '© Stadia Maps · © Stamen Design · © OpenMapTiles · © OpenStreetMap contributors';
 
 /**
  * Ring palette — every hex is chosen for two constraints:
@@ -385,9 +398,9 @@ export function Globe(): JSX.Element {
       viewer.imageryLayers.removeAll();
       viewer.imageryLayers.addImageryProvider(
         new UrlTemplateImageryProvider({
-          url: OSM_TILE_URL,
-          credit: OSM_ATTRIBUTION,
-          maximumLevel: 19,
+          url: BASE_TILE_URL,
+          credit: BASE_TILE_ATTRIBUTION,
+          maximumLevel: 18,
         })
       );
 

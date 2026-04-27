@@ -41,6 +41,10 @@ or have a written reason in the release PR before pushing the
 
 - [ ] `VITE_PLAUSIBLE_DOMAIN` set in the Pages production environment
       (not preview, not dev).
+- [ ] `VITE_STADIA_API_KEY` set in the Pages production environment.
+      Register a free domain-restricted key on stadiamaps.com and
+      thread it through the basemap URL (currently keyless dev path
+      in `Globe.tsx`).
 - [ ] Plausible dashboard receives pageviews within 10 minutes of a
       deploy.
 - [ ] Privacy / analytics note in the footer or About dialog.

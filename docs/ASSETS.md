@@ -65,22 +65,26 @@ post-v1.0 work:
 
 ### Network services
 
-| Service                    | Purpose                      | Licence / terms                         | Source URL                                           | Added      |
-| -------------------------- | ---------------------------- | --------------------------------------- | ---------------------------------------------------- | ---------- |
-| OpenStreetMap raster tiles | Globe imagery in `Globe.tsx` | ODbL 1.0 — attribution + usage policy   | https://operations.osmfoundation.org/policies/tiles/ | 2026-04-23 |
-| AWS Terrain Tiles          | Bathymetry / DEM samples     | CC0                                     | https://registry.opendata.aws/terrain-tiles/         | 2026-04-23 |
-| WorldPop 2020 1 km mosaic  | Population exposure (COG)    | CC-BY-4.0 (academic, attribution req'd) | https://www.worldpop.org/                            | 2026-04-23 |
+| Service                             | Purpose                      | Licence / terms                         | Source URL                                          | Added      |
+| ----------------------------------- | ---------------------------- | --------------------------------------- | --------------------------------------------------- | ---------- |
+| Stadia Maps · Stamen Terrain raster | Globe basemap in `Globe.tsx` | Free for non-commercial; key for prod   | https://stadiamaps.com/products/maps/stamen-terrain | 2026-04-27 |
+| AWS Terrain Tiles                   | Bathymetry / DEM samples     | CC0                                     | https://registry.opendata.aws/terrain-tiles/        | 2026-04-23 |
+| WorldPop 2020 1 km mosaic           | Population exposure (COG)    | CC-BY-4.0 (academic, attribution req'd) | https://www.worldpop.org/                           | 2026-04-23 |
 
-OSM usage-policy compliance:
+Stamen Terrain compliance:
 
-- Attribution `© OpenStreetMap contributors` is shown in the Cesium
-  credit overlay (wired via `UrlTemplateImageryProvider.credit`).
-- Requests carry the browser default `User-Agent`; no bulk
-  downloading or `z ≥ 20` requests.
-- Tiles aren't cached or redistributed beyond the session.
-- For higher-traffic deploys we plan to migrate to a commercial tile
-  provider or self-hosted renderer; OSM direct-serve is for the
-  open-source preview.
+- Attribution `© Stadia Maps · © Stamen Design · © OpenMapTiles · © OpenStreetMap contributors`
+  is shown in the Cesium credit overlay (wired via
+  `UrlTemplateImageryProvider.credit`).
+- Choice driven by two needs: place names rendered in English
+  (`name:en` from OpenMapTiles vendor data) so the globe stays
+  legible across Asia, and shaded-relief baked into the raster so the
+  ellipsoid reads as 3D without us hosting Cesium-format terrain.
+- Stadia's policy allows keyless requests for development and modest
+  non-commercial traffic. For the production build we will register
+  for a free domain-restricted API key and inject it via
+  `VITE_STADIA_API_KEY` (entry to add when the v1.0 deploy goes
+  live; tracked in `docs/RELEASE_CHECKLIST.md`).
 
 ## Adding a new asset
 
