@@ -552,6 +552,54 @@
     "overviewBody": "Nimbus è un motore fisico TypeScript headless (Layer 2) avvolto da un globo Cesium (Layer 3) e da un'interfaccia React (Layer 4). Il Layer 2 non ha dipendenze runtime su React / Three / Cesium — la configurazione ESLint blocca tali import in modo che la fisica resti testabile da una CLI Node. Ogni formula qui elencata vive in un file sotto src/physics/ con un blocco JSDoc che cita l'articolo e il numero di equazione usato. Le tolleranze della test suite rispettano lo scatter pubblicato negli articoli originali — ±30 % per le soglie di fluenza termica, ±50 % per l'altezza dei pennacchi vulcanici, ±fattore-2 per runout di ejecta e lahar.",
     "validationTitle": "Validazione storica",
     "validationBody": "Quindici degli eventi meglio strumentati nel record storico vengono ri-simulati dalla test suite a ogni commit. Se un refactor fisico sposta l'output fuori dalla tolleranza pubblicata, il test di integrazione fallisce per primo.",
+    "uncertainty": {
+      "title": "Quantificazione dell'incertezza",
+      "body": "Ogni input incerto ha un σ documentato in src/physics/uq/conventions.ts, ogni output ha un σ documentato in src/physics/confidence.ts e il motore Monte Carlo campiona 200 realizzazioni per disegnare bande P10/P90 sulle metriche principali. La metodologia è documentata sotto docs/SCIENCE.md e lo script `pnpm sensitivity` produce un'analisi di sensitività OAT (one-at-a-time) per ogni preset.",
+      "inputItem": "Convenzioni σ degli input",
+      "inputNote": "Ogni wrapper MC importa i parametri di scatter da un dizionario tipato unico che cita l'articolo per il valore di σ. Esempi: diametro impattore σ_log = 0.15 (Mainzer 2019), yield esplosione σ_log = 0.1 (Sublette FAQ), velocità Vs30 σ = 30 % (Wald & Allen 2007).",
+      "outputItem": "Scatter 1σ sugli output (bande sui valori puntuali)",
+      "outputNote": "Il dizionario speculare OUTPUT_SIGMA documenta lo scatter pubblicato per grandezza che la UI usa per mostrare barre di confidenza accanto ai raggi. Le bande maggiori: tsunami in campo lontano Wünnemann (fattore-3), altezza pennacchio Mastin (fattore-2), runout piroclastico (±70 %).",
+      "mcItem": "Monte Carlo (N = 200)",
+      "mcNote": "Generatore Mulberry32 con seed in modo che un URL condivisibile riproduca percentili bit-identici. La scelta N=200 è verificata contro un riferimento N=2000: P10/P90 entro il 15 %, mediane entro il 10 %.",
+      "sensitivityItem": "Sensitività locale OAT",
+      "sensitivityNote": "`pnpm sensitivity` perturba ogni input di ±1σ e riporta i coefficienti di elasticità per (input, output). Per Tunguska l'energia è guidata all'80 % dal diametro dell'impattore (E ∝ d³), al 20 % dalla velocità (E ∝ v²) — utile sia come testo esplicativo sia come ausilio alla regressione."
+    },
+    "regression": {
+      "title": "Suite di regressione predetto-vs-osservato",
+      "body": "Ogni commit ri-esegue quattro test di validazione contro osservazioni pubblicate di eventi storici. Ogni banda di tolleranza deriva dall'inviluppo del modello sottostante in modo che il contratto sia onesto, non un curve-fitting. Tabella completa in docs/VALIDATION.md.",
+      "tsunamiItem": "Tempi d'arrivo tsunami",
+      "tsunamiNote": "Tōhoku 2011 trans-pacifico + Sumatra 2004 trans-indiano (DART / mareografi). RMSE sotto 60 min, ogni stazione entro ±20 % del tempo predetto + 3σ di incertezza osservativa.",
+      "shakemapItem": "Anelli MMI VII di terremoti",
+      "shakemapNote": "Northridge 1994 + L'Aquila 2009 (rilevamenti macrosismici). Bias aggregato cross-evento sotto ±25 %.",
+      "plumeItem": "Altezza pennacchi vulcanici",
+      "plumeNote": "Pinatubo 1991, Mount St Helens 1980, Krakatau 1883. Inviluppo del fit Mastin 2009 più il σ osservativo di ogni evento.",
+      "tunguskaItem": "Bilancio energetico Tunguska",
+      "tunguskaNote": "L'energia cinetica del preset deve cadere dentro la finestra di ricostruzione Boslough & Crawford 2008 + Chyba 1993 (3-30 Mt). Cattura derive del preset o modifiche silenziose alla formula."
+    },
+    "limitations": {
+      "title": "Limiti — cosa Nimbus NON modella",
+      "body": "Disclosure onesta di cosa il simulatore deliberatamente non cattura. Nessuno di questi è un bug; sono scelte di scope che uno strumento operazionale di hazard reale affronterebbe con un motore differente.",
+      "atm": {
+        "item": "Circolazione atmosferica 3D",
+        "note": "La dispersione del pennacchio usa un inviluppo analitico 2D Suzuki / Bonadonna, non un modello lagrangiano 3D di particelle. La vera advezione di cenere su più giorni richiede HYSPLIT / FALL3D — fuori scope."
+      },
+      "shore": {
+        "item": "Run-up tsunami sulla costa",
+        "note": "Lamb 1932 + Green 1838 + Synolakis 1987 sono modelli lineari shallow-water che si rompono dove l'onda frange. Esponiamo un'ampiezza di runup ma NON risolviamo l'inondazione Boussinesq completa."
+      },
+      "fault": {
+        "item": "Geometria di rottura della faglia",
+        "note": "Gli output sismici usano una sorgente puntiforme + scaling d'area Wells & Coppersmith 1994. Non risolviamo il campo di dislocazione elastica — output di deformazione Okada 1985, tracce di faglia in superficie e cambiamenti di stress che innescano repliche oltre il fit Reasenberg & Jones 1989 sono fuori scope."
+      },
+      "plume": {
+        "item": "Morfologia 3D del fungo atomico",
+        "note": "Il fungo atomico 3D nello Stage view segue lo scaling d'altezza Mastin ma forma e texture visive sono pittoriche — una rappresentazione qualitativa, non una simulazione fluida quantitativa. La mappa di ricaduta cenere è l'output rigoroso, non la nuvola."
+      },
+      "cascade": {
+        "item": "Cascata climatica oltre il primo anno",
+        "note": "Gli stage di cascata a lungo termine (inverno da impatto, acidificazione oceanica, collasso plancton) riportano stime in ordini di grandezza derivate dalla letteratura piuttosto che simulazioni accoppiate atmosfera-oceano. Considera la coda lungo termine descrittiva, non predittiva."
+      }
+    },
     "footer": "Open source con licenza Apache 2.0. Correzioni e citazioni aggiuntive sono benvenute tramite pull request GitHub."
   },
   "population": {

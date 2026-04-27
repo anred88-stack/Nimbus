@@ -88,12 +88,28 @@ from the command line as the browser worker. Full discussion in
 
 ## Documentation
 
-- [docs/SCIENCE.md](docs/SCIENCE.md) — bibliography, formula rules, validation tolerances.
+- [docs/SCIENCE.md](docs/SCIENCE.md) — bibliography, formula rules, master quantity table.
+- [docs/VALIDATION.md](docs/VALIDATION.md) — predicted-vs-observed regression suite (tsunami, MMI, plume, Tunguska).
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — the four-layer structure and why.
 - [docs/ART_DIRECTION.md](docs/ART_DIRECTION.md) — visual language, palette, asset policy.
 - [docs/ROADMAP.md](docs/ROADMAP.md) — milestones and what's left for v1.0.
 - [docs/QUICKSTART.md](docs/QUICKSTART.md) — launcher subcommands.
 - [docs/ASSETS.md](docs/ASSETS.md) — third-party assets and their licences.
+
+## Reproducing the science
+
+```bash
+pnpm test                     # 697 unit + integration tests including the validation suite
+pnpm test src/physics/validation  # 13 predicted-vs-observed checks against published events
+pnpm sensitivity --pretty     # OAT sensitivity report for every preset
+```
+
+Every assertion runs offline against committed fixtures in
+[src/physics/validation/fixtures.ts](src/physics/validation/fixtures.ts).
+The σ conventions for every uncertain input live in
+[src/physics/uq/conventions.ts](src/physics/uq/conventions.ts) — single
+source of truth, cited against the source paper. Same seed ⇒ same
+percentiles, so a shareable URL replicates a reviewer's run bit-for-bit.
 
 ## Contributing
 

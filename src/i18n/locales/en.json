@@ -552,6 +552,54 @@
     "overviewBody": "Nimbus is a headless TypeScript physics engine (Layer 2) wrapped by a Cesium globe (Layer 3) and a React UI (Layer 4). Layer 2 has zero runtime dependencies on React / Three / Cesium — the ESLint configuration blocks such imports so the physics stays testable from a Node CLI. Each formula below lives in its own file under src/physics/ with a JSDoc block that names the citation and the specific equation number used. Tolerances in the test suite honour the scatter published in the original papers — ±30 % for thermal-fluence thresholds, ±50 % for volcanic plume heights, ±factor-2 for ejecta and lahar runouts.",
     "validationTitle": "Historical validation roster",
     "validationBody": "Fifteen of the best-instrumented events in the historical record are re-simulated by the test suite on every commit. When a physics refactor drifts the output outside the published tolerance, the integration test fails first.",
+    "uncertainty": {
+      "title": "Uncertainty quantification",
+      "body": "Every uncertain input has a documented σ in src/physics/uq/conventions.ts, every output has a documented σ in src/physics/confidence.ts, and the Monte-Carlo engine samples 200 realisations to draw P10/P90 bands on the headline metrics. The methodology is documented under docs/SCIENCE.md and the script `pnpm sensitivity` produces an OAT (one-at-a-time) sensitivity report for every preset.",
+      "inputItem": "Input σ conventions",
+      "inputNote": "Each MC wrapper imports its scatter parameters from a single typed dictionary that names the source paper for the σ value. Examples: impactor diameter σ_log = 0.15 (Mainzer 2019), explosion yield σ_log = 0.1 (Sublette FAQ), Vs30 site velocity σ = 30 % (Wald & Allen 2007).",
+      "outputItem": "Output 1σ scatter (point-estimate bands)",
+      "outputNote": "Mirror dictionary OUTPUT_SIGMA documents the published per-quantity scatter that the UI uses to render confidence bars next to the radius numbers. Largest bands: Wünnemann far-field tsunami (factor-3), Mastin plume height (factor-2), pyroclastic runout (±70 %).",
+      "mcItem": "Monte Carlo (N = 200)",
+      "mcNote": "Mulberry32-seeded so a shareable URL reproduces bit-identical percentiles. The N=200 default is bench-tested against an N=2000 reference: P10/P90 land within 15 %, medians within 10 %.",
+      "sensitivityItem": "OAT local sensitivity",
+      "sensitivityNote": "`pnpm sensitivity` runs each input ±1σ and reports per-(input, output) elasticity coefficients. For Tunguska the energy is 80 % driven by impactor diameter (E ∝ d³), 20 % by velocity (E ∝ v²) — useful both for explanatory text and as a regression aid."
+    },
+    "regression": {
+      "title": "Predicted-vs-observed regression suite",
+      "body": "Every commit re-runs four validation tests against published observations of historical events. Each tolerance band is sourced from the underlying model envelope so the contract is honest, not curve-fitted. Full table in docs/VALIDATION.md.",
+      "tsunamiItem": "Tsunami arrival times",
+      "tsunamiNote": "Trans-Pacific Tōhoku 2011 + trans-Indian Sumatra 2004 DART / tide-gauge arrivals. RMSE under 60 min, every station matched within ±20 % of the predicted travel time + 3σ observation uncertainty.",
+      "shakemapItem": "Earthquake MMI VII rings",
+      "shakemapNote": "Northridge 1994 + L'Aquila 2009 macroseismic surveys. Cross-event aggregate bias under ±25 %.",
+      "plumeItem": "Volcanic plume heights",
+      "plumeNote": "Pinatubo 1991, Mount St Helens 1980, Krakatau 1883. Mastin 2009 fit envelope plus the per-event observation σ.",
+      "tunguskaItem": "Tunguska energy budget",
+      "tunguskaNote": "Preset KE must lie inside Boslough & Crawford 2008 + Chyba 1993 reconstruction window (3-30 Mt). Catches preset drift or silent formula edits."
+    },
+    "limitations": {
+      "title": "Limitations — what Nimbus does NOT model",
+      "body": "Honest disclosure of what the simulator deliberately does not capture. None of these are bugs; they are scope decisions a real operational hazard tool would address with a different engine.",
+      "atm": {
+        "item": "3D atmospheric circulation",
+        "note": "Plume dispersion uses a 2D Suzuki / Bonadonna analytical envelope, not a 3D Lagrangian particle model. Real ash advection over multiple days needs HYSPLIT / FALL3D — out of scope here."
+      },
+      "shore": {
+        "item": "Tsunami runup at the shoreline",
+        "note": "Lamb 1932 + Green 1838 + Synolakis 1987 are linear shallow-water models that break down where the wave breaks. We surface a runup amplitude but do NOT solve the full Boussinesq inundation."
+      },
+      "fault": {
+        "item": "Fault rupture geometry",
+        "note": "Earthquake outputs use a point source + Wells & Coppersmith 1994 area scaling. We do not solve the elastic dislocation field — Okada 1985 strain output, surface fault traces, and stress changes triggering aftershocks beyond the Reasenberg & Jones 1989 fit are out of scope."
+      },
+      "plume": {
+        "item": "Mushroom-cloud morphology in 3D",
+        "note": "The 3D mushroom cloud rendered in the Stage view follows the Mastin height scaling but its visual shape and texture are pictorial — a qualitative representation, not a quantitative fluid simulation. The ash-fallout map is the rigorous output, not the cloud."
+      },
+      "cascade": {
+        "item": "Climate cascade beyond the first year",
+        "note": "Long-term cascade stages (impact winter, ocean acidification, plankton collapse) report literature-derived order-of-magnitude estimates rather than full coupled atmosphere-ocean simulations. Treat the long-term tail as descriptive, not predictive."
+      }
+    },
     "footer": "Open-source under Apache 2.0. Corrections and additional citations are welcome via GitHub pull requests."
   },
   "population": {
