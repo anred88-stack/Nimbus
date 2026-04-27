@@ -68,6 +68,14 @@ import type { FastMarchingResult } from './fastMarching.js';
  *  ~50 m anyway; pushing past it would let A diverge unphysically. */
 const MIN_PROPAGATION_DEPTH = 50;
 
+/** Hard cap on the Green's-law shoaling factor. Linear shallow-water
+ *  theory predicts arbitrary amplification as h → 0, but in practice
+ *  the wave breaks once H/h ≥ 0.78 (McCowan 1894 solitary-wave breaking
+ *  criterion). A 4× cap keeps the heatmap honest in the worst case
+ *  while leaving the per-cell value still proportional to (h₀/h)^(1/4)
+ *  in the regime where the formula holds. */
+const SHOALING_CAP = 4;
+
 export interface AmplitudeFieldInput {
   /** Pre-computed FMM arrival-time field. */
   arrivalField: FastMarchingResult;
@@ -122,7 +130,10 @@ export function computeAmplitudeField(input: AmplitudeFieldInput): AmplitudeFiel
     const cLocal = Math.sqrt(g * h);
 
     // Green's law shoaling: amplitude grows as (h₀/h)^(1/4).
-    const shoaling = (sourceDepth / h) ** 0.25;
+    // Cap at SHOALING_CAP to honour the McCowan 1894 wave-breaking
+    // limit — beyond ~4× the linear shallow-water envelope is not
+    // physical, the wave breaks and dissipates instead.
+    const shoaling = Math.min((sourceDepth / h) ** 0.25, SHOALING_CAP);
 
     // Geometric spreading via the FMM travel time. Use the geometric
     // mean of c₀ and c_local as the path-averaged celerity — a

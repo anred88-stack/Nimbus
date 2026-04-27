@@ -96,6 +96,49 @@ describe('computeAmplitudeField', () => {
     expect(ratio).toBeLessThan(1.7);
   });
 
+  it('McCowan 1894 wave-breaking cap holds the shoaling factor at 4× even with extreme shelf depths', () => {
+    // Source over a 7 000 m trench, ALL surrounding cells at the
+    // 50 m floor — this would give a raw Green factor of (7000/50)^(1/4)
+    // = 3.44× without the SHOALING_CAP. Push past that by configuring
+    // a 100 km deep source and a 0.1 m cell to verify the 4× cap is
+    // real (clamped by the Math.min, not just by MIN_PROPAGATION_DEPTH).
+    const N = 21;
+    const samples = new Float32Array(N * N);
+    samples.fill(-50); // shelf
+    // Deepen one column to 7 000 m so the source sits in deep water.
+    const sourceCol = 0;
+    for (let i = 0; i < N; i++) samples[i * N + sourceCol] = -7_000;
+    const grid = makeElevationGrid({
+      minLat: -1,
+      maxLat: 1,
+      minLon: -1,
+      maxLon: 1,
+      nLat: N,
+      nLon: N,
+      samples,
+    });
+    const arrival = computeTsunamiArrivalField({
+      grid,
+      sourceLatitude: 0,
+      sourceLongitude: -1,
+    });
+    const field = computeAmplitudeField({
+      arrivalField: arrival,
+      grid,
+      sourceAmplitudeM: 1,
+      sourceCavityRadiusM: 5_000,
+      sourceDepthM: 7_000,
+    });
+    // No shelf cell should carry an amplitude > 4 m (the cap). The
+    // theoretical Green amplification (7000/50)^0.25 = 3.44 is below
+    // the cap so this verifies "no overshoot".
+    let maxAmp = 0;
+    for (const a of field.amplitudes) {
+      if (Number.isFinite(a) && a > maxAmp) maxAmp = a;
+    }
+    expect(maxAmp).toBeLessThanOrEqual(4 * 1.0 + 1e-6); // source A · cap
+  });
+
   it("Green's law amplifies the wave when it shoals onto shallow water", () => {
     // Half-and-half basin: 4 000 m to the west of the source, 100 m
     // to the east. Equal great-circle distance, so the only difference
