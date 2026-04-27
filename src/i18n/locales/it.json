@@ -360,6 +360,7 @@
     "time": {
       "instant": "t = 0"
     },
+    "scaleNote": "Gli stage sono rivelati su scala temporale logaritmica (secondi → millenni compressi in ~5 s di tempo UI). Gli istanti accanto a ogni stage sono i tempi fisici reali, non i tempi di rivelazione a schermo.",
     "impact": {
       "flash": {
         "name": "Flash della palla di fuoco",
@@ -596,7 +597,8 @@
       "showAll": "Mostra tutti",
       "rowAriaShow": "Mostra anello {{name}}",
       "rowAriaHide": "Nascondi anello {{name}}",
-      "globalBadge": "globale"
+      "globalBadge": "globale",
+      "uncertaintyNote": "Ogni raggio è una linea netta sulla mappa ma in realtà è una banda: la dispersione 1σ pubblicata è ±15–30 % per anelli blast e sismici, fattore 2 per pennacchi e tsunami in campo lontano. Vedi pagina metodologia per la banda di ogni grandezza."
     },
     "aftershockDetail": {
       "aria": "Pannello di dettaglio scossa di assestamento",

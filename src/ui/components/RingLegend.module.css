@@ -107,6 +107,16 @@
   font-style: italic;
 }
 
+.uncertaintyNote {
+  font-size: 10px;
+  line-height: 1.4;
+  margin: 8px 0 0 0;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+  opacity: 0.55;
+  font-style: italic;
+}
+
 .list {
   list-style: none;
   margin: 0;

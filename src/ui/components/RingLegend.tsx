@@ -358,6 +358,9 @@ export function RingLegend(): JSX.Element {
               })}
             </ul>
           )}
+          {rows.length > 0 && (
+            <p className={styles.uncertaintyNote}>{t('globe.legend.uncertaintyNote')}</p>
+          )}
         </>
       )}
     </aside>

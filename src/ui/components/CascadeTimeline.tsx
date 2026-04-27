@@ -133,6 +133,7 @@ export function CascadeTimeline({ stages }: { stages: CascadeStage[] }): JSX.Ele
           </Fragment>
         ))}
       </ol>
+      <p className={styles.scaleNote}>{t('cascade.scaleNote')}</p>
     </section>
   );
 }
