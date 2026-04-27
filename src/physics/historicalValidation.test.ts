@@ -226,15 +226,18 @@ describe('Historical validation — volcanic eruptions', () => {
     expect(plumeKm).toBeLessThan(60);
   });
 
-  it('Mount St Helens 1980: VEI 5, plume 10–25 km, lahar runout in 10–100 km', () => {
+  it('Mount St Helens 1980: VEI 5, plume 20–28 km, lahar runout in 10–100 km', () => {
     const r = simulateVolcano({
       ...VOLCANO_PRESETS.MT_ST_HELENS_1980.input,
       laharVolume: 5e7,
     });
     expect(r.vei).toBe(5);
     const plumeKm = (r.plumeHeight as number) / 1_000;
-    expect(plumeKm).toBeGreaterThan(10);
-    expect(plumeKm).toBeLessThan(25);
+    // Phase 10 preset re-tune: V_dot=4e4 gives 24.7 km plume, in line
+    // with Carey & Sigurdsson 1985 observed 25 km. Was 14.8 km from
+    // the under-tuned V_dot=4e3 the original preset shipped with.
+    expect(plumeKm).toBeGreaterThan(20);
+    expect(plumeKm).toBeLessThan(28);
     const laharKm = r.laharRunout === undefined ? 0 : (r.laharRunout as number) / 1_000;
     expect(laharKm).toBeGreaterThan(10);
     expect(laharKm).toBeLessThan(100);

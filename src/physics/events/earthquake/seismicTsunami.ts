@@ -105,18 +105,22 @@ function dipDependentUpliftFactor(input: SeismicTsunamiInput): number {
  * into a long-wavelength gravity-wave amplitude at the source.
  *
  * The standard textbook approach (`A₀ = uplift`) implicitly assumes
- * 100 % conversion. In reality only ≈ 70 % of the uplift volume ends
- * up in the propagating long wave — the remainder is dissipated as
- * acoustic waves inside the water column, short-wavelength surface
- * modes that disperse rapidly, and the seafloor's elastic rebound
- * after the rupture (Satake et al. 2013 BSSA 103: 1473 — Tōhoku
- * 2011 DART-buoy inversion gives 70 ± 10 % effective coupling).
+ * 100 % conversion. Satake et al. 2013 BSSA 103: 1473 calibrate
+ * 70 ± 10 % from Tōhoku 2011 DART-buoy inversion (mean amplitude).
+ * However, near-source DART buoys observe the *peak* amplitude over
+ * the high-slip patch, not the area-mean — heterogeneous slip
+ * concentrates 1.3-1.5× of the mean amplitude into the peak. The
+ * 0.9 effective factor honours both calibrations: Tōhoku's near-
+ * source 5-8 m peak vs the formula's 4.48 m, Lisbon 1755's 5-10 m
+ * estimate vs the formula's 3.4 m (still borderline for the latter
+ * because the historical source area is itself uncertain).
  *
- * Applying this factor brings the simulator's headline source
- * amplitudes from "average uplift" closer to the "average wave
- * amplitude" actually observed at near-source DART buoys.
+ * Phase 10 audit raised this from 0.7 to 0.9 after re-examining
+ * Tōhoku DART buoys — the previous value matched the area-mean but
+ * under-predicted what the renderer shows the user (which is the
+ * peak observed near the rupture, not the integrated mean).
  */
-const WAVE_COUPLING_EFFICIENCY = 0.7;
+const WAVE_COUPLING_EFFICIENCY = 0.9;
 
 const DEFAULT_BASIN_DEPTH = 4_000; // m — global-ocean mean
 const REFERENCE_RUNUP_SLOPE = Math.atan(1 / 100); // 1:100 plane beach

@@ -88,7 +88,15 @@ export function climateCoolingFromVEI(vei: number): number {
 export function ashfallArea1mm(totalEjectaVolume: number): number {
   if (!Number.isFinite(totalEjectaVolume) || totalEjectaVolume <= 0) return 0;
   const V_km3 = totalEjectaVolume / 1e9;
-  const areaKm2 = 3_000 * Math.pow(V_km3, 0.8);
+  // Phase 10 audit: prefactor 3 000 under-predicted by factor 25
+  // (Pinatubo 1991 sim 19 000 km² vs lit 500 000 km²). Re-fit against
+  // Pyle 1989 / Bonadonna & Costa 2013 isopach datasets:
+  //   MSH 1980 (V≈1 km³) → 50 000 km² observed
+  //   Pinatubo 1991 (V≈10 km³) → 500 000 km² observed
+  //   Krakatau 1883 (V≈20 km³) → ~1×10⁶ km² observed
+  // K = 60 000 fits all three within ±factor-2. Old prefactor was a
+  // typo — the published Pyle 1989 fit is K ≈ 5×10⁴, not 3×10³.
+  const areaKm2 = 60_000 * Math.pow(V_km3, 0.8);
   return areaKm2 * 1_000_000; // km² → m²
 }
 

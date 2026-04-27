@@ -26,8 +26,18 @@ import { m } from '../../units.js';
 const LD50_REFERENCE_RADIUS_KT1 = 700;
 /** LD₁₀₀ sits at roughly 70 % of the LD₅₀ distance. */
 const LD100_TO_LD50_RATIO = 0.7;
-/** Yield-scaling exponent for the initial radiation envelope. */
-const YIELD_EXPONENT = 0.4;
+/** Yield-scaling exponent for the initial radiation envelope.
+ *
+ * Phase 10 audit: re-fit against Glasstone Fig. 8.46 anchor points.
+ * The previous 0.4 over-predicted by factor 2 at 15 kt (Hiroshima
+ * lit ~1.0 km, simulator was 2.07 km) and by factor 10+ at 50 Mt
+ * because atmospheric attenuation makes the dose envelope grow much
+ * more slowly than a square-root on yield. Anchors:
+ *   1 kt   → ~0.7 km    (Glasstone Fig 8.46)
+ *   15 kt  → ~1.0 km    (Hiroshima reconstruction)
+ *   1 Mt   → ~2.5 km    (Glasstone scaling curve)
+ * The 0.18 exponent fits all three within 15 %. */
+const YIELD_EXPONENT = 0.18;
 
 export interface RadiationDoseResult {
   /** Ground range at which the initial gamma + neutron dose reaches

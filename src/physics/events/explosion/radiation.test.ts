@@ -20,12 +20,13 @@ describe('initialRadiationRadii (Glasstone 1977 Fig. 8.46 / UNSCEAR 2000)', () =
     expect(ratio).toBeCloseTo(1.4, 2);
   });
 
-  it('scales as yield^0.4 between 1 kt and 1 Mt', () => {
+  it('scales as yield^0.18 between 1 kt and 1 Mt (Glasstone Fig 8.46 atmospheric attenuation)', () => {
     const r1kt = initialRadiationRadii(0.001);
     const r1Mt = initialRadiationRadii(1);
     const ratio = (r1Mt.ld50Radius as number) / (r1kt.ld50Radius as number);
-    // 1 000× the yield ⇒ 1000^0.4 ≈ 15.85× the radius.
-    expect(ratio).toBeCloseTo(15.85, 1);
+    // Phase 10 audit: replaced yield^0.4 with yield^0.18 to honour
+    // atmospheric attenuation. 1 000× yield ⇒ 1000^0.18 ≈ 3.47× radius.
+    expect(ratio).toBeCloseTo(3.47, 1);
   });
 
   it('returns zero for zero or negative yield', () => {
@@ -33,9 +34,12 @@ describe('initialRadiationRadii (Glasstone 1977 Fig. 8.46 / UNSCEAR 2000)', () =
     expect(initialRadiationRadii(-1).ld100Radius).toBe(0);
   });
 
-  it('Hiroshima 15 kt LD50 radius is about 2 km (published range 1.5–2.5 km)', () => {
+  it('Hiroshima 15 kt LD50 radius matches Glasstone Fig 8.46 (~1.0 km)', () => {
+    // Phase 10 audit: was 2.07 km (factor-2 over) under yield^0.4
+    // scaling. After re-fit to yield^0.18 the value drops to ~1.1 km
+    // matching Glasstone's anchor at 15 kt.
     const r = initialRadiationRadii(0.015);
-    expect(r.ld50Radius as number).toBeGreaterThan(1_500);
-    expect(r.ld50Radius as number).toBeLessThan(2_500);
+    expect(r.ld50Radius as number).toBeGreaterThan(900);
+    expect(r.ld50Radius as number).toBeLessThan(1_400);
   });
 });

@@ -654,7 +654,10 @@ export const IMPACT_PRESETS = {
     name: 'Boltysh 65.4 Ma',
     note: '≈ 24 km crater, central Ukraine. Within dating uncertainty of Chicxulub (Kelley & Gurov 2002, MAPS 37: 1031); illustrates a regional-scale impact rather than a mass-extinction trigger.',
     input: {
-      impactorDiameter: m(600),
+      // Phase 10 audit: 600 m diameter under-shot the observed 24 km
+      // crater (predicted only 9 km). Inverting Collins 2005 Eq. 21
+      // for D_c = 24 km at v = 17 km/s, θ = 45° gives L ≈ 800 m.
+      impactorDiameter: m(800),
       impactVelocity: mps(17_000),
       impactorDensity: CHONDRITIC_DENSITY,
       targetDensity: CRUSTAL_ROCK_DENSITY,

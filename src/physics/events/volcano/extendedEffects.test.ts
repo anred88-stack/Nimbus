@@ -72,16 +72,22 @@ describe('climateCoolingFromVEI (Robock 2000 / Toohey & Sigl 2017)', () => {
 });
 
 describe('ashfallArea1mm (Walker 1980 / Pyle 1989 simplified)', () => {
-  it('VEI 5 (1 km³) → ~3 000 km² footprint', () => {
+  it('VEI 5 (1 km³) → ~50 000-70 000 km² (MSH 1980 calibration)', () => {
+    // Phase 10 audit: prefactor was 3 000 (off by factor 25);
+    // re-calibrated to 60 000 against MSH 1980 (V≈1 km³, observed
+    // ~50 000 km²) and Pinatubo 1991 (Pyle 1989 dataset).
     const areaM2 = ashfallArea1mm(1e9); // 1 km³
     const areaKm2 = areaM2 / 1e6;
-    expect(areaKm2).toBeCloseTo(3_000, -3);
+    expect(areaKm2).toBeGreaterThan(45_000);
+    expect(areaKm2).toBeLessThan(75_000);
   });
 
-  it('VEI 6 (10 km³) → ~20 000 km² (V^0.8 scaling)', () => {
+  it('VEI 6 (10 km³) → ~300 000-500 000 km² (Pinatubo-class)', () => {
+    // Pinatubo 1991 (V ≈ 10 km³ DRE) observed ~500 000 km² 1mm
+    // isopach. K=60 000 with V^0.8 gives 379 000 km² — within ±factor-2.
     const areaKm2 = ashfallArea1mm(10e9) / 1e6;
-    expect(areaKm2).toBeGreaterThan(10_000);
-    expect(areaKm2).toBeLessThan(30_000);
+    expect(areaKm2).toBeGreaterThan(300_000);
+    expect(areaKm2).toBeLessThan(500_000);
   });
 
   it('returns 0 for zero volume', () => {

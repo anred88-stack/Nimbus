@@ -220,7 +220,10 @@ export const VOLCANO_PRESETS = {
     name: 'Mount St. Helens 1980',
     note: 'Cascade-arc lateral blast + Plinian column, VEI 5',
     input: {
-      volumeEruptionRate: 4e3,
+      // Phase 10 audit: V_dot=4e3 gave 14.8 km plume vs Carey &
+      // Sigurdsson 1985 observed 25 km. Re-tuned to V_dot=4e4 m³/s
+      // for plume H ≈ 24.7 km (Mastin 2009 Table 1 entry).
+      volumeEruptionRate: 4e4,
       totalEjectaVolume: 1.2e9,
       lateralBlast: { directionDeg: 0, sectorAngleDeg: 180 }, // due-N flank
     } satisfies VolcanoScenarioInput,
@@ -244,7 +247,10 @@ export const VOLCANO_PRESETS = {
     name: 'Anak Krakatau 2018',
     note: 'Flank-collapse tsunami, ≈ 0.27 km³ block — Grilli et al. 2019',
     input: {
-      volumeEruptionRate: 1e3,
+      // Phase 10 audit: V_dot = 1e3 m³/s gave a 10.6 km Plinian plume,
+      // but the 2018 event was small Strombolian with plume ≤ 2 km —
+      // the headline was the flank-collapse tsunami, not the column.
+      volumeEruptionRate: 1,
       totalEjectaVolume: 1e7,
       flankCollapse: { volumeM3: 2.7e8, slopeAngleDeg: 20, meanOceanDepth: m(200) },
     } satisfies VolcanoScenarioInput,
@@ -275,8 +281,12 @@ export const VOLCANO_PRESETS = {
     name: 'Vesuvius 79 CE',
     note: 'Plinian eruption that buried Pompeii and Herculaneum — Cioni et al. 1992, JVGR 51: 89. Type locality for the "Plinian" classification.',
     input: {
+      // Phase 10 audit: V=4e9 gave PDC reach 15.9 km vs observed
+      // ~10 km (Pompeii). Lowered to Sigurdsson 1985 / Cioni 1992
+      // mid-range V=2.5e9 to bring PDC reach into the literature
+      // band 6-14 km.
       volumeEruptionRate: 1.5e5,
-      totalEjectaVolume: 4e9,
+      totalEjectaVolume: 2.5e9,
     } satisfies VolcanoScenarioInput,
   },
   /** 8 March – 11 July 1669 Etna, Sicily — VEI 4 effusive-explosive
@@ -291,7 +301,10 @@ export const VOLCANO_PRESETS = {
     name: 'Etna 1669',
     note: '5-month flank eruption that reached Catania — Branca et al. 2013, Bull. Volcanol. 75: 694. Largest historical Etna event.',
     input: {
-      volumeEruptionRate: 5e2,
+      // Phase 10 audit: V_dot=500 gave 9 km plume vs observed ≤5 km
+      // (Etna is Strombolian, low-column). Re-tuned to V_dot=20 m³/s
+      // for plume H ≈ 4 km, in line with Branca 2013.
+      volumeEruptionRate: 20,
       totalEjectaVolume: 6.5e8,
     } satisfies VolcanoScenarioInput,
   },
@@ -325,7 +338,10 @@ export const VOLCANO_PRESETS = {
     name: 'Eyjafjallajökull 2010',
     note: 'Subglacial eruption that grounded European aviation — Gudmundsson et al. 2012, Sci. Rep. 2: 572. Showcases the ashfall hazard for aviation.',
     input: {
-      volumeEruptionRate: 5e3,
+      // Phase 10 audit: V_dot=5e3 gave plume 15.6 km vs observed
+      // ~8 km (Mastin 2009 Table 1). Lowered to V_dot=300 m³/s for
+      // plume H ≈ 8 km matching observation.
+      volumeEruptionRate: 300,
       totalEjectaVolume: 2.7e8,
     } satisfies VolcanoScenarioInput,
   },
@@ -343,7 +359,10 @@ export const VOLCANO_PRESETS = {
     name: 'Mount Pelée 1902',
     note: 'Type locality for "nuée ardente" — Lacroix 1904; Tanguy 1994, Bull. Volcanol. 56: 269. ≈ 28 000 fatalities in Saint-Pierre.',
     input: {
-      volumeEruptionRate: 1e4,
+      // Phase 10 audit: V_dot=1e4 gave plume 18.4 km vs Lacroix 1904
+      // observation 6-12 km. Lowered to V_dot=800 m³/s for plume
+      // H ≈ 10 km matching the observation.
+      volumeEruptionRate: 800,
       totalEjectaVolume: 5e8,
       lateralBlast: { directionDeg: 180, sectorAngleDeg: 90 },
     } satisfies VolcanoScenarioInput,
