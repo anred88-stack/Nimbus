@@ -43,7 +43,11 @@ import {
   type RingAnimationSpec,
   type RingKind,
 } from '../ringAnimation.js';
-import { fetchTerrainGridForLocation } from '../terrainSampling.js';
+import {
+  fetchGlobalBathymetricMosaic,
+  fetchTerrainGridForLocation,
+  getCachedGlobalBathymetricMosaic,
+} from '../terrainSampling.js';
 import { AftershockDetailCard } from './AftershockDetailCard.js';
 import { spawnExplosionVfxFromJoules } from './explosionVfx.js';
 import { radialDamageMaterial } from './radialDamageMaterial.js';
@@ -375,6 +379,7 @@ export function Globe(): JSX.Element {
   const bathymetricTsunami = useAppStore((s) => s.bathymetricTsunami);
   const monteCarlo = useAppStore((s) => s.monteCarlo);
   const setElevationGrid = useAppStore((s) => s.setElevationGrid);
+  const setGlobalBathymetricGrid = useAppStore((s) => s.setGlobalBathymetricGrid);
   const hiddenRingKeys = useAppStore((s) => s.hiddenRingKeys);
 
   // The entity-rebuild useEffect below depends on `result` and friends,
@@ -421,6 +426,37 @@ export function Globe(): JSX.Element {
       terrainPulsingRef.current = false;
     };
   }, [location, setElevationGrid]);
+
+  /**
+   * Phase 11 — fetch the global low-res bathymetric mosaic (16 tiles
+   * @ zoom 2, ~800 KB total). Loaded once at component mount in the
+   * background; cached LRU for the rest of the session. The next
+   * Launch after the fetch resolves picks it up and the FMM layer
+   * extends to trans-oceanic ranges. If the fetch fails the mosaic
+   * stays null and the simulator falls through to the local-only
+   * Phase 7 behaviour (truncated at ~75 km from source).
+   */
+  useEffect(() => {
+    let cancelled = false;
+    const cached = getCachedGlobalBathymetricMosaic();
+    if (cached !== null) {
+      setGlobalBathymetricGrid(cached);
+      return;
+    }
+    fetchGlobalBathymetricMosaic()
+      .then((grid) => {
+        if (!cancelled) setGlobalBathymetricGrid(grid);
+      })
+      .catch((err: unknown) => {
+        console.warn(
+          '[Globe] global bathymetric mosaic fetch failed; trans-oceanic isos will be limited to the local tile:',
+          err
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [setGlobalBathymetricGrid]);
 
   // --- Viewer lifecycle ------------------------------------------------
   useEffect(() => {
@@ -1890,6 +1926,88 @@ export function Globe(): JSX.Element {
           });
         } catch (err: unknown) {
           console.warn('[Globe] FMM heatmap render failed:', err);
+        }
+        // ---- Phase 11 global layer (zoom-2 mosaic) ------------------
+        // When the orchestrator emitted a global low-res layer alongside
+        // the local one, render its amplitude heatmap as the BOTTOM of
+        // the visual stack. The local high-res inferno heatmap and the
+        // local iso-amplitude polylines drawn after this rectangle stay
+        // on top, so near-source detail is unaffected — the global
+        // layer just fills in the trans-oceanic field that used to be
+        // empty outside the local tile bbox.
+        if (bathymetricTsunami.global?.amplitude !== undefined) {
+          try {
+            const gAmp = bathymetricTsunami.global.amplitude;
+            const gHeatmap = renderScalarFieldHeatmap(gAmp.amplitudes, gAmp.nLat, gAmp.nLon, {
+              colormap: 'inferno',
+              // Slightly dimmer than the local layer (0.4) so when the
+              // two overlap near the source the local layer reads
+              // brighter and the global layer fades out as a halo.
+              opacity: 0.32,
+              transparentBelow: 0.5,
+            });
+            viewer.entities.add({
+              id: 'tsunami-fmm-amplitude-global',
+              rectangle: {
+                coordinates: Rectangle.fromDegrees(-180, -85, 180, 85),
+                material: new ImageMaterialProperty({
+                  image: gHeatmap.canvas,
+                  transparent: true,
+                }),
+                height: 0,
+              },
+            });
+          } catch (err: unknown) {
+            console.warn('[Globe] global amplitude heatmap render failed:', err);
+          }
+
+          // Global iso-amplitude contours at the SAME tier thresholds
+          // (5 / 1 / 0.3 m). Drawn slightly thinner than the local-tile
+          // contours so when both layers cross the same threshold near
+          // the source, the local one reads as the primary contour.
+          try {
+            const gAmp = bathymetricTsunami.global.amplitude;
+            const gGrid = useAppStore.getState().globalBathymetricGrid;
+            if (gGrid !== null) {
+              const bands = extractAmplitudeContours({
+                amplitudes: gAmp.amplitudes,
+                nLat: gAmp.nLat,
+                nLon: gAmp.nLon,
+                minLat: gGrid.minLat,
+                maxLat: gGrid.maxLat,
+                minLon: gGrid.minLon,
+                maxLon: gGrid.maxLon,
+                thresholds: [5, 1, 0.3],
+              });
+              const tierColors = [
+                Color.fromCssColorString('#DB2777'),
+                Color.fromCssColorString('#22D3EE'),
+                Color.fromCssColorString('#A5F3FC'),
+              ];
+              const tierAlpha = [0.7, 0.55, 0.4] as const;
+              const tierWidth = [3, 2.5, 2] as const;
+              bands.forEach((band, bandIdx) => {
+                const color = tierColors[bandIdx] ?? Color.WHITE;
+                const alpha = tierAlpha[bandIdx] ?? 0.4;
+                const width = tierWidth[bandIdx] ?? 2;
+                band.segments.forEach((seg, segIdx) => {
+                  viewer.entities.add({
+                    id: `tsunami-global-iso-${bandIdx.toString()}-${segIdx.toString()}`,
+                    polyline: {
+                      positions: [
+                        Cartesian3.fromDegrees(seg.lon1, seg.lat1),
+                        Cartesian3.fromDegrees(seg.lon2, seg.lat2),
+                      ],
+                      width,
+                      material: color.withAlpha(alpha),
+                    },
+                  });
+                });
+              });
+            }
+          } catch (err: unknown) {
+            console.warn('[Globe] global iso-amplitude render failed:', err);
+          }
         }
         // When the orchestrator passed source-amplitude metadata to the
         // FMM, the bathymetric block carries an amplitude field too —

@@ -139,3 +139,89 @@ export async function fetchTerrainGridForLocation(
   pushCache(key, grid);
   return grid;
 }
+
+/**
+ * Phase 11 — global low-resolution bathymetric mosaic.
+ *
+ * Fetches the 16 zoom-2 terrarium tiles that cover the whole planet
+ * and stitches them into a single 1024 × 1024 ElevationGrid spanning
+ * (-85°, +85°) latitude and (-180°, +180°) longitude.
+ *
+ * Resolution: ~40 km/pixel at the equator — coarse compared to the
+ * zoom-8 local tiles (~600 m/pixel) but sufficient for trans-oceanic
+ * tsunami propagation (typical wavelengths 100–1000 km in deep
+ * water; coastline topology resolved at continental scale).
+ *
+ * Bandwidth: ~16 × 50 KB = 800 KB total, fetched in parallel and
+ * decoded once at app startup. Subsequent simulations reuse the
+ * cached grid; per-click banwdith is unchanged.
+ *
+ * The global grid is the engine that finally lets a Chicxulub-class
+ * tsunami draw its 5 m / 1 m / 0.3 m iso-amplitude contours over
+ * thousands of kilometres without truncating at the local tile
+ * boundary. Without this layer the Phase 7a iso-contours were
+ * cosmetically correct but truncated at ~75 km from the source.
+ */
+
+const GLOBAL_ZOOM = 2;
+const GLOBAL_GRID_DIMENSION = 4 * TILE_PIXELS; // 1024 × 1024
+let globalMosaicCache: ElevationGrid | null = null;
+let globalMosaicInflight: Promise<ElevationGrid> | null = null;
+
+export function getCachedGlobalBathymetricMosaic(): ElevationGrid | null {
+  return globalMosaicCache;
+}
+
+export async function fetchGlobalBathymetricMosaic(): Promise<ElevationGrid> {
+  if (globalMosaicCache !== null) return globalMosaicCache;
+  if (globalMosaicInflight !== null) return globalMosaicInflight;
+
+  globalMosaicInflight = (async (): Promise<ElevationGrid> => {
+    const n = 2 ** GLOBAL_ZOOM;
+    const samples = new Float32Array(GLOBAL_GRID_DIMENSION * GLOBAL_GRID_DIMENSION);
+
+    const tilePromises: Promise<{ x: number; y: number; tile: Float32Array }>[] = [];
+    for (let ty = 0; ty < n; ty++) {
+      for (let tx = 0; tx < n; tx++) {
+        const url = TERRAIN_TILE_URL.replace('{z}', GLOBAL_ZOOM.toString())
+          .replace('{x}', tx.toString())
+          .replace('{y}', ty.toString());
+        tilePromises.push(decodeTerrariumTile(url).then((tile) => ({ x: tx, y: ty, tile })));
+      }
+    }
+
+    const results = await Promise.all(tilePromises);
+
+    // Splice each tile into its quadrant of the global mosaic. Tile
+    // (tx, ty) covers samples[ty·256 .. (ty+1)·256][tx·256 .. (tx+1)·256]
+    // in the row-major north-to-south, west-to-east mosaic.
+    for (const { x: tx, y: ty, tile } of results) {
+      for (let py = 0; py < TILE_PIXELS; py++) {
+        for (let px = 0; px < TILE_PIXELS; px++) {
+          const mosaicRow = ty * TILE_PIXELS + py;
+          const mosaicCol = tx * TILE_PIXELS + px;
+          samples[mosaicRow * GLOBAL_GRID_DIMENSION + mosaicCol] = tile[py * TILE_PIXELS + px] ?? 0;
+        }
+      }
+    }
+
+    // Web Mercator at zoom 2 spans latitudes ±85.05° (the projection
+    // limit). Use the standard Mercator bounds so callers reading the
+    // grid know exactly what they have.
+    const MERCATOR_LIMIT_LAT = 85.05112878;
+    const grid = makeElevationGrid({
+      minLat: -MERCATOR_LIMIT_LAT,
+      maxLat: MERCATOR_LIMIT_LAT,
+      minLon: -180,
+      maxLon: 180,
+      nLat: GLOBAL_GRID_DIMENSION,
+      nLon: GLOBAL_GRID_DIMENSION,
+      samples,
+    });
+    globalMosaicCache = grid;
+    globalMosaicInflight = null;
+    return grid;
+  })();
+
+  return globalMosaicInflight;
+}

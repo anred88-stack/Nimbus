@@ -319,10 +319,17 @@ export interface AppStore {
   lastEvaluatedAtLocation: Coordinates | null;
 
   // --- Global elevation / bathymetry grid -----------------------------
-  /** Optional global DEM raster injected at app startup. When set,
-   *  earthquake evaluation derives Vs30 from topographic slope via
-   *  Wald & Allen 2007 when the user has not specified one. */
+  /** Optional local high-resolution DEM raster (zoom-8, ~600 m/pixel)
+   *  centred on the active source. Drives Vs30 via Wald & Allen 2007
+   *  for earthquake scenarios and the high-detail near-source layer of
+   *  the bathymetric tsunami pipeline. */
   elevationGrid: ElevationGrid | null;
+  /** Phase 11 — global low-resolution bathymetric mosaic (zoom-2,
+   *  ~40 km/pixel, full planet). Loaded once at app startup; powers the
+   *  trans-oceanic FMM layer that draws iso-contours beyond the local
+   *  tile bbox so a Chicxulub-class tsunami no longer truncates at
+   *  ~75 km from source. */
+  globalBathymetricGrid: ElevationGrid | null;
 
   // --- View state ------------------------------------------------------
   mode: ViewMode;
@@ -362,6 +369,11 @@ export interface AppStore {
    *  shell after fetching the binary asset. `null` reverts to the
    *  rock-reference (Vs30 = 760) default. */
   setElevationGrid: (grid: ElevationGrid | null) => void;
+  /** Phase 11 — install the global bathymetric mosaic (zoom-2, full
+   *  planet). Wired by the Globe layer once the 16-tile fetch resolves;
+   *  the next evaluate() picks it up and the FMM layer extends to
+   *  trans-oceanic ranges. */
+  setGlobalBathymetricGrid: (grid: ElevationGrid | null) => void;
   evaluate: () => Promise<void>;
   /** Run a Monte-Carlo sweep around the active scenario's nominal
    *  inputs. Uses a seed derived from the scenario preset so the
@@ -416,6 +428,7 @@ type InitialSlice = Pick<
   | 'lastEvaluatedAt'
   | 'lastEvaluatedAtLocation'
   | 'elevationGrid'
+  | 'globalBathymetricGrid'
   | 'mode'
   | 'transitionPhase'
 >;
@@ -457,6 +470,7 @@ function initialState(): InitialSlice {
     lastEvaluatedAt: null,
     lastEvaluatedAtLocation: null,
     elevationGrid: null,
+    globalBathymetricGrid: null,
     mode: 'landing',
     transitionPhase: 'idle',
   };
@@ -1092,6 +1106,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ elevationGrid: grid });
   },
 
+  setGlobalBathymetricGrid: (grid) => {
+    // Identical contract to setElevationGrid: the next evaluate()
+    // picks up the new grid; we never auto-fire from inside the
+    // setter. The grid is loaded asynchronously at app startup; the
+    // first Launch before it arrives gets only the local high-res
+    // layer (Phase 7 behaviour); subsequent Launches get both.
+    set({ globalBathymetricGrid: grid });
+  },
+
   evaluate: async () => {
     const state = get();
     set({ status: 'running', error: null });
@@ -1336,6 +1359,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
               sourceAmplitudeM: tsunamiMeta.sourceAmplitudeM,
               sourceCavityRadiusM: tsunamiMeta.sourceCavityRadiusM,
               sourceDepthM: tsunamiMeta.sourceDepthM,
+            }),
+            // Phase 11 — splice in the global low-res mosaic when
+            // available so the orchestrator emits trans-oceanic
+            // iso-contours alongside the local high-res ones.
+            ...(state.globalBathymetricGrid !== null && {
+              globalGrid: state.globalBathymetricGrid,
             }),
           });
         } catch {
