@@ -1,0 +1,440 @@
+.panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: rgba(12, 14, 20, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  color: var(--color-fg, #fafafa);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  z-index: 10;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Mobile-only collapse toggle: hidden on desktop, shown as a small
+ * round button in the header on narrow viewports. Lets the user free
+ * the globe so the "click a point on the globe" instruction is
+ * actually followable. */
+.mobileToggle {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .panel {
+    /* Snap to the bottom-left third of the viewport so the centre of
+     * the globe stays touchable on small screens. */
+    top: auto;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    width: auto;
+    max-height: 70vh;
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .mobileToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    color: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .mobileToggle:focus-visible {
+    outline: 2px solid #fbbf24;
+    outline-offset: 2px;
+  }
+
+  /* Collapsed state: hide the body so only the header (back + title +
+   * toggle) is visible. The user can still see they're in simulator
+   * mode but the globe underneath is unblocked. */
+  .panelCollapsed {
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .panelCollapsed .body {
+    display: none;
+  }
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+  opacity: 0.75;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+}
+
+.select {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.select:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+.select option {
+  background: #1a2332;
+  color: #e5e7eb;
+}
+
+.presetNote {
+  margin: 8px 0 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.55);
+  font-style: italic;
+}
+
+.customParams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  padding: 12px;
+  margin: 0;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.customParamsLegend {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  padding: 0;
+  margin-bottom: 2px;
+}
+
+.paramField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.paramLabel {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.paramInput {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 13px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.paramInput:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 1px;
+}
+
+.paramInput option {
+  background: #1a2332;
+  color: #e5e7eb;
+}
+
+.status {
+  font-size: 12px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  opacity: 0.85;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  line-height: 1.4;
+}
+
+.status[data-state='ready'] {
+  color: #86efac;
+}
+
+.status[data-state='waiting'] {
+  color: #fbbf24;
+}
+
+/* Running: gentle pulse on the status panel so the user sees the
+ * compute is in flight without a separate spinner widget. The CTA
+ * button switches to its disabled state via the same `isRunning`
+ * predicate, so the eye is drawn here instead. */
+.status[data-state='running'] {
+  color: #fde68a;
+  background: rgba(251, 191, 36, 0.08);
+  animation: statusPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status[data-state='running'] {
+    animation: none;
+  }
+}
+
+.trigger {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 12px 16px;
+  background: #fbbf24;
+  color: #18181b;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.trigger:hover:not(:disabled) {
+  background: #fcd34d;
+}
+
+.trigger:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.trigger:disabled {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: not-allowed;
+}
+
+.secondary {
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  padding: 10px 14px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
+}
+
+.secondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.secondary:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+.secondary[data-state='copied'] {
+  background: rgba(134, 239, 172, 0.15);
+  color: #86efac;
+  border-color: rgba(134, 239, 172, 0.4);
+}
+
+.result {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  padding: 12px;
+  background: rgba(251, 191, 36, 0.06);
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  border-radius: 8px;
+}
+
+/* Category heading rendered above every results <dl>. Visible-only —
+   we keep the aria-label on the <dl> so screen readers do not double-
+   announce the section title. The compact uppercase tracking matches
+   the existing .resultLabel style so the header reads as part of the
+   same block. */
+.sectionHeading {
+  margin: 12px 0 4px 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fcd34d;
+  opacity: 0.92;
+}
+
+.sectionHeading::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  flex: 0 0 auto;
+}
+
+.resultLabel {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.resultValue {
+  font-size: 13px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-weight: 600;
+}
+
+.globalBadge {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f97171;
+  margin-left: 4px;
+}
+
+.confidenceBand {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.6;
+  letter-spacing: 0;
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.back {
+  background: transparent;
+  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.back:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.back:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+.mcTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  margin: 8px 0 6px 0;
+}
+
+.mcTable th {
+  text-align: left;
+  padding: 4px 6px;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.mcTable td {
+  padding: 4px 6px;
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.06);
+}
+
+.mcTable td:first-child {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.mcTable td:not(:first-child) {
+  text-align: right;
+}
+
+.mcFooter {
+  font-size: 10px;
+  opacity: 0.55;
+  margin: 6px 0 0 0;
+  font-style: italic;
+}

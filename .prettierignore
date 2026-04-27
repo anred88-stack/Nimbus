@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+storybook-static/
+.pnpm-store/
+.cache/
+.vite/
+pnpm-lock.yaml
+package-lock.json
+CHANGELOG.md
+public/luts/
+public/hdri/
+public/models/

@@ -1,0 +1,27 @@
+.container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Hide Cesium's bottom-right credit overlay lockup — we credit OSM in the
+   footer so the in-canvas chrome stays out of the scale-bar real estate.
+   Licensing requirement is "credit is displayed"; the credit container is
+   kept, just repositioned and visually restrained. */
+.container :global(.cesium-viewer-bottom) {
+  bottom: 8px;
+  left: 8px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 10px;
+}
+
+/* Browsers without full WebGL 2 / OffscreenCanvas support (older
+   WebKit) trigger Cesium's built-in `.cesium-widget-errorPanel`,
+   a full-canvas overlay that intercepts clicks on our own UI.
+   We rely on the try/catch in the viewer effect and the console
+   warnings; the overlay is suppressed so the SimulatorPanel stays
+   interactive even when Cesium itself can't initialise. */
+.container :global(.cesium-widget-errorPanel) {
+  display: none !important;
+}

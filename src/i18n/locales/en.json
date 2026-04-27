@@ -1,0 +1,962 @@
+{
+  "common": {
+    "languageName": "English",
+    "languageCode": "EN",
+    "switchLanguage": "Switch language"
+  },
+  "landing": {
+    "skipLink": "Skip to main content",
+    "projectName": "VIS",
+    "tagline": "Simulate catastrophic events on an interactive 3D globe.",
+    "description": "An open-source scientific simulator of asteroid impacts, explosions, earthquakes, volcanic eruptions, and tsunamis — rigorous formulas, cinematic comparison scenes, curated for the scientifically curious.",
+    "comingSoon": "Coming soon",
+    "features": {
+      "title": "What's coming",
+      "multiEvent": {
+        "name": "Multi-event cascading",
+        "detail": "An ocean impact triggers tsunami, shock waves, and thermal pulse — simulated in parallel on the same timeline."
+      },
+      "realScience": {
+        "name": "Real scientific formulas",
+        "detail": "Validated against Collins/Melosh/Marcus 2005, Glasstone & Dolan, Ward & Asphaug, Mastin, USGS ShakeMap."
+      },
+      "globe": {
+        "name": "3D Earth globe",
+        "detail": "Cesium-powered photorealistic globe for locating events, with damage-ring overlays at true geographic scale."
+      },
+      "accessible": {
+        "name": "Accessible and multilingual",
+        "detail": "WCAG AA, full keyboard navigation, Italian and English from day one."
+      },
+      "shareable": {
+        "name": "Shareable URLs",
+        "detail": "Every simulation serialisable in a URL — copy, share, replay."
+      }
+    },
+    "cta": {
+      "github": "Star on GitHub",
+      "science": "Read the science",
+      "methodology": "Methodology & citations",
+      "enterSimulator": "Try the simulator →"
+    },
+    "scaleBar": {
+      "label": "Scale reference"
+    }
+  },
+  "footer": {
+    "github": "GitHub",
+    "license": "Apache 2.0",
+    "madeIn": "Made in Italy",
+    "credits": "Inspired by MetaBallStudios · Assets from Poly Haven and Sketchfab CC0 · Science from peer-reviewed literature"
+  },
+  "simulator": {
+    "panelLabel": "Simulator controls",
+    "collapsePanel": "Collapse simulator panel",
+    "expandPanel": "Expand simulator panel",
+    "title": "Event simulator",
+    "back": "Back to landing",
+    "eventType": "Event type",
+    "eventTypes": {
+      "impact": "Cosmic impact",
+      "explosion": "Nuclear explosion",
+      "earthquake": "Earthquake",
+      "volcano": "Volcanic eruption",
+      "landslide": "Submarine landslide"
+    },
+    "preset": "Preset",
+    "customPreset": "Custom parameters ★",
+    "customParams": "Custom parameters",
+    "impact": {
+      "diameter": "Impactor diameter (km)",
+      "velocity": "Impact velocity (km/s)",
+      "impactorDensity": "Impactor density (kg/m³)",
+      "targetDensity": "Target density (kg/m³)",
+      "angle": "Impact angle (°)",
+      "azimuth": "Downrange azimuth (° from N): {{degrees}}",
+      "azimuthAria": "Impactor heading {{degrees}} degrees from north, {{cardinal}}",
+      "taxonomy": "Asteroid class (auto-fills density)",
+      "taxonomyPlaceholder": "Pick a class…",
+      "taxonomyClasses": {
+        "COMETARY": "Cometary nucleus (ρ ≈ 600 kg/m³)",
+        "C_TYPE": "C-type carbonaceous (ρ ≈ 2 000)",
+        "S_TYPE": "S-type stony (ρ ≈ 3 300)",
+        "M_TYPE": "M-type metallic (ρ ≈ 5 300)",
+        "IRON": "Iron meteorite (ρ ≈ 7 800)"
+      }
+    },
+    "clickGlobe": "Click anywhere on the globe to pick the event location.",
+    "locationReady": "Selected: {{lat}}°, {{lon}}°. Ready to launch.",
+    "launch": "Launch simulation",
+    "running": "Simulating…",
+    "copyLink": "Copy shareable link",
+    "linkCopied": "Link copied ✓",
+    "downloadReport": "Download report (PDF)",
+    "runMonteCarlo": "Run Monte Carlo (1 000 samples)",
+    "rerunMonteCarlo": "Re-run Monte Carlo",
+    "runningMonteCarlo": "Running Monte Carlo…",
+    "monteCarloLabel": "Monte Carlo uncertainty analysis",
+    "monteCarloTitle": "Monte Carlo — {{iterations}} samples",
+    "monteCarloFooter": "Inputs sampled from published distributions (log-normal / normal); P10–P90 bracket the 80 % confidence band.",
+    "mcMetric": "Metric",
+    "mcMetrics": {
+      "impact": {
+        "kineticEnergy": "Kinetic energy",
+        "kineticEnergyMt": "Energy (Mt)",
+        "finalCraterDiameter": "Crater diameter",
+        "ejectaEdge1m": "Ejecta 1 m edge",
+        "firestormIgnition": "Firestorm ignition",
+        "seismicMw": "Seismic Mw"
+      },
+      "explosion": {
+        "yieldMt": "Yield (Mt)",
+        "fivePsiRadius": "5 psi ring",
+        "onePsiRadius": "1 psi ring",
+        "burn3rdDegree": "3rd-degree burn",
+        "firestormIgnition": "Firestorm ignition",
+        "craterDiameter": "Crater diameter",
+        "ld50Radius": "LD₅₀ radiation"
+      },
+      "earthquake": {
+        "magnitude": "Magnitude (Mw)",
+        "ruptureLength": "Rupture length",
+        "pgaAt20kmNGA": "PGA @ 20 km",
+        "mmiAtEpicenter": "Epicentral MMI",
+        "mmi8Radius": "MMI VIII ring",
+        "liquefactionRadius": "Liquefaction radius"
+      },
+      "volcano": {
+        "plumeHeight": "Plume height",
+        "vei": "VEI",
+        "pyroclasticRunout": "PDC runout",
+        "climateCoolingK": "Global ΔT",
+        "ashfallArea": "Ashfall area"
+      }
+    },
+    "resultLabel": "Simulation results",
+    "impactSummaryHeading": "Cosmic impact · energy, crater, damage rings",
+    "energy": "Energy",
+    "crater": "Final crater",
+    "magnitude": "Seismic Mw (Schultz & Gault)",
+    "magnitudeTW": "Seismic Mw (Teanby & Wookey)",
+    "impactLiquefaction": "Impact-induced liquefaction radius",
+    "morphology": "Morphology",
+    "simple": "Simple bowl",
+    "complex": "Complex crater",
+    "transientCrater": "Transient crater",
+    "craterDepth": "Crater depth",
+    "damageLabel": "Damage rings",
+    "thirdDegreeBurn": "3rd-degree burn radius",
+    "fivePsiRing": "5 psi ring (collapse)",
+    "onePsiRing": "1 psi ring (windows)",
+    "entryLabel": "Atmospheric entry",
+    "entryRegime": "Regime",
+    "entryRegimes": {
+      "INTACT": "Intact ground impact",
+      "PARTIAL_AIRBURST": "Partial airburst",
+      "COMPLETE_AIRBURST": "Complete airburst"
+    },
+    "entryRegimeExplainer": "What this means",
+    "entryRegimeExplain": {
+      "INTACT": "The body is too massive to dissolve in atmosphere. Even though fragmentation starts at the breakup altitude, the pancake of fragments has so much momentum that it punches through and slams into the ground intact. All the kinetic energy becomes crater + ejecta + seismic work — Chicxulub class.",
+      "PARTIAL_AIRBURST": "The pancake bursts in the lower atmosphere (5–15 km). Part of the energy disperses as a thermal flash and shock wave; part still excavates a small crater on the ground.",
+      "COMPLETE_AIRBURST": "The pancake disintegrates above 15 km. ≈ 98 % of the kinetic energy is released as a fireball and shock pulse in the air — only ≈ 2 % reaches the ground. Tunguska 1908 and Chelyabinsk 2013 are the canonical examples."
+    },
+    "burstAltitude": "Burst altitude",
+    "breakupAltitude": "Fragmentation onset",
+    "penetrationBonus": "Penetration depth bonus",
+    "energyFractionToGround": "Energy to ground",
+    "atmosphericYield": "Atmospheric yield (TNT-eq.)",
+    "entryAmplificationFactor": "Altitude amplification (×)",
+    "entryFlashLabel": "Entry · thermal flash damage",
+    "entryFlashFirstDegree": "1st degree burn radius",
+    "entryFlashSecondDegree": "2nd degree burn radius",
+    "entryFlashThirdDegree": "3rd degree burn radius",
+    "entryShockLabel": "Entry · shock-wave damage",
+    "entryShockLightDamage": "0.5 psi (windows)",
+    "entryShockOnePsi": "1 psi (window breakage + injury)",
+    "entryShockFivePsi": "5 psi (residential collapse)",
+    "ejectaLabel": "Ejecta blanket",
+    "ejectaEdge1m": "Outer edge (≥ 1 m)",
+    "ejectaEdge1mm": "Outer edge (≥ 1 mm)",
+    "ejectaAt2R": "Thickness at 2 crater radii",
+    "ejectaAt10R": "Thickness at 10 crater radii",
+    "firestormLabel": "Thermal firestorm",
+    "ignitionRadius": "Ignition radius (kindling)",
+    "sustainRadius": "Firestorm sustain radius",
+    "ignitionArea": "Ignition area",
+    "sustainArea": "Firestorm area",
+    "atmosphereLabel": "Atmospheric & climate",
+    "stratosphericDust": "Stratospheric dust",
+    "acidRainMass": "Shock-produced HNO₃",
+    "climateTier": "Climate tier",
+    "tier": {
+      "LOCAL": "Local",
+      "REGIONAL": "Regional",
+      "CONTINENTAL": "Continental",
+      "GLOBAL": "Global-climate",
+      "EXTINCTION": "Mass-extinction potential"
+    },
+    "tsunamiLabel": "Tsunami cascade",
+    "tsunamiCavity": "Water-cavity radius",
+    "tsunamiAt1000km": "Wave at 1 000 km (Ward)",
+    "tsunamiAt5000km": "Wave at 5 000 km (Ward)",
+    "tsunamiAt1000kmWunnemann": "Wave at 1 000 km (Wünnemann)",
+    "tsunamiAt5000kmWunnemann": "Wave at 5 000 km (Wünnemann)",
+    "runupAt1000km": "Coastal run-up @ 1 000 km (Synolakis)",
+    "tsunamiAt5000kmDispersed": "Wave at 5 000 km (dispersed)",
+    "tsunamiArrival": "Arrival at 1 000 km",
+    "tsunamiCelerity": "Open-ocean speed",
+    "tsunamiWavelength": "Source wavelength",
+    "tsunamiPeriod": "Dominant period",
+    "tsunamiInundation": "Inland inundation @ 1 000 km",
+    "tsunamiDamageLabel": "Coastal damage assessment",
+    "tsunamiSlopeLabel": "Beach slope (run-up input)",
+    "tsunamiSlopeSourceDEM": "local DEM",
+    "tsunamiSlopeSourceReference": "1:100 reference",
+    "tsunamiDamage": {
+      "tier0": "Negligible — only tide-gauge signature; no infrastructure damage expected (Bryant 2014).",
+      "tier1": "Light flooding — people can be swept off their feet, light boats displaced, ground floors splashed.",
+      "tier2": "Significant — cars carried away, single-storey buildings flooded, wood-frame interiors gutted (FEMA P-646 §3).",
+      "tier3": "Severe — wood-frame buildings destroyed, harbours wrecked, cars driven hundreds of metres inland.",
+      "tier4": "Catastrophic — single-storey concrete buildings damaged, coastal towns gutted, fatalities high without evacuation.",
+      "tier5": "Extreme — Tōhoku-/Lituya-class destruction; reinforced concrete and steel-frame buildings collapse, terrain remodelled."
+    },
+    "earthquake": {
+      "summaryHeading": "Earthquake · magnitude, rupture, ground shaking",
+      "mw": "Moment magnitude",
+      "moment": "Seismic moment",
+      "rupture": "Rupture length",
+      "epicenterMmi": "Epicentral intensity",
+      "mmi7": "MMI VII reach",
+      "mmi8": "MMI VIII reach",
+      "mmi9": "MMI IX reach",
+      "pgaAt20km": "PGA at 20 km",
+      "pgaAt100km": "PGA at 100 km",
+      "magnitudeInput": "Magnitude (Mw)",
+      "depthInput": "Depth (km)",
+      "faultType": "Fault type",
+      "vs30Input": "Vs30 site (m/s)",
+      "megathrustInput": "Subduction interface (Strasser 2010)",
+      "seismicTsunamiLabel": "Seismic tsunami source",
+      "meanSlip": "Mean coseismic slip",
+      "seafloorUplift": "Seafloor uplift",
+      "tsunamiInitialAmplitude": "Initial amplitude",
+      "tsunamiAt1000km": "Amplitude @ 1 000 km",
+      "tsunamiAt5000km": "Amplitude @ 5 000 km",
+      "tsunamiAt5000kmDispersed": "Amplitude @ 5 000 km (dispersed)",
+      "tsunamiRunup": "Coastal run-up (1:100)",
+      "tsunamiTravel": "Travel time to 1 000 km",
+      "tsunamiCelerity": "Open-ocean speed",
+      "tsunamiWavelength": "Source wavelength",
+      "tsunamiPeriod": "Dominant period",
+      "tsunamiInundation": "Inland inundation @ 1 000 km",
+      "pgaAt20kmNGA": "PGA @ 20 km (NGA-West2)",
+      "pgaAt100kmNGA": "PGA @ 100 km (NGA-West2)",
+      "epicenterMmiEurope": "Epicentral MMI (Europe)",
+      "liquefactionRadius": "Liquefaction radius",
+      "siteVs30": "Site Vs30 (Wald & Allen 2007)",
+      "fault": {
+        "strike-slip": "Strike-slip",
+        "reverse": "Reverse (thrust)",
+        "normal": "Normal",
+        "all": "Generic / mixed"
+      }
+    },
+    "explosion": {
+      "summaryHeading": "Detonation · yield, blast wave, thermal pulse",
+      "yield": "Yield",
+      "yieldKilotons": "Yield (kt TNT)",
+      "yieldJoules": "Energy",
+      "fiveBpsi": "5 psi ring (collapse)",
+      "oneBpsi": "1 psi ring (windows)",
+      "peakAt1km": "Peak overpressure at 1 km",
+      "peakAt5km": "Peak overpressure at 5 km",
+      "thermal": "3° burn radius",
+      "crater": "Apparent crater",
+      "yieldInput": "Yield (Mt TNT)",
+      "groundType": "Ground type",
+      "hobInput": "Height of burst (m)",
+      "hobLabel": "HOB correction",
+      "hobScaled": "Scaled HOB",
+      "hobRegime": "HOB regime",
+      "hobFactor": "HOB blast factor",
+      "fivePsiHob": "5 psi ring (HOB-corrected)",
+      "onePsiHob": "1 psi ring (HOB-corrected)",
+      "regimes": {
+        "SURFACE": "Surface burst",
+        "LOW_AIRBURST": "Low airburst",
+        "OPTIMUM": "Near-optimum airburst",
+        "HIGH_AIRBURST": "High airburst",
+        "STRATOSPHERIC": "Stratospheric"
+      },
+      "radiationLabel": "Initial radiation",
+      "ld50": "LD₅₀ radius (≈ 4.5 Gy)",
+      "ld100": "LD₁₀₀ radius (≈ 8 Gy)",
+      "arsThreshold": "ARS threshold (1 Gy)",
+      "empLabel": "Electromagnetic pulse",
+      "empRegime": "EMP regime",
+      "empPeak": "Peak E-field",
+      "empRadius": "Affected footprint",
+      "empRegimes": {
+        "NEGLIGIBLE": "Negligible (near-ground)",
+        "SOURCE_REGION": "Source-region EMP",
+        "HEMP_HIGH_ALTITUDE": "High-altitude HEMP"
+      },
+      "ground": {
+        "HARD_ROCK": "Hard rock",
+        "FIRM_GROUND": "Firm ground",
+        "DRY_SOIL": "Dry soil",
+        "WET_SOIL": "Wet soil / coral"
+      },
+      "windSpeedInput": "Wind speed (m/s)",
+      "windDirectionInput": "Wind direction ({{degrees}}°)",
+      "windDirectionAria": "Wind blowing toward {{degrees}}° ({{cardinal}})",
+      "tsunamiLabel": "Underwater-burst tsunami",
+      "tsunamiSourceAmplitude": "Source amplitude",
+      "tsunamiAt100km": "Wave at 100 km",
+      "tsunamiAt1000km": "Wave at 1 000 km",
+      "tsunamiArrival100km": "Arrival at 100 km",
+      "tsunamiRunup": "Coastal run-up @ 100 km (Synolakis)",
+      "tsunamiInundation": "Inland inundation @ 100 km"
+    },
+    "volcano": {
+      "summaryHeading": "Volcanic eruption · VEI, plume, pyroclastic flows",
+      "vei": "Explosivity index",
+      "plume": "Plume height",
+      "runout": "Pyroclastic reach",
+      "mer": "Mass eruption rate",
+      "vdotInput": "V̇ mantissa (m³/s)",
+      "vdotExp": "V̇ exponent",
+      "volumeInput": "Ejecta mantissa (m³)",
+      "volumeExp": "Ejecta exponent",
+      "runoutEnergyLine": "PDC runout (energy-line)",
+      "climateCooling": "Peak global ΔT",
+      "ashfallArea": "Ashfall area (≥ 1 mm)",
+      "laharRunout": "Lahar runout",
+      "laharVolumeInput": "Lahar volume (m³, optional)",
+      "windSpeedInput": "Wind speed (m/s)",
+      "windDirectionInput": "Wind direction (° from N)",
+      "windAdvectedLabel": "Wind-advected ashfall",
+      "ashfallDownwindRange": "1 mm isopach — downwind extent",
+      "ashfallCrosswindHalfWidth": "1 mm isopach — crosswind half-width",
+      "ashfallWindAdvectedArea": "1 mm isopach area (wind-oriented)"
+    },
+    "landslide": {
+      "summaryHeading": "Submarine landslide · volume, geometry, tsunami source",
+      "volume": "Block volume",
+      "charLength": "Characteristic length (V^⅓)",
+      "tsunamiAmp": "Tsunami source amplitude",
+      "tsunamiTravel": "Tsunami travel to 100 km"
+    }
+  },
+  "cascade": {
+    "label": "Cascade timeline",
+    "time": {
+      "instant": "t = 0"
+    },
+    "impact": {
+      "flash": {
+        "name": "Fireball flash",
+        "desc": "Luminous plasma column at the impact point; intense thermal pulse radiates outward."
+      },
+      "crater": {
+        "name": "Crater excavation",
+        "desc": "Transient cavity carved, then collapsed to the final rim-to-rim diameter."
+      },
+      "seismic": {
+        "name": "Seismic wave release",
+        "desc": "Ground shock radiates as P/S waves at crustal speeds (6–8 km/s)."
+      },
+      "airblast": {
+        "name": "Far-field air blast",
+        "desc": "Overpressure wave travels at the speed of sound; reaches the 1 psi ring."
+      },
+      "ejecta": {
+        "name": "Ballistic ejecta deposit",
+        "desc": "Continuous ejecta blanket falls back over the proximal region."
+      },
+      "firestorm": {
+        "name": "Thermal firestorm",
+        "desc": "Kindling ignites inside the ignition radius; convective column develops."
+      },
+      "tsunami": {
+        "name": "Tsunami wavefront",
+        "desc": "Water-cavity collapse radiates a long-wave tsunami across the basin."
+      },
+      "stratDust": {
+        "name": "Stratospheric dust peak",
+        "desc": "Sub-µm aerosols distribute globally; solar flux attenuates."
+      },
+      "acidRain": {
+        "name": "Acid-rain washout",
+        "desc": "Shock-produced HNO₃ precipitates as acidic rainfall over weeks."
+      },
+      "climate": {
+        "name": "Climate cooling onset",
+        "desc": "Photosynthesis drops; surface temperatures begin a multi-year decline."
+      },
+      "liquefaction": {
+        "name": "Seismic liquefaction ring",
+        "desc": "Impact-driven Mw triggers Youd-Idriss liquefaction on saturated sandy soils surrounding the crater."
+      }
+    },
+    "explosion": {
+      "flash": {
+        "name": "Fireball flash",
+        "desc": "Isotropic thermal pulse reaches its peak within milliseconds."
+      },
+      "crater": {
+        "name": "Ground crater",
+        "desc": "Surface-burst excavation on the selected ground type."
+      },
+      "airblast": {
+        "name": "Blast wave arrival",
+        "desc": "Overpressure wave travels at ~343 m/s to the 1 psi ring."
+      },
+      "firestorm": {
+        "name": "Urban firestorm",
+        "desc": "Ignition of flammable surfaces merges into a self-drawing fire."
+      },
+      "falloutPlume": {
+        "name": "Fallout plume drift",
+        "desc": "Mushroom-cloud debris drifts downwind and settles over days."
+      },
+      "tsunami": {
+        "name": "Underwater-burst tsunami",
+        "desc": "Mechanical coupling of the burst to the water column drives a Glasstone-class wave train across the basin."
+      }
+    },
+    "earthquake": {
+      "rupture": {
+        "name": "Fault rupture",
+        "desc": "Slip propagates along the fault plane at ~3 km/s."
+      },
+      "shaking": {
+        "name": "Strong ground motion",
+        "desc": "MMI contours expand outward as S-waves sweep the surface."
+      },
+      "teleseismic": {
+        "name": "Teleseismic arrival",
+        "desc": "P-wave first arrival at 1 000 km within ~2–3 minutes."
+      },
+      "aftershocks": {
+        "name": "Aftershock sequence",
+        "desc": "Reasenberg-Jones / Omori-Utsu cascade: hundreds of smaller events decay over the following weeks, capped at M_main − 1.2 by Båth's law."
+      },
+      "tsunamiRisk": {
+        "name": "Tsunami risk (submarine)",
+        "desc": "Large shallow thrust / normal fault can generate a basin-scale tsunami."
+      },
+      "tsunami": {
+        "name": "Seismic tsunami wavefront",
+        "desc": "Megathrust coseismic seafloor uplift seeds a cylindrical-spread tsunami propagating across the basin."
+      },
+      "tsunamiRunup": {
+        "name": "Coastal run-up",
+        "desc": "Synolakis 1:100-slope run-up amplifies the open-ocean amplitude by an order of magnitude at the shore."
+      }
+    },
+    "volcano": {
+      "vent": {
+        "name": "Vent opening",
+        "desc": "Magma column depressurises at the surface; first gas-rich jet."
+      },
+      "plume": {
+        "name": "Plinian column",
+        "desc": "Buoyant plume rises to the computed height, injecting ash and gas."
+      },
+      "pdc": {
+        "name": "Pyroclastic density current",
+        "desc": "Hot, ground-hugging flow descends at 100+ km/h to the runout distance."
+      },
+      "lateralBlast": {
+        "name": "Lateral blast",
+        "desc": "Flank decompression sweeps a directional sector at hundreds of metres per second (Mt St Helens 1980 archetype)."
+      },
+      "tsunami": {
+        "name": "Volcanic-collapse tsunami",
+        "desc": "Flank or caldera collapse displaces the surrounding water column, seeding a Watts-class wave train (Anak Krakatau 2018, Krakatau 1883 archetypes)."
+      },
+      "ashfall": {
+        "name": "Regional ashfall",
+        "desc": "Coarse ash settles within hours; fine ash drifts downwind for days."
+      },
+      "aerosol": {
+        "name": "Stratospheric aerosol cooling",
+        "desc": "SO₂ / sulfate aerosols spread globally; surface temperatures drop for 1–2 years."
+      }
+    },
+    "landslide": {
+      "failure": {
+        "name": "Slope failure",
+        "desc": "Mass-failure plane releases the block; downslope motion begins."
+      },
+      "runout": {
+        "name": "Slide runout",
+        "desc": "Block accelerates downslope, displacing the surrounding water column."
+      },
+      "tsunami": {
+        "name": "Landslide tsunami",
+        "desc": "Watts-class wave train propagates from the source across the basin (Storegga / Anak Krakatau archetypes)."
+      }
+    }
+  },
+  "methodology": {
+    "back": "Back to home",
+    "title": "Methodology & scientific citations",
+    "subtitle": "Every formula the VIS engine evaluates, with its peer-reviewed source and the equation-level DOI. Grouped by event type and paired at the bottom with the roster of historically validated events.",
+    "overviewTitle": "Overview",
+    "overviewBody": "VIS is a headless TypeScript physics engine (Layer 2) wrapped by a Cesium globe (Layer 3) and a React UI (Layer 4). Layer 2 has zero runtime dependencies on React / Three / Cesium — the ESLint configuration blocks such imports so the physics stays testable from a Node CLI. Each formula below lives in its own file under src/physics/ with a JSDoc block that names the citation and the specific equation number used. Tolerances in the test suite honour the scatter published in the original papers — ±30 % for thermal-fluence thresholds, ±50 % for volcanic plume heights, ±factor-2 for ejecta and lahar runouts.",
+    "validationTitle": "Historical validation roster",
+    "validationBody": "Fifteen of the best-instrumented events in the historical record are re-simulated by the test suite on every commit. When a physics refactor drifts the output outside the published tolerance, the integration test fails first.",
+    "footer": "Open-source under Apache 2.0. Corrections and additional citations are welcome via GitHub pull requests."
+  },
+  "population": {
+    "label": "Estimated population exposed",
+    "ring": {
+      "overpressure5psi": "≥ 5 psi overpressure",
+      "mmi8": "MMI VIII shaking",
+      "pyroclasticRunout": "pyroclastic-flow reach"
+    },
+    "loading": "Querying population raster…",
+    "unavailable": "Population data unavailable — set VITE_POPULATION_COG_URL to a CORS-enabled WorldPop / GHSL mirror to enable.",
+    "radius": "Sample radius",
+    "disclaimer": "Exposure ≠ casualties. This is the population sum inside the damage radius — converting to casualties requires a vulnerability function (Glasstone §12 for blast, Wald & Quitoriano 1999 for shaking) which is intentionally out of scope."
+  },
+  "globe": {
+    "ringLabel": {
+      "craterRim": "Crater rim",
+      "thirdDegreeBurn": "3rd-degree burn",
+      "secondDegreeBurn": "2nd-degree burn",
+      "overpressure5psi": "5 psi · building collapse",
+      "overpressure1psi": "1 psi · window breakage",
+      "lightDamage": "0.5 psi · scattered windows",
+      "radiationLD50": "Initial radiation · LD₅₀",
+      "empAffected": "Electromagnetic pulse",
+      "mmi7": "MMI VII · strong shaking",
+      "mmi8": "MMI VIII · severe shaking",
+      "mmi9": "MMI IX · violent shaking",
+      "tsunamiCavity": "Tsunami cavity",
+      "tsunamiWaveFront5m": "Wave front · ≈ 5 m",
+      "tsunamiWaveFront1m": "Wave front · ≈ 1 m",
+      "tsunamiWaveFront03m": "Wave front · ≈ 30 cm",
+      "pyroclasticRunout": "Pyroclastic flow",
+      "lateralBlast": "Lateral blast",
+      "ashfallPlume": "Ashfall plume",
+      "ejectaBlanket": "Ejecta blanket"
+    },
+    "legend": {
+      "heading": "Ring legend",
+      "subheading": "Click a row to hide or show the matching ring on the globe.",
+      "empty": "Click a point on the globe and press Simulate to reveal damage rings.",
+      "toggleHide": "Hide legend",
+      "toggleShow": "Show legend",
+      "showAll": "Show all",
+      "rowAriaShow": "Show {{name}} ring",
+      "rowAriaHide": "Hide {{name}} ring",
+      "globalBadge": "global"
+    },
+    "aftershockDetail": {
+      "aria": "Aftershock detail panel",
+      "title": "Aftershock detail",
+      "close": "Close",
+      "magnitude": "Magnitude",
+      "timing": "Time after mainshock",
+      "distanceFromEpicenter": "Distance from epicentre",
+      "epicentralMmi": "Peak felt intensity",
+      "mmi5Reach": "MMI V reach",
+      "mmi6Reach": "MMI VI reach",
+      "mmi7Reach": "MMI VII reach",
+      "description": "Felt-intensity contours computed for this aftershock alone using the same Joyner-Boore (1981) attenuation and Worden et al. (2012) MMI conversion as the mainshock. Click the globe elsewhere to dismiss."
+    },
+    "tooltip": {
+      "radiusLine": "Radius: ≈ {{value}}",
+      "ring": {
+        "craterRim": {
+          "title": "Impact crater",
+          "description": "The ground inside this boundary was vaporised and excavated by the impact. There is no surface left here — only a depression of molten rock and glassy debris. Nothing organic survives."
+        },
+        "thirdDegreeBurn": {
+          "title": "Third-degree burns",
+          "description": "The thermal flash in this radius is intense enough to cause full-thickness burns on exposed skin, even from a single instant of exposure. Dry wood, fabric and leaves ignite spontaneously."
+        },
+        "secondDegreeBurn": {
+          "title": "Second-degree burns",
+          "description": "Exposed skin blisters and the underlying dermis is destroyed (5 cal/cm² Glasstone threshold). Painful, often disabling burns; survivable in healthy adults with prompt medical care, but in mass-casualty conditions outcomes degrade rapidly."
+        },
+        "overpressure5psi": {
+          "title": "Blast wave · 5 psi",
+          "description": "The peak pressure here (≈ 34 kPa above ambient) collapses reinforced-concrete residential buildings and demolishes unreinforced masonry. People in the open suffer severe injuries from flying debris and ground impact."
+        },
+        "overpressure1psi": {
+          "title": "Blast wave · 1 psi",
+          "description": "The pressure here (≈ 7 kPa above ambient) shatters window glass and tears down lightweight structures like awnings and sheds. Rarely lethal, but flying glass causes extensive lacerations near windows."
+        },
+        "lightDamage": {
+          "title": "Blast wave · 0.5 psi",
+          "description": "The outermost reach of the shock front (≈ 3.4 kPa above ambient). Scattered window panes still break, especially on the side facing the blast; shopfronts and unbraced signs may collapse. Personal injury rare except from flying glass."
+        },
+        "radiationLD50": {
+          "title": "Initial radiation · LD₅₀",
+          "description": "Within this radius the prompt gamma + neutron dose from the fireball is high enough that, without medical intervention, about half of the unshielded people present would die from acute radiation syndrome over the following weeks."
+        },
+        "empAffected": {
+          "title": "Electromagnetic pulse",
+          "description": "The early-time E1 spike (Glasstone §11) couples into long power and signal lines. Unhardened consumer electronics inside this footprint are at risk of permanent damage; the actual outcome depends on cable lengths and surge protection. For high-altitude detonations the footprint can be continental."
+        },
+        "ejectaBlanket": {
+          "title": "Ejecta blanket",
+          "description": "Fragments hurled into the air by the impact land here as a layer of fused stones and shattered rock. Thickness at this rim is about 1 mm; closer to the crater it exceeds a metre. Residual heat sets off spontaneous fires."
+        },
+        "tsunamiCavity": {
+          "title": "Tsunami source cavity",
+          "description": "Water has been violently displaced, forming a transient depression whose collapse generates the tsunami wave. Crest height decays with distance (1/r law), but the wave can remain devastating thousands of km away."
+        },
+        "tsunamiWaveFront5m": {
+          "title": "Wave front · ≈ 5 m at the coast",
+          "description": "At this distance the tsunami still slams the coast at five metres above the high-tide mark. Concrete buildings of two-three storeys can be torn off their foundations; coastal forests are flattened; harbours are rebuilt from scratch. Order of magnitude of Tōhoku 2011 in front of Sendai."
+        },
+        "tsunamiWaveFront1m": {
+          "title": "Wave front · ≈ 1 m at the coast",
+          "description": "A one-metre wave is enough to knock a person off their feet, sweep cars away and flood ground-floor rooms. Wooden buildings on direct exposure are damaged; reinforced concrete generally survives. Boats moored along the quayside are torn from their lines."
+        },
+        "tsunamiWaveFront03m": {
+          "title": "Wave front · ≈ 30 cm at the coast",
+          "description": "Even a thirty-centimetre tsunami can drag a person out to sea — water moving at several metres per second carries far more momentum than a same-height river. Tide gauges register a clear signature, evacuations are still recommended, but structural damage is minor."
+        },
+        "tsunamiIsochrone1h": {
+          "title": "Tsunami arrival · ≈ 1 h",
+          "description": "The wave front reaches this contour about an hour after the source event. On a real coast this is the very edge of the evacuation window — automatic warnings, sirens and SMS alerts must already have been triggered."
+        },
+        "tsunamiIsochrone2h": {
+          "title": "Tsunami arrival · ≈ 2 h",
+          "description": "Two-hour contour. Time enough to evacuate towns near the coast — but only if the warning chain works. The Lisbon 1755 tsunami reached Cádiz in roughly this time."
+        },
+        "tsunamiIsochrone4h": {
+          "title": "Tsunami arrival · ≈ 4 h",
+          "description": "The wave front has now travelled across most of an ocean basin. The 2011 Tōhoku tsunami crossed the Pacific to Hawaii in about this time, at deep-ocean speeds of ≈ 700 km/h."
+        },
+        "tsunamiIsochrone8h": {
+          "title": "Tsunami arrival · ≈ 8 h",
+          "description": "Trans-oceanic reach. Even at this distance the wave can cause damage on the far coast (the 2004 Sumatra tsunami killed people in East Africa more than 8 hours after the rupture). DART buoys typically detect the front first."
+        },
+        "mmi9": {
+          "title": "MMI IX · violent shaking",
+          "description": "Even buildings designed to resist earthquakes suffer major damage. Underground pipes rupture, slopes shed landslides, foundations crack. Survival inside non-seismic construction is heavily compromised."
+        },
+        "mmi8": {
+          "title": "MMI VIII · severe shaking",
+          "description": "Ordinary masonry buildings sustain considerable structural damage; poorly built ones may collapse. Heavy furniture shifts, chimneys and statues fall, people struggle to remain standing."
+        },
+        "mmi7": {
+          "title": "MMI VII · strong shaking",
+          "description": "Hard to stand. Furniture moves and objects fall from shelves. Slight damage to well-built structures, moderate damage to fragile ones. Wall cracks and falling plaster are common."
+        },
+        "pyroclasticRunout": {
+          "title": "Pyroclastic flow",
+          "description": "A glowing avalanche of gas and ash at 600–1000 °C races down the volcano at hundreds of km/h. Anything in its path is incinerated or buried. You cannot outrun it — it is faster than a car on a motorway."
+        },
+        "lateralBlast": {
+          "title": "Flank lateral blast",
+          "description": "A volcano flank collapses and releases a directional jet of pressurised gas and debris (as at Mt St Helens, 1980). It flattens forests and demolishes structures for tens of km — but only along the axis in which the flank gave way."
+        },
+        "ashfallPlume": {
+          "title": "Ashfall · ≥ 1 mm",
+          "description": "Volcanic ash deposits more than 1 mm thick. Under its own weight (when wet, almost as dense as wet sand) it collapses weak roofs, ruins crops, grounds aircraft and engines, and irritates lungs and eyes."
+        }
+      },
+      "aftershock": {
+        "title": "Aftershock",
+        "magnitudeLine": "Magnitude Mw {{mw}}",
+        "timeLine": "≈ {{time}} after the mainshock",
+        "description": "A follow-up rupture on the same fault. Aftershocks obey Omori's law: they are most frequent right after the mainshock and become rarer over time. A strong aftershock can cause as much damage as a standalone earthquake, especially on already-weakened buildings."
+      },
+      "duration": {
+        "seconds": "{{value}} s",
+        "minutes": "{{value}} min",
+        "hours": "{{value}} h",
+        "days": "{{value}} d"
+      }
+    }
+  },
+  "report": {
+    "title": "Simulation Report",
+    "backToSimulator": "Back to simulator",
+    "print": "Print / Save as PDF",
+    "noResult": "No simulation has been evaluated yet. Run a scenario first, then return here to download the report.",
+    "inputsTitle": "Scenario inputs",
+    "outputsTitle": "Selected outputs",
+    "equationsTitle": "Equations triggered by this run",
+    "equationsBody": "The list below is filtered to the formulas this specific scenario actually exercised — an airburst cites Chyba & Popova, a megathrust cites Strasser and the tsunami chain, a surface burst cites Nordyke.",
+    "bibliographyTitle": "Bibliography",
+    "footer": "Generated by VIS — Visual Impact Software · All formulas peer-reviewed · Open-source under Apache 2.0",
+    "meta": {
+      "event": "Event",
+      "location": "Location",
+      "generated": "Generated"
+    }
+  },
+  "about": {
+    "trigger": "About",
+    "title": "VIS — Visual Impact Software",
+    "subtitle": "Open-source · Peer-reviewed formulas",
+    "body": "Every number on screen comes from a published formula — no simulated drama, no rounded-up showmanship. Pick an event, choose a location on the globe, and watch the crater, blast, thermal, seismic, and tsunami footprints render at true geographic scale.",
+    "sources": "Scientific sources",
+    "close": "Close"
+  },
+  "glossary": {
+    "trigger": "Glossary",
+    "title": "Glossary of terms",
+    "subtitle": "Plain-language definitions for the numbers the simulator reports.",
+    "close": "Close",
+    "sections": {
+      "blast": "Blast & thermal",
+      "atmosphericEntry": "Atmospheric entry",
+      "seismology": "Seismology",
+      "volcanology": "Volcanology",
+      "tsunami": "Tsunamis",
+      "exposure": "Population & exposure"
+    },
+    "terms": {
+      "overpressure": {
+        "name": "Overpressure",
+        "definition": "Air-pressure spike above ambient produced by a blast wave. 1 psi (≈ 6.9 kPa) breaks windows; 5 psi (≈ 34.5 kPa) collapses residential buildings.",
+        "source": "Glasstone & Dolan (1977), §5.129 / §5.139"
+      },
+      "thermalFluence": {
+        "name": "Thermal fluence",
+        "definition": "Total radiant energy per unit area received at the skin during the heat pulse of an explosion. Measured in J/m² or cal/cm²; threshold damage bands scale linearly with this quantity.",
+        "source": "Glasstone & Dolan (1977), §7.35"
+      },
+      "burn3rd": {
+        "name": "3rd-degree burn radius",
+        "definition": "Distance at which unshielded skin absorbs enough thermal fluence (≈ 8 cal/cm² = 3.35 × 10⁵ J/m²) to produce full-thickness burns. The simulator ignores atmospheric attenuation, so real reaches are 50–70 % of the unshielded value.",
+        "source": "Glasstone & Dolan (1977), Table 7.41"
+      },
+      "hopkinsonCranz": {
+        "name": "Hopkinson–Cranz scaling",
+        "definition": "Cube-root yield scaling: the same overpressure appears at a range R ∝ W^(1/3) regardless of yield. Makes it possible to compare Hiroshima and Tsar Bomba on a single curve.",
+        "source": "Hopkinson (1915) / Cranz (1926)"
+      },
+      "mw": {
+        "name": "Moment magnitude (Mw)",
+        "definition": "Logarithmic measure of earthquake size from the seismic moment: Mw = (2/3)·log₁₀(M₀) − 6.07, with M₀ in N·m. One unit of Mw ≈ 32× more energy.",
+        "source": "Hanks & Kanamori (1979)"
+      },
+      "seismicMoment": {
+        "name": "Seismic moment (M₀)",
+        "definition": "Fundamental scalar size of an earthquake: M₀ = μ · A · D where μ is rock rigidity, A the rupture area, and D the average slip. All other magnitude scales reduce to this at large events.",
+        "source": "Aki (1966)"
+      },
+      "mmi": {
+        "name": "Modified Mercalli Intensity (MMI)",
+        "definition": "Integer I–XII felt-intensity scale describing what people feel and what structures do. MMI VII = \"strong\", MMI VIII = \"severe\", MMI IX = \"violent\". Not the same as magnitude — it depends on distance and site.",
+        "source": "Wood & Neumann (1931); USGS ShakeMap"
+      },
+      "pga": {
+        "name": "Peak Ground Acceleration (PGA)",
+        "definition": "Largest absolute horizontal acceleration the ground experiences during an earthquake, expressed in m/s² or g. Engineering codes map PGA to design requirements.",
+        "source": "Joyner & Boore (1981)"
+      },
+      "vei": {
+        "name": "Volcanic Explosivity Index (VEI)",
+        "definition": "Integer 0–8 ranking eruptions by bulk ejecta volume. VEI 5 = Mt St Helens 1980, VEI 6 = Krakatau 1883, VEI 7 = Tambora 1815, VEI 8 = supereruptions like Toba.",
+        "source": "Newhall & Self (1982)"
+      },
+      "plinianColumn": {
+        "name": "Plinian column",
+        "definition": "Buoyant cloud of pumice, ash, and hot gas rising above a vent during the paroxysmal phase of a large eruption. Named for Pliny the Younger's description of Vesuvius 79 CE.",
+        "source": "Walker (1973)"
+      },
+      "pyroclastic": {
+        "name": "Pyroclastic density current (PDC)",
+        "definition": "Hot, ground-hugging torrent of volcanic gas, ash, and fragments that moves at 100+ km/h and destroys everything in its path. Runout scales roughly as volume^(1/3).",
+        "source": "Sheridan (1979)"
+      },
+      "dre": {
+        "name": "Dense-rock equivalent (DRE)",
+        "definition": "The volume an erupted deposit would occupy if you squeezed the air out — i.e. magma without pores or vesicles. Used to compare eruptions of very different porosities. ρ ≈ 2 500 kg/m³.",
+        "source": "Mastin et al. (2009), Table 1"
+      },
+      "wardAsphaugCavity": {
+        "name": "Ward–Asphaug water cavity",
+        "definition": "Transient hole punched through the ocean when an asteroid hits water. Its collapse radiates the tsunami wavefront. Radius scales as E^(1/4), amplitude decays 1/r in the far field.",
+        "source": "Ward & Asphaug (2000)"
+      },
+      "greensLaw": {
+        "name": "Green's law (shoaling)",
+        "definition": "As a long wave climbs onto a shelf, its amplitude grows as (h_deep / h_shallow)^(1/4). A 1 m deep-ocean tsunami steepens to ≈ 4 m on a 15 m shelf.",
+        "source": "Green (1838)"
+      },
+      "hob": {
+        "name": "Height of burst (HOB)",
+        "definition": "Altitude at which a nuclear or chemical weapon is detonated. Surface bursts couple energy into the ground (cratering); optimum airbursts (~150–300 m·kt⁻¹ᐟ³) maximise the 5 psi reach via Mach reflection; very high bursts dissipate into the atmosphere.",
+        "source": "Glasstone & Dolan (1977) §3.66"
+      },
+      "machReflection": {
+        "name": "Mach reflection",
+        "definition": "When the angle between the incident shock front and the ground exceeds a critical value, the regular reflection collapses into a Mach stem — a single, stronger shock travelling along the ground. The optimum HOB is the altitude at which the Mach reflection sits at the design overpressure radius.",
+        "source": "Glasstone & Dolan (1977) §3.71"
+      },
+      "pancakeModel": {
+        "name": "Pancake fragmentation model",
+        "definition": "When a meteoroid's ram pressure (ρ_air · v²) exceeds its tensile strength Y, it fragments and the cloud spreads laterally as it descends — a 'pancake' that decelerates faster than an intact body and dumps most of its kinetic energy in the atmosphere.",
+        "source": "Chyba, Thomas & Zahnle (1993) Nature 361"
+      },
+      "breakupAltitude": {
+        "name": "Breakup altitude (h_b)",
+        "definition": "Altitude at which fragmentation begins: h_b = H · ln(ρ₀ · v² / Y). For Chelyabinsk (17 m, 19 km/s, S-type) this is ≈ 38 km; for Chicxulub (15 km) it is ≈ 46 km. Note: fragmentation onset alone does NOT mean the body airbursts — see penetration bonus.",
+        "source": "Collins, Melosh & Marcus (2005) Eq. 9"
+      },
+      "burstAltitude": {
+        "name": "Burst altitude",
+        "definition": "Altitude of peak energy deposition: h_burst = h_b − 2·H − penetrationBonus. When this is below the surface (large bodies) the simulator flags the regime as INTACT.",
+        "source": "Chyba 1993 / Collins 2005"
+      },
+      "penetrationBonus": {
+        "name": "Penetration bonus",
+        "definition": "Diameter-dependent depth (1.2 · ln(D/10) · H) that the pancake gains over a point source. For Chicxulub-class bodies it can exceed the breakup altitude itself, so the body never bursts in the atmosphere.",
+        "source": "Chyba et al. (1993)"
+      },
+      "energyFractionToGround": {
+        "name": "Energy fraction to ground (gf)",
+        "definition": "Fraction of the impactor's kinetic energy that reaches the ground as cratering / seismic work. 1.0 for INTACT (Chicxulub), ≈ 0.02 for COMPLETE_AIRBURST (Tunguska, Chelyabinsk). The complement (1 − gf) is released in the atmosphere as flash + shock.",
+        "source": "Collins, Melosh & Marcus (2005) Eq. 22 exponent"
+      },
+      "atmosphericYield": {
+        "name": "Atmospheric airburst yield",
+        "definition": "Fraction of the kinetic energy released as a fireball + shock pulse during entry: E_atm = (1 − gf) · E_kinetic. For Chelyabinsk this is ≈ 0.33 Mt TNT-equivalent (98 % of total).",
+        "source": "Brown et al. (2013) Nature 503"
+      },
+      "bolideAirburstAmplification": {
+        "name": "Bolide airburst amplification",
+        "definition": "Closed-form altitude amplification f(h) = (P_0 / P_amb(h))^(1/β) with β = 5/3 (Sachs intermediate-shock exponent). Applied to the Kinney-Graham overpressure / Glasstone thermal radii of an airburst event. Built from Whitham (1974) weak-shock invariance, Sachs (1944) blast scaling, and the U.S. Standard Atmosphere 1976.",
+        "source": "Whitham 1974 / Sachs 1944 / USSA 1976"
+      },
+      "aftershockCatalogue": {
+        "name": "Aftershock catalogue",
+        "definition": "Synthetic post-mainshock seismicity following Reasenberg-Jones / Båth / Omori-Utsu / Gutenberg-Richter. Deterministic given a seed, so the same scenario URL always produces the same sequence.",
+        "source": "Reasenberg & Jones (1989) Science 243"
+      },
+      "megathrust": {
+        "name": "Megathrust subduction interface",
+        "definition": "Shallow plate-boundary thrust fault at a subduction zone. Produces the largest earthquakes ever recorded (Mw 9–9.5: Tōhoku, Sumatra, Valdivia, Alaska) and the most basin-spanning tsunamis. Rupture-length scaling differs from continental crustal events.",
+        "source": "Strasser, Arango & Bommer (2010)"
+      },
+      "vs30": {
+        "name": "Vs30",
+        "definition": "Time-averaged shear-wave velocity in the upper 30 m of soil/rock at a site. NEHRP B-rock = 760 m/s (no amplification); soft alluvium = 180 m/s (~1.5× amplification). Wald & Allen 2007 derive Vs30 from topographic slope when no in-situ measurement is available.",
+        "source": "Wald & Allen (2007) BSSA 97"
+      },
+      "liquefactionRadius": {
+        "name": "Liquefaction radius",
+        "definition": "Maximum ground range within which liquefaction is likely on saturated sandy soil. Threshold PGA scales with magnitude per Idriss 1999 MSF = (M/7.5)^(−2.56).",
+        "source": "Youd & Idriss (2001) ASCE JGGE"
+      },
+      "lateralBlast": {
+        "name": "Lateral blast (Mt St Helens-class)",
+        "definition": "Directional jet of pressurised gas + debris released when a volcano flank decompresses — flattens forests across a 180° sector for tens of km along the failure axis (Glicken 1996 archetype).",
+        "source": "Glicken (1996) USGS OFR 96-677"
+      },
+      "flankCollapse": {
+        "name": "Flank collapse / sector collapse",
+        "definition": "Catastrophic failure of a volcano's flank, sliding a sector of the edifice into the sea. Generates a local megatsunami via the Watts (2000) cavity-collapse mechanism. Anak Krakatau 22 Dec 2018 is the canonical instrumental case.",
+        "source": "Grilli et al. (2019) Sci. Rep. 9"
+      },
+      "ashfallIsopach": {
+        "name": "Ashfall isopach",
+        "definition": "Contour line of constant tephra deposit thickness on the ground. The 1 mm isopach is the conventional reach for 'noticeable ashfall'; the 1 cm isopach defines the air-quality / aviation hazard envelope.",
+        "source": "Pyle (1989) Bull. Volcanol. 51"
+      },
+      "lahar": {
+        "name": "Lahar",
+        "definition": "Saturated debris flow of volcanic origin — slurry of pyroclastic material + meltwater + entrained sediment moving at tens of km/h. The 1985 Nevado del Ruiz lahar (Armero tragedy, ≈ 23 000 fatalities) is the canonical reference.",
+        "source": "Iverson (1997) Rev. Geophys. 35"
+      },
+      "tsunamiCelerity": {
+        "name": "Tsunami celerity",
+        "definition": "Open-ocean propagation speed: c = √(g · h). At 4 km mean depth this is ≈ 198 m/s ≈ 713 km/h — the popular-science 'speed of a jet airliner'. On a 100 m continental shelf the wave slows to ≈ 31 m/s.",
+        "source": "Lamb (1932) §170"
+      },
+      "sourceWavelength": {
+        "name": "Tsunami source wavelength",
+        "definition": "Spacing between successive crests at the source, set by the dominant Fourier mode: λ ≈ 2 × cavity diameter (impact / explosion) or 2 × rupture length (megathrust). For Tōhoku 2011 this is ≈ 1 400 km.",
+        "source": "Lamb (1932) / Satake et al. (2013)"
+      },
+      "dominantPeriod": {
+        "name": "Dominant period",
+        "definition": "Time between successive crests at the source: T = λ / c. For Tōhoku 2011 ≈ 7 000 s ≈ 2 h, consistent with the 30 min – 2 h range reported at coastal tide gauges.",
+        "source": "Lamb (1932) §170"
+      },
+      "synolakisRunup": {
+        "name": "Synolakis run-up",
+        "definition": "Coastal-inundation height for a solitary long wave on a plane-slope beach: R_max = 2.831 · H · √(cot β) · (H/d)^(1/4). The simulator uses the actual DEM slope when available; otherwise the textbook 1:100 reference.",
+        "source": "Synolakis (1987) JFM 185"
+      },
+      "inundationDistance": {
+        "name": "Inland inundation distance",
+        "definition": "Geometric horizontal reach of the run-up wedge: L = R_runup / tan(β). On a 1:100 reference beach this is 100× the run-up; on a 1:30 dune face only 30×; on a 1:300 mud-flat 300×. Order-of-magnitude only.",
+        "source": "FEMA 55 §3.4 / Murata et al. (2010)"
+      },
+      "damageTier": {
+        "name": "Tsunami damage tier",
+        "definition": "Six-tier coastal-damage classification keyed off run-up height: < 0.3 m tide-gauge only, 0.3–1 m light flooding, 1–3 m cars displaced, 3–6 m wood-frame destruction, 6–10 m concrete buildings damaged, > 10 m Tōhoku-/Lituya-class destruction.",
+        "source": "Bryant 2014 §10.5 / FEMA P-646 §3"
+      },
+      "beachSlopeFromDEM": {
+        "name": "Beach slope from on-site DEM",
+        "definition": "When the user clicks on a coastal cell with a real terrain gradient, the simulator samples the AWS Terrarium DEM tile around the click and feeds the local slope (clamped to the [1:1000, 1:3] envelope) into the Synolakis run-up. Outside the envelope the formula falls back to the 1:100 reference.",
+        "source": "Wald & Allen 2007 / Synolakis 1987"
+      },
+      "populationExposure": {
+        "name": "Population exposure",
+        "definition": "Sum of population-grid cells inside the headline damage radius. Backed by the WorldPop 2020 1 km mosaic (Tatem 2017) or the JRC GHSL R2023A grid (Schiavina 2023), fetched as Cloud-Optimised GeoTIFFs via HTTP Range requests. Population exposed ≠ casualties.",
+        "source": "Tatem (2017) Sci. Data 4"
+      },
+      "vulnerabilityFunction": {
+        "name": "Vulnerability function (intentionally not implemented)",
+        "definition": "Maps a hazard intensity (overpressure, MMI, runup) to a probability of fatality / injury. Glasstone §12 lethality bands for blast, Wald & Quitoriano (1999) PAGER fragility curves for shaking, FEMA P-646 §3 for tsunami. Intentionally omitted from VIS to avoid the 'rainbow numbers' effect — the figure surfaced is exposure, not casualties.",
+        "source": "Wald & Quitoriano (1999); FEMA P-646"
+      }
+    }
+  },
+  "citations": {
+    "kineticEnergy": "Kinetic energy E = ½ m v² (Collins, Melosh & Marcus 2005, Eq. 3). Mass from a spherical impactor of the chosen bulk density.",
+    "finalCrater": "Final crater rim-to-rim diameter from the π-group scaling and simple/complex branch (Collins, Melosh & Marcus 2005, Eqs. 21, 22, 27).",
+    "transientCrater": "Transient crater diameter from π-group scaling (Collins, Melosh & Marcus 2005, Eq. 21). The transient crater is the cavity at maximum excavation, before gravitational modification.",
+    "craterDepth": "Depth-to-diameter ratio d/D ≈ 1/5 for simple craters; complex craters scale from Pike (1980) piecewise relation.",
+    "ejecta": "Continuous ejecta-blanket thickness T(r) = 0.14 · R · (R/r)³ (McGetchin et al. 1973; Collins et al. 2005 Eq. 28). Outer edges invert the same formula at the quoted threshold.",
+    "firestorm": "Thermal-pulse ignition and firestorm thresholds from Glasstone & Dolan (1977) §7.40–§7.42. Impact luminous efficiency η ≈ 3 × 10⁻³ from Toon et al. (1997); nuclear thermal partition 0.35.",
+    "atmosphere": "Stratospheric sub-µm dust mass linearly scaled against Toon et al. (1997) Table 3; shock-atmospheric HNO₃ linearly scaled against Prinn & Fegley (1987); climate tier by kinetic-energy band.",
+    "seismicMagnitude": "Seismic-equivalent moment magnitude Mw = 0.67·log₁₀(E) − 5.87 (Schultz & Gault 1975, as used by Collins et al. 2005 Eq. 31).",
+    "seismicMagnitudeTW": "Modern impact-seismicity estimator from Teanby & Wookey (2011) EPSL 303: M₀ = k·E with seismic efficiency k ≈ 10⁻⁴, then Mw via Hanks–Kanamori (1979). Runs 2–3 Mw units below Schultz-Gault — a more defensible upper bound.",
+    "tsunamiCavity": "Water-column cavity radius R_C = (3·E / (2π·ρ_w·g))^(1/4) from the Ward & Asphaug (2000) energy-partitioning form.",
+    "tsunamiFarField": "Far-field amplitude A(r) = A₀·R_C/r (Ward & Asphaug 2000) — 1/r geometric decay of a shallow-water gravity wave.",
+    "tsunamiWunnemann": "Hydrocode-corrected far field (Wünnemann, Weiss & Hofmann 2007, M&PS 42; Melosh 2003). Short-wavelength impact waves dissipate faster than classical tsunamis, lowering Ward–Asphaug amplitudes by 4–10× at continent-crossing range.",
+    "synolakisRunup": "Coastal run-up on a 1:100 plane beach with 10 m offshore depth (Synolakis 1987, JFM 185 523–545). R = 2.831·H·√(cot β)·(H/d)^(1/4). Illustrative inundation height — real coastal run-up depends on bathymetry, harbour geometry, and breaking regime.",
+    "tsunamiDispersion": "Frequency-dependent dispersion correction to the far-field amplitude (Heidarzadeh & Satake 2015 GJI 202 / JGR Oceans 120). Exponential decay with ~2 500 km scale length beyond the Wünnemann/Ward 1/r envelope — matches DART-buoy records of Sumatra 2004 and Tōhoku 2011.",
+    "seismicMoment": "Seismic moment M₀ = 10^(1.5·Mw + 9.1) N·m — Hanks & Kanamori (1979) SI form of the moment-magnitude scale.",
+    "ruptureLength": "Surface rupture length L = 10^(a + b·Mw) km — Wells & Coppersmith (1994) empirical regression by fault slip regime.",
+    "mmi": "Modified Mercalli Intensity from Joyner & Boore (1981) PGA attenuation combined with Worden et al. (2012) piecewise GMICE for California.",
+    "ngaWest2": "Modern PGA estimator from Boore, Stewart, Seyhan & Atkinson (2014), Earthquake Spectra 30(3) 1057–1085 — NGA-West2 BSSA14. Replaces the 1981-era Joyner–Boore fit with magnitude-dependent geometric spreading, 4.5 km near-source clamp, fault-type constants, and Vs30 site amplification.",
+    "mmiEurope": "European PGA→MCS conversion from Faenza & Michelini (2010), GJI 180 1117–1133. Italian ShakeMap calibration; prefer this to the Worden (California) fit for events on the Eurasian plate.",
+    "strasser": "Megathrust rupture-length scaling from Strasser, Arango & Bommer (2010), SRL 81(6). Fits 95 subduction-interface events; used instead of Wells–Coppersmith for subduction-zone thrusts, where W&C over-predicts at Mw ≥ 8.",
+    "liquefaction": "Liquefaction-potential threshold radius on susceptible saturated sandy soil. PGA threshold 0.10 g at Mw 7.5, scaled by Idriss (1999) MSF = (M/7.5)^(−2.56). Reference: Youd & Idriss (2001) ASCE JGGE.",
+    "waldAllen": "Site Vs30 derived from the topographic slope at the scenario coordinates (Wald & Allen 2007 Table 1, active-tectonic regions). Rock outcrops → Vs30 ≈ 760 m/s (NEHRP B); alluvial basins → Vs30 ≈ 180 m/s (NEHRP E). Echoes the user override when one was set, otherwise the rock reference.",
+    "vei": "Volcanic Explosivity Index from Newhall & Self (1982), integer 0–8 binned by bulk ejecta volume.",
+    "plumeHeight": "Plinian-plume height H = 2.00 · V̇^0.241 km (Mastin et al. 2009, Eq. 1) from the volume eruption rate.",
+    "pyroclasticRunout": "Pyroclastic-density-current reach L = 10 · V^(1/3) km (H/L ≈ 0.1 mobility, Sheridan 1979).",
+    "pdcEnergyLine": "Upper-bound PDC runout from Dade & Huppert (1998) Geology 26(9) / Hayashi & Self (1992): L = H_plume / slope with slope ≈ 0.10 for dense flows.",
+    "climateCooling": "VEI-scaled stratospheric-aerosol climate forcing. ΔT doubles per unit VEI from the El Chichón 1982 / Pinatubo 1991 / Tambora 1815 record, per Robock (2000) Rev. Geophys. 38 and Sato et al. (1993) GISS AOD dataset.",
+    "ashfall": "1 mm isopach area ~ 3 000 · V^0.8 km². Simplified Walker (1980) / Pyle (1989) exponential-thinning fit; real ashfall is wind-shaped.",
+    "lahar": "Saturated debris-flow runout L = 0.05 · V^0.38 km (V in m³). Iverson (1997) / Vallance & Iverson (2015). Reproduces Mt St Helens 1980 within a factor of 2.",
+    "blast": "Peak overpressure inverted via Kinney–Graham (1985) surface-burst fit; thresholds at 5 psi (building collapse) and 1 psi (window breakage) from Glasstone & Dolan (1977) §5.129/§5.139.",
+    "hob": "Height-of-burst correction applied over the Kinney–Graham baseline — piecewise fit to Fig. 3.73 of Glasstone & Dolan (1977) and Fig. 3-3 of Needham (2018), Blast Waves, Springer. 0.85× at surface, 1.0× at optimum (≈150–300 m·kt⁻¹ᐟ³), collapses for stratospheric bursts.",
+    "radiation": "Initial gamma + neutron lethal-dose radii. LD₅₀/60 ≈ 4.5 Gy, LD₁₀₀ ≈ 8 Gy, ARS threshold ≈ 1 Gy. Radii scale as yield^0.4, anchored on the 1 kt reference from Glasstone & Dolan (1977) Fig. 8.46; dose-response from UNSCEAR 2000 Annex C / BEIR VII (2006).",
+    "emp": "Electromagnetic-pulse regime classification. Low-altitude bursts are EMP-negligible at ground level; high-altitude (> 30 km) bursts produce the canonical 50 kV/m HEMP per IEC 61000-2-9, with ground footprint equal to the horizon tangent disc. Longmire (1978) IEEE AP-26 is the underlying current-sheet model.",
+    "thermal": "Unshielded third-degree-burn radius at the 8 cal/cm² fluence threshold (Glasstone & Dolan 1977, Table 7.41). Real reach shrinks to 50–70 % once atmospheric attenuation is applied.",
+    "nuclearCrater": "Apparent surface-burst crater diameter D = K · W_kt^0.3 (Nordyke 1977), with K tied to the ground type — hard rock, firm ground, dry soil, wet coral.",
+    "atmosphericEntry": "Fragmentation-onset altitude h_b = H · ln(ρ₀v² / Y), where dynamic pressure first exceeds the impactor's tensile strength Y (Chyba et al. 1993, Nature 361: 40; Collins et al. 2005, M&PS 40, Eq. 9). Burst altitude is set 2 scale heights below h_b, minus a diameter-dependent penetration bonus that lets large bodies sail through the atmosphere intact.",
+    "bolideAirburstAmplification": "Closed-form altitude amplification f(h) = (P_0 / P_amb(h))^(1/β) with β = 5/3 (Sachs intermediate-shock exponent). Built from Whitham (1974) §8.2 weak-shock invariance ΔP/P_amb ≈ const through stratified atmosphere, Sachs (1944) blast scaling ΔP ∝ R^(−β), and the U.S. Standard Atmosphere 1976 (NOAA-S/T 76-1562) for actual P(h). Capped at 15× for stratospheric scenarios. Validates within ~1 % on Chelyabinsk 2013 (Brown et al. 2013 Nature 503: 238) and within ~15 % on Tunguska 1908."
+  }
+}

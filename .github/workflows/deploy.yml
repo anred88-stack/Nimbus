@@ -1,0 +1,62 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  deployments: write
+  pull-requests: write
+
+jobs:
+  cloudflare-pages:
+    # Opt-in gating: this job only runs when the repo variable
+    # ENABLE_CF_DEPLOY is set to 'true' (Settings → Secrets and
+    # variables → Actions → Variables). Until Cloudflare Pages is
+    # wired up with a project, API token, and account id, leave the
+    # variable unset and the deploy workflow will skip on every push
+    # instead of failing red and mailing the repo owner.
+    if: ${{ vars.ENABLE_CF_DEPLOY == 'true' }}
+    name: Cloudflare Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy dist
+            --project-name=vis
+            --branch=${{ github.head_ref || github.ref_name }}
+            --commit-dirty=true

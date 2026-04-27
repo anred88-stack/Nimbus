@@ -1,0 +1,23 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: #050509;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1000;
+  transition: opacity var(--transition-half, 750ms) cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.overlay[data-phase='fading-out'] {
+  opacity: 1;
+}
+
+.overlay[data-phase='fading-in'] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    transition: none;
+  }
+}

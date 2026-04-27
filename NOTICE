@@ -1,0 +1,13 @@
+VIS — Visual Impact Software
+Copyright TBD VIS Contributors
+
+This product includes software developed by the VIS
+open-source community. See CONTRIBUTORS / commit history for
+individual attribution.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+see LICENSE for the full text.
+
+Third-party components are listed in docs/ASSETS.md (creative
+assets) and package.json / pnpm-lock.yaml (code dependencies),
+each governed by its own licence.

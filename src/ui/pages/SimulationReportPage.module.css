@@ -1,0 +1,295 @@
+/*
+ * Per-scenario Simulation Report — designed to be printed to PDF via
+ * the browser's built-in Print → Save as PDF dialog. On screen it
+ * uses a light paper-style background so "what you see is what you
+ * print"; no dark-mode → light-mode surprise at print time.
+ */
+
+.root {
+  min-height: 100vh;
+  background: #e9ecf2;
+  color: #111;
+  font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+  line-height: 1.55;
+  padding: 32px 0 64px;
+}
+
+.toolbar {
+  max-width: 880px;
+  margin: 0 auto 24px;
+  padding: 0 24px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toolButton,
+.printButton {
+  background: #fff;
+  color: #111;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toolButton:hover,
+.printButton:hover {
+  background: #f5f5f5;
+  border-color: rgba(0, 0, 0, 0.4);
+}
+
+.printButton {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+  font-weight: 600;
+}
+
+.printButton:hover {
+  background: #000;
+}
+
+.toolButton:focus-visible,
+.printButton:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 56px 64px 64px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.header {
+  margin-bottom: 40px;
+  border-bottom: 2px solid #111;
+  padding-bottom: 20px;
+}
+
+.brand {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #555;
+  margin: 0 0 6px 0;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.title {
+  font-size: 28px;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.015em;
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.meta dt {
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10px;
+  align-self: center;
+}
+
+.meta dd {
+  margin: 0;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 12px;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.section h2 {
+  font-size: 16px;
+  margin: 0 0 12px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #bbb;
+  letter-spacing: 0.01em;
+}
+
+.sectionIntro {
+  font-size: 12px;
+  color: #444;
+  margin: 0 0 12px 0;
+  max-width: 680px;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 24px;
+  margin: 0;
+}
+
+.fieldRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px dotted #ccc;
+  font-size: 12px;
+}
+
+.fieldRow dt {
+  color: #333;
+}
+
+.fieldRow dd {
+  margin: 0;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  color: #111;
+  text-align: right;
+}
+
+.equations {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.equation {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 12px 16px;
+  background: #fafafa;
+  page-break-inside: avoid;
+}
+
+.equationHeader h3 {
+  font-size: 13px;
+  margin: 0 0 4px 0;
+  font-weight: 700;
+}
+
+.reason {
+  font-size: 11px;
+  color: #555;
+  margin: 0 0 8px 0;
+  font-style: italic;
+}
+
+.formulaRow {
+  margin-top: 8px;
+}
+
+.formulaName {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #555;
+  margin: 0 0 4px 0;
+}
+
+.formulaBlock {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 8px 10px;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.bibliography {
+  padding-left: 20px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.bibliography li {
+  margin-bottom: 6px;
+  padding-left: 4px;
+}
+
+.footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid #ccc;
+  font-size: 10px;
+  color: #666;
+  text-align: center;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.empty {
+  font-size: 14px;
+  color: #555;
+  margin-top: 40px;
+}
+
+/* Responsive: narrow viewports fold the inputs/outputs grid to a single
+ * column for legibility. Tablets and desktop keep the two-column
+ * layout since the page is capped at 880 px. */
+@media (max-width: 720px) {
+  .page {
+    padding: 32px 24px 48px;
+  }
+  .fields {
+    grid-template-columns: 1fr;
+  }
+  .title {
+    font-size: 22px;
+  }
+}
+
+/*
+ * Print styles — the heart of "Save as PDF".
+ * - Hide the on-screen chrome (toolbar, buttons).
+ * - Drop the page shadow & border radius so the report flows edge-to-edge.
+ * - Shrink paddings so content fits A4 / Letter without cropping.
+ * - Use portrait orientation with sensible 18 mm margins.
+ * - Mark section headings + equation cards as page-break anchors so
+ *   citation blocks are not split across physical pages.
+ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm 16mm 20mm;
+  }
+  .root {
+    background: #fff;
+    padding: 0;
+  }
+  .toolbar {
+    display: none;
+  }
+  .page {
+    max-width: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+  }
+  .section {
+    page-break-inside: auto;
+  }
+  .section h2 {
+    page-break-after: avoid;
+  }
+  .equation,
+  .bibliography li {
+    page-break-inside: avoid;
+  }
+  .footer {
+    page-break-before: avoid;
+  }
+}

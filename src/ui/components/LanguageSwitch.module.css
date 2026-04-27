@@ -1,0 +1,36 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid rgba(244, 241, 234, 0.22);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.button:hover {
+  border-color: var(--text-primary);
+  background: rgba(244, 241, 234, 0.05);
+}
+
+.currentLabel {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.separator {
+  color: var(--text-secondary);
+  margin: 0 2px;
+}
+
+.otherLabel {
+  color: var(--text-secondary);
+  font-weight: 400;
+}

@@ -1,0 +1,125 @@
+:root {
+  /* Background gradient (Stage Mode) */
+  --bg-top: #1a2332;
+  --bg-middle: #3d4a5c;
+  --bg-bottom: #6b6560;
+
+  /* Neutral surfaces */
+  --surface-ground: #8a8278;
+  --surface-landmark: #b4ada5;
+  --surface-human: #d4c9b8;
+
+  /* Event accents — use ONLY on the event, never elsewhere */
+  --fireball-core: #ffe8b0;
+  --fireball-mid: #ff7b2e;
+  --fireball-outer: #c21f0f;
+  --nuclear-flash: #ffffff;
+  --nuclear-glow: #ffd9a0;
+  --shockwave: #e8dfd0;
+  --seismic: #4a6d8c;
+  --tsunami: #5c7a8a;
+  --lava-hot: #d94a1a;
+  --lava-cool: #3d1a0f;
+  --ash-light: #5a5550;
+  --ash-dark: #2a2825;
+
+  /* UI overlay */
+  --text-primary: #f4f1ea;
+  --text-secondary: #a8a29a;
+  --accent: #e8a33d;
+
+  /* Typography */
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* Spacing (8pt base, plus 4pt increments) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: linear-gradient(
+    180deg,
+    var(--bg-top) 0%,
+    var(--bg-middle) 60%,
+    var(--bg-bottom) 100%
+  );
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  top: -9999px;
+  left: 0;
+}
+
+.skip-link:focus {
+  top: var(--space-4);
+  left: var(--space-4);
+  background: var(--accent);
+  color: #000;
+  padding: var(--space-2) var(--space-4);
+  border-radius: 4px;
+  z-index: 1000;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

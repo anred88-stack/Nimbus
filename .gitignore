@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Testing / coverage
+coverage/
+.nyc_output/
+playwright-report/
+playwright/.cache/
+test-results/
+
+# Storybook
+storybook-static/
+
+# Vite / build caches
+.vite/
+.cache/
+.turbo/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor / IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Claude Code local workspace
+.claude/
+
+# Lighthouse CI local reports (uploaded as CI artifact instead)
+.lighthouseci/
+lighthouse-reports/
