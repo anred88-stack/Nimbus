@@ -1,28 +1,41 @@
 import type { Entity } from 'cesium';
 
 /**
- * Progressively reveals aftershock point entities over a single UI
- * time window, using log-compressed onsets so the first seconds of
- * the Omori-Utsu decay (where most events cluster) read clearly while
+ * Progressively reveals aftershock point entities over a single 4 s
+ * UI window, using log-compressed onsets so the first seconds of the
+ * Omori–Utsu decay (where most events cluster) read clearly while
  * the long tail (days–weeks) doesn't drag the loop on for minutes.
+ *
+ * Time mapping (Omori physical → UI):
+ *   t = 0 (mainshock)        → 0 ms
+ *   t = +1 minute            → ~600 ms
+ *   t = +1 hour              → ~1 200 ms
+ *   t = +1 day               → ~1 900 ms
+ *   t = +1 week              → ~2 500 ms
+ *   t = +1 year              → 4 000 ms
  *
  * Typical input has 100–500 events with `physicalTimeSeconds` from a
  * few seconds to ~30 days. Linear playback would either rush the
- * dense early cluster or wait minutes for the late tail; the
- * `log1p` mapping keeps both ends visible inside ANIMATION_MS.
+ * dense early cluster or wait minutes for the late tail; the `log1p`
+ * mapping keeps both ends visible inside ANIMATION_MS.
  *
- * Each new entity briefly "pops" — its pixelSize grows past the final
- * value for ANIMATION_POP_MS then settles. The original size and
- * colour are preserved; we only rewrite `point.show` and
- * `point.pixelSize` per frame.
+ * The audit (Phase 8a) flagged the previous 200 ms pixelSize
+ * overshoot as a pure UX cue with no physical meaning. The reveal is
+ * now a clean 300 ms fade-in via `pixelSize` ramping from 0 to the
+ * final size — same "the marker is appearing" semantic, but the
+ * geometry stays monotone (no overshoot), and the timing is tied to
+ * the log-compressed Omori onset for that specific replica.
  *
  * Honours `prefers-reduced-motion`: returns immediately after
- * setting every entity's `show = true` (no rAF loop, no pop).
+ * setting every entity's `show = true` (no rAF loop).
  */
 
-const ANIMATION_MS = 15_000;
-const ANIMATION_POP_MS = 200;
-const POP_OVERSHOOT = 1.6;
+const ANIMATION_MS = 4_000;
+/** Per-marker fade-in duration. Pure visual easing — does not
+ *  compete with the log-compressed Omori timing of the marker
+ *  itself. Was a 200 ms overshoot pop previously; now a monotone
+ *  ramp 0 → final size over the same budget. */
+const FADE_IN_MS = 300;
 
 export interface AftershockAnimationSpec {
   /** Cesium entity carrying a `point` graphic. */
@@ -108,20 +121,21 @@ export function animateAftershocksImperatively(
         allRevealed = false;
         continue;
       }
-      // Reveal + pop animation: pixelSize ramps from POP_OVERSHOOT×
-      // back to 1× over ANIMATION_POP_MS.
+      // Monotone fade-in from 0 to the final pixel size. No
+      // overshoot — the audit (Phase 8a) explicitly disallowed the
+      // previous "pop" because it competed with the physical-time
+      // semantics of the marker reveal.
       writeShow(spec.entity, true);
-      const sincePop = elapsed - onset;
-      if (sincePop < ANIMATION_POP_MS) {
-        const t = sincePop / ANIMATION_POP_MS;
-        const scale = POP_OVERSHOOT - (POP_OVERSHOOT - 1) * t;
-        writePixelSize(spec.entity, spec.finalPixelSize * scale);
+      const sinceReveal = elapsed - onset;
+      if (sinceReveal < FADE_IN_MS) {
+        const t = sinceReveal / FADE_IN_MS;
+        writePixelSize(spec.entity, spec.finalPixelSize * t);
         allRevealed = false;
       } else {
         writePixelSize(spec.entity, spec.finalPixelSize);
       }
     }
-    if (!allRevealed && elapsed < ANIMATION_MS + ANIMATION_POP_MS) {
+    if (!allRevealed && elapsed < ANIMATION_MS + FADE_IN_MS) {
       rafHandle = requestAnimationFrame(tick);
     } else {
       // Force-settle every entity at the end so we never leave a
