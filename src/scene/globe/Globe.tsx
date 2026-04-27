@@ -171,14 +171,9 @@ const WAVEFRONT_INDICATOR_ID = 'cascade-wavefront-indicator';
 const RING_ID_PREFIX = 'damage-ring-';
 const TSUNAMI_CAVITY_ID = 'tsunami-cavity';
 /** Entity ids for the three concentric wave-front rings painted at
- *  the source-amplitude → 5 m / 1 m / 0.3 m thresholds. Tracked as a
- *  tuple so the teardown sweep stays scoped. */
-const TSUNAMI_WAVE_FRONT_IDS = [
-  'tsunami-wavefront-5m',
-  'tsunami-wavefront-1m',
-  'tsunami-wavefront-03m',
-] as const;
-const MMI_RING_IDS = ['mmi-ring-7', 'mmi-ring-8', 'mmi-ring-9'] as const;
+ *  the source-amplitude → 5 m / 1 m / 0.3 m thresholds. */
+type TsunamiWaveFrontId = 'tsunami-wavefront-5m' | 'tsunami-wavefront-1m' | 'tsunami-wavefront-03m';
+type MmiRingId = 'mmi-ring-7' | 'mmi-ring-8' | 'mmi-ring-9';
 const PYROCLASTIC_RING_ID = 'pyroclastic-ring';
 const ASHFALL_PLUME_ID = 'ashfall-plume';
 const EJECTA_BLANKET_ID = 'ejecta-blanket';
@@ -199,6 +194,37 @@ const AFTERSHOCK_COLOR_HIGH = Color.fromCssColorString('#b91c1c');
 const ISOCHRONE_ID_PREFIX = 'tsunami-isochrone-';
 const FMM_HEATMAP_ID = 'tsunami-fmm-heatmap';
 const FMM_AMPLITUDE_HEATMAP_ID = 'tsunami-fmm-amplitude';
+
+/**
+ * Every entity id the simulator pipeline creates starts with one of
+ * these prefixes (or matches one of them exactly). The render effect
+ * does a granular per-id sweep on the way in, and a final defensive
+ * pass over this list at the end to catch anything a future addition
+ * forgets to enumerate — re-running on a different click then never
+ * leaves a ghost ring behind.
+ */
+const SIM_ENTITY_PREFIXES: readonly string[] = [
+  'impact-marker', // marker dot + halo
+  'damage-ring-', // RING_ID_PREFIX
+  'mmi-ring-', // mmi-ring-7 / -8 / -9
+  'explosion-', // explosion-crater / -thermal / -5psi / -1psi / -emp / …
+  'tsunami-', // cavity, wavefronts, FMM heatmaps, isochrones
+  'aftershock-', // AFTERSHOCK_ID_PREFIX + AFTERSHOCK_DETAIL_IDS
+  'pyroclastic-', // PYROCLASTIC_RING_ID
+  'ashfall-', // ASHFALL_PLUME_ID
+  'ejecta-', // EJECTA_BLANKET_ID
+  'lateral-blast', // LATERAL_BLAST_ID
+  'cascade-', // WAVEFRONT_INDICATOR_ID
+  'fuzzy-mc-', // FUZZY_RING_ID_PREFIX
+];
+
+function purgeSimulationEntities(viewer: Viewer): void {
+  if (viewer.isDestroyed()) return;
+  const stale = viewer.entities.values
+    .filter((e) => typeof e.id === 'string' && SIM_ENTITY_PREFIXES.some((p) => e.id.startsWith(p)))
+    .slice();
+  for (const e of stale) viewer.entities.remove(e);
+}
 /** Colour ramp for the default 1/2/4/8 h isochrone set — cool to warm. */
 const ISOCHRONE_COLORS: readonly Color[] = [
   Color.fromCssColorString('#38bdf8'), // 1 h — sky
@@ -206,16 +232,15 @@ const ISOCHRONE_COLORS: readonly Color[] = [
   Color.fromCssColorString('#c084fc'), // 4 h — violet
   Color.fromCssColorString('#f472b6'), // 8 h — pink
 ];
-const EXPLOSION_RING_IDS = [
-  'explosion-crater',
-  'explosion-thermal',
-  'explosion-thermal-2nd',
-  'explosion-5psi',
-  'explosion-1psi',
-  'explosion-light-damage',
-  'explosion-radiation-ld50',
-  'explosion-emp',
-] as const;
+type ExplosionRingId =
+  | 'explosion-crater'
+  | 'explosion-thermal'
+  | 'explosion-thermal-2nd'
+  | 'explosion-5psi'
+  | 'explosion-1psi'
+  | 'explosion-light-damage'
+  | 'explosion-radiation-ld50'
+  | 'explosion-emp';
 const FUZZY_RING_ID_PREFIX = 'fuzzy-mc-';
 
 /**
@@ -665,58 +690,17 @@ export function Globe(): JSX.Element {
       });
     };
 
-    // Remove previous overlay entities (all event types).
-    const existing = viewer.entities.getById(MARKER_ID);
-    if (existing) viewer.entities.remove(existing);
-    const existingHalo = viewer.entities.getById(MARKER_HALO_ID);
-    if (existingHalo) viewer.entities.remove(existingHalo);
-    (Object.keys(RING_COLORS) as (keyof ImpactDamageRadii)[]).forEach((key) => {
-      const id = `${RING_ID_PREFIX}${key}`;
-      const entity = viewer.entities.getById(id);
-      if (entity) viewer.entities.remove(entity);
-    });
-    const staleCavity = viewer.entities.getById(TSUNAMI_CAVITY_ID);
-    if (staleCavity) viewer.entities.remove(staleCavity);
-    TSUNAMI_WAVE_FRONT_IDS.forEach((id) => {
-      const e = viewer.entities.getById(id);
-      if (e) viewer.entities.remove(e);
-    });
-    MMI_RING_IDS.forEach((id) => {
-      const entity = viewer.entities.getById(id);
-      if (entity) viewer.entities.remove(entity);
-    });
-    EXPLOSION_RING_IDS.forEach((id) => {
-      const entity = viewer.entities.getById(id);
-      if (entity) viewer.entities.remove(entity);
-    });
-    const stalePyro = viewer.entities.getById(PYROCLASTIC_RING_ID);
-    if (stalePyro) viewer.entities.remove(stalePyro);
-    const staleAshfall = viewer.entities.getById(ASHFALL_PLUME_ID);
-    if (staleAshfall) viewer.entities.remove(staleAshfall);
-    const staleEjecta = viewer.entities.getById(EJECTA_BLANKET_ID);
-    if (staleEjecta) viewer.entities.remove(staleEjecta);
-    const staleWavefront = viewer.entities.getById(WAVEFRONT_INDICATOR_ID);
-    if (staleWavefront) viewer.entities.remove(staleWavefront);
-    const staleLateralBlast = viewer.entities.getById(LATERAL_BLAST_ID);
-    if (staleLateralBlast) viewer.entities.remove(staleLateralBlast);
-    const staleAftershocks = viewer.entities.values
-      .filter((e) => typeof e.id === 'string' && e.id.startsWith(AFTERSHOCK_ID_PREFIX))
-      .slice();
-    for (const e of staleAftershocks) viewer.entities.remove(e);
-    const staleHeatmap = viewer.entities.getById(FMM_HEATMAP_ID);
-    if (staleHeatmap) viewer.entities.remove(staleHeatmap);
-    const staleAmplitude = viewer.entities.getById(FMM_AMPLITUDE_HEATMAP_ID);
-    if (staleAmplitude) viewer.entities.remove(staleAmplitude);
-    const staleFuzzy = viewer.entities.values
-      .filter((e) => typeof e.id === 'string' && e.id.startsWith(FUZZY_RING_ID_PREFIX))
-      .slice();
-    for (const e of staleFuzzy) viewer.entities.remove(e);
-    // Isochrone segment IDs are keyed by their threshold and segment
-    // index, so we purge every entity whose id starts with the prefix.
-    const staleIsochrones = viewer.entities.values
-      .filter((e) => typeof e.id === 'string' && e.id.startsWith(ISOCHRONE_ID_PREFIX))
-      .slice();
-    for (const e of staleIsochrones) viewer.entities.remove(e);
+    // Wipe every overlay entity left over from the previous scenario.
+    // The old code enumerated each id (or id-prefix) one by one, which
+    // worked until the next contributor added a new entity type and
+    // forgot to extend the sweep — the user reported pink tsunami
+    // wave-fronts and an FMM heatmap rectangle hanging around after
+    // re-clicking inland, exactly the failure mode an enumeration miss
+    // produces. The defensive prefix sweep below catches anything whose
+    // id matches SIM_ENTITY_PREFIXES, so future additions stay covered
+    // as long as the new id starts with one of those tokens.
+    purgeSimulationEntities(viewer);
+    viewer.scene.requestRender();
 
     if (!location) return;
 
@@ -816,7 +800,7 @@ export function Globe(): JSX.Element {
       | { mode: 'cylindrical'; sourceAmplitude: number; halfLength: number };
     const addTsunamiWaveFronts = (source: TsunamiSourceMode): void => {
       const targets: {
-        id: (typeof TSUNAMI_WAVE_FRONT_IDS)[number];
+        id: TsunamiWaveFrontId;
         amplitude: number;
         color: Color;
         tooltipKind: RingTooltipKind;
@@ -1116,12 +1100,12 @@ export function Globe(): JSX.Element {
     // --- Earthquake: three MMI felt-intensity contours ---------------
     if (result.type === 'earthquake') {
       const { mmi7Radius, mmi8Radius, mmi9Radius } = result.data.shaking;
-      const contours: { id: (typeof MMI_RING_IDS)[number]; radius: number; color: Color }[] = [
+      const contours: { id: MmiRingId; radius: number; color: Color }[] = [
         { id: 'mmi-ring-7', radius: mmi7Radius, color: MMI_RING_COLORS.mmi7 },
         { id: 'mmi-ring-8', radius: mmi8Radius, color: MMI_RING_COLORS.mmi8 },
         { id: 'mmi-ring-9', radius: mmi9Radius, color: MMI_RING_COLORS.mmi9 },
       ];
-      const mmiKindFor: Record<(typeof MMI_RING_IDS)[number], RingTooltipKind> = {
+      const mmiKindFor: Record<MmiRingId, RingTooltipKind> = {
         'mmi-ring-7': 'mmi7',
         'mmi-ring-8': 'mmi8',
         'mmi-ring-9': 'mmi9',
@@ -1166,7 +1150,7 @@ export function Globe(): JSX.Element {
       const emp = result.data.emp;
       const asymmetry = result.data.asymmetry;
       const explosionRings: {
-        id: (typeof EXPLOSION_RING_IDS)[number];
+        id: ExplosionRingId;
         radius: number;
         color: Color;
         kind: RingKind;
