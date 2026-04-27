@@ -34,9 +34,12 @@ describe('hobBlastFactor (Needham 2018 / Glasstone Fig. 3.73)', () => {
     expect(hobBlastFactor(49)).toBeCloseTo(0.85, 2);
   });
 
-  it('optimum airburst band (150–300 m/kt^(1/3)) returns 1.0', () => {
-    expect(hobBlastFactor(200)).toBe(1.0);
-    expect(hobBlastFactor(250)).toBe(1.0);
+  it('optimum airburst band (150–300 m/kt^(1/3)) returns 1.50 — Mach-stem amplification', () => {
+    // Phase 9 calibration: the surface-burst Kinney-Graham fit must
+    // be amplified by the Mach-stem reflection factor at the optimum
+    // HOB to recover the Glasstone Fig 3.74a observed airburst reach.
+    expect(hobBlastFactor(200)).toBe(1.5);
+    expect(hobBlastFactor(250)).toBe(1.5);
   });
 
   it('high-airburst band declines linearly to ~0.70 at 700 m/kt^(1/3)', () => {
@@ -56,10 +59,10 @@ describe('hobBlastFactor (Needham 2018 / Glasstone Fig. 3.73)', () => {
 });
 
 describe('correctRadiusForHob', () => {
-  it('Hiroshima-scaled HOB returns near-optimum enhancement', () => {
+  it('Hiroshima-scaled HOB returns Mach-stem amplification (×1.5)', () => {
     const r = correctRadiusForHob(m(2_000), 580, 15);
-    expect(r as number).toBeGreaterThan(1_700);
-    expect(r as number).toBeLessThanOrEqual(2_000);
+    expect(r as number).toBeGreaterThan(2_900);
+    expect(r as number).toBeLessThanOrEqual(3_100);
   });
 
   it('Surface burst cuts the radius by ~15 %', () => {

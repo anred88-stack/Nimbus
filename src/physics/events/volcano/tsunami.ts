@@ -51,9 +51,43 @@ import { tsunamiTravelTime } from '../tsunami/propagation.js';
  *     hazard." Annual Review of Earth and Planetary Sciences 47: 89–128.
  */
 
-/** Empirical prefactor in η_source = K · V^(1/3) · sin(θ). Calibrated
- *  to Anak Krakatau 2018 (V = 0.27 km³, θ = 20°, η_obs ≈ 85 m). */
-export const VOLCANO_TSUNAMI_PREFACTOR = 0.1;
+/** Per-regime empirical prefactor in η_source = K · V^(1/3) · sin(θ).
+ *
+ * The Watts 2000 form has a single linear K, but real-world calibration
+ * targets force two distinct values:
+ *
+ *   - **Subaerial / fast / rigid block** (volcanic flank collapse,
+ *     rockfall into water, Anak Krakatau 2018): K ≈ 0.40, calibrated
+ *     against Grilli et al. 2019 hydrocode reconstruction giving
+ *     ≈ 85 m source amplitude for the 0.27 km³ flank slide at 20°.
+ *
+ *   - **Submarine / slow / soft sediment** (continental-margin slumps,
+ *     Storegga 8 200 BP): K ≈ 0.005, calibrated against Bondevik
+ *     et al. 2005 giving 5–10 m source amplitude for the 3 000 km³
+ *     Norwegian slope failure at 5°. Soft-sediment slides decouple
+ *     from the water column much more efficiently than a rigid block
+ *     would — the V^(1/3) scaling alone over-predicts by factor 70+.
+ *
+ * Choosing the wrong regime drifts the source amplitude by two orders
+ * of magnitude. Volcanic and rockfall callers should pass 'subaerial';
+ * trans-basin submarine slides 'submarine'.
+ *
+ * Reference: Murty 2003 (Mar. Geol. 199) reviews regime-dependent
+ * coupling efficiency; Synolakis et al. 2008 (Pageoph 165) tabulates
+ * observed-vs-predicted source amplitudes across both regimes.
+ */
+export const VOLCANO_TSUNAMI_PREFACTOR_SUBAERIAL = 0.4;
+export const VOLCANO_TSUNAMI_PREFACTOR_SUBMARINE = 0.005;
+
+/**
+ * Default prefactor — kept for back-compat with callers that did not
+ * specify a regime. Resolves to the subaerial value because every
+ * pre-existing caller (volcano caldera + flank slides) is in that
+ * regime; the submarine path is opt-in via the new `regime` field.
+ */
+export const VOLCANO_TSUNAMI_PREFACTOR = VOLCANO_TSUNAMI_PREFACTOR_SUBAERIAL;
+
+export type LandslideTsunamiRegime = 'subaerial' | 'submarine';
 
 export interface VolcanoTsunamiInput {
   /** Collapsed block volume (m³). Anak Krakatau-class events sit at
@@ -66,6 +100,9 @@ export interface VolcanoTsunamiInput {
    *  — most volcanic islands sit on a shelf much shallower than the
    *  global ocean mean. */
   meanOceanDepth?: Meters;
+  /** Regime selects the per-style prefactor. Defaults to 'subaerial'
+   *  for back-compat with the volcano-collapse callers. */
+  regime?: LandslideTsunamiRegime;
 }
 
 export interface VolcanoTsunamiResult {
@@ -103,7 +140,19 @@ export function volcanoTsunami(input: VolcanoTsunamiInput): VolcanoTsunamiResult
   // No water → no Watts source. Catches the dry-runout flank failure
   // case where a caller plumbs meanOceanDepth = 0 to flag "no basin".
   if ((meanOceanDepth as number) <= 0) return null;
-  const eta0 = VOLCANO_TSUNAMI_PREFACTOR * Math.cbrt(V) * Math.sin(theta);
+  const K =
+    input.regime === 'submarine'
+      ? VOLCANO_TSUNAMI_PREFACTOR_SUBMARINE
+      : VOLCANO_TSUNAMI_PREFACTOR_SUBAERIAL;
+  // Watts-style cube-root displacement, then saturate at 40 % of the
+  // water column to honour the McCowan 1894 wave-breaking ceiling
+  // applied at the source. For Krakatau-class caldera collapses the
+  // raw V^(1/3) overshoots the column by an order of magnitude; the
+  // cap keeps the source amplitude inside the physically sensible
+  // band where linear shallow-water theory applies.
+  const wattsAmplitude = K * Math.cbrt(V) * Math.sin(theta);
+  const breakingCap = (meanOceanDepth as number) * 0.4;
+  const eta0 = Math.min(wattsAmplitude, breakingCap);
   const sourceAmplitude = m(eta0);
   // Back-derive an equivalent cavity radius so impactAmplitudeAtDistance
   // (which expects a cavity-radius pair) handles the 1/r decay. The

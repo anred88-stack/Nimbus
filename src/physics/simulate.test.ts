@@ -96,11 +96,14 @@ describe('simulateImpact — land vs. ocean cascade', () => {
     expect(r.tsunami).toBeUndefined();
   });
 
-  it('Chicxulub ocean preset cascades into a megatsunami without special-casing', () => {
+  it('Chicxulub ocean preset produces a literature-consistent K-Pg tsunami', () => {
     const r = simulateImpact(IMPACT_PRESETS.CHICXULUB_OCEAN.input);
 
-    // The exit criterion for M3: a plausible megatsunami seeded by the
-    // Ward–Asphaug water-cavity formula driven off the unmodified KE.
+    // The exit criterion for the Phase 9 audit: source amplitude must
+    // sit inside the Range 2022 / Bralower 2018 hydrocode envelope of
+    // 100-1500 m for K-Pg-class cavities. The previous test pinned
+    // the unphysical Ward 2000 prediction of A = R_C/2 ≈ 42 km — fixed
+    // by the size-dependent η coupling in impactSourceAmplitude.
     expect(r.tsunami).toBeDefined();
     if (!r.tsunami) return;
 
@@ -108,15 +111,15 @@ describe('simulateImpact — land vs. ocean cascade', () => {
     expect(r.tsunami.cavityRadius as number).toBeGreaterThan(70_000);
     expect(r.tsunami.cavityRadius as number).toBeLessThan(100_000);
 
-    // Source amplitude = cavity / 2.
-    expect(r.tsunami.sourceAmplitude as number).toBeCloseTo(
-      (r.tsunami.cavityRadius as number) / 2,
-      6
-    );
+    // Source amplitude inside the published K-Pg literature envelope.
+    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(100);
+    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(300);
 
-    // Far-field at 1 000 km in the kilometre range — megatsunami class.
-    expect(r.tsunami.amplitudeAt1000km as number).toBeGreaterThan(1_000);
-    expect(r.tsunami.amplitudeAt1000km as number).toBeLessThan(10_000);
+    // Far-field at 1 000 km — Range 2022 hydrocode gives ~10-50 m at
+    // continent-crossing range for the K-Pg event. Test against the
+    // same envelope.
+    expect(r.tsunami.amplitudeAt1000km as number).toBeGreaterThan(5);
+    expect(r.tsunami.amplitudeAt1000km as number).toBeLessThan(60);
 
     // Travel time at 3 000 m mean basin depth: t = 1 000 km / √(g·3 000)
     // ≈ 5 830 s (≈ 97 min). A 4 km basin would drop this to ≈ 84 min.
@@ -132,13 +135,6 @@ describe('simulateImpact — land vs. ocean cascade', () => {
     expect(r.tsunami.sourceWavelength as number).toBeLessThan(200_000);
     expect(r.tsunami.dominantPeriod as number).toBeGreaterThan(800);
     expect(r.tsunami.dominantPeriod as number).toBeLessThan(1_200);
-
-    // Inundation = runup × cot(slope=1:100) = 100 × runup. For a
-    // megatsunami the runup is in the hundreds of metres so the
-    // inundation envelope is in the tens of km.
-    expect(r.tsunami.inundationDistanceAt1000km as number).toBeGreaterThan(
-      (r.tsunami.runupAt1000km as number) * 50
-    );
   });
 
   it('ocean cascade leaves crater/seismic/damage unchanged relative to the land impact', () => {

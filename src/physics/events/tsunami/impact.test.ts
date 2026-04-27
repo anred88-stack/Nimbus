@@ -26,9 +26,28 @@ describe('impactCavityRadius (Ward & Asphaug 2000)', () => {
   });
 });
 
-describe('impactSourceAmplitude', () => {
-  it('equals half the cavity radius', () => {
-    expect(impactSourceAmplitude(meters(50_000)) as number).toBe(25_000);
+describe('impactSourceAmplitude — size-dependent coupling η', () => {
+  it('recovers Ward 2000 (≈ R/2) for small ocean impacts (R_C ≪ 5 km)', () => {
+    // R_C = 1 km → η ≈ 0.49, A ≈ 490 m (essentially Ward's 500 m).
+    const A = impactSourceAmplitude(meters(1_000)) as number;
+    expect(A).toBeGreaterThan(450);
+    expect(A).toBeLessThan(500);
+  });
+
+  it('damps strongly for K-Pg-class cavities (R_C ≫ 5 km)', () => {
+    // R_C = 84 km → η ≈ 0.0017 → A ≈ 142 m.
+    // This matches the Range 2022 / Bralower 2018 hydrocode envelope
+    // (100-1500 m for Chicxulub) — Ward's raw 0.5·R = 42 km is
+    // unphysical because it ignores vapor + ejecta + crater
+    // excavation absorption of impact energy.
+    const A = impactSourceAmplitude(meters(84_000)) as number;
+    expect(A).toBeGreaterThan(100);
+    expect(A).toBeLessThan(300);
+  });
+
+  it('returns 0 for non-positive cavity radii', () => {
+    expect(impactSourceAmplitude(meters(0)) as number).toBe(0);
+    expect(impactSourceAmplitude(meters(-1)) as number).toBe(0);
   });
 });
 
@@ -53,7 +72,7 @@ describe('impactAmplitudeAtDistance', () => {
     expect(A).toBe(100);
   });
 
-  it('Chicxulub at 1 000 km from impact → tsunami in the km range (megatsunami)', () => {
+  it('Chicxulub at 1 000 km from impact → tsunami in the metre-to-tens-of-metres range', () => {
     const chicxulub = simulateImpact(IMPACT_PRESETS.CHICXULUB.input);
     const RC = impactCavityRadius({ kineticEnergy: chicxulub.impactor.kineticEnergy });
     const A0 = impactSourceAmplitude(RC);
@@ -62,11 +81,11 @@ describe('impactAmplitudeAtDistance', () => {
       cavityRadius: RC,
       distance: meters(1_000_000),
     }) as number;
-    // Hand-computed ≈ 3.5 km; the exact number depends on the KE figure
-    // passed in, but the order of magnitude is set: kilometre-tall waves
-    // at continent-crossing range.
-    expect(A).toBeGreaterThan(1_000);
-    expect(A).toBeLessThan(10_000);
+    // With the size-dependent η coupling, Ward 1/r decay gives
+    // A(1000 km) ≈ 12 m for K-Pg — consistent with Range 2022
+    // hydrocode at deep-ocean far-field (literature 5-50 m).
+    expect(A).toBeGreaterThan(5);
+    expect(A).toBeLessThan(50);
   });
 });
 

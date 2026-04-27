@@ -251,10 +251,21 @@ export function simulateExplosion(input: ExplosionScenarioInput): ExplosionScena
       sustainArea: firestormArea({ yieldEnergy: yieldJoules }),
     },
     crater: {
-      apparentDiameter: nuclearApparentCraterDiameter({
-        yieldEnergy: yieldJoules,
-        groundCoefficient: NUCLEAR_CRATER_COEFFICIENT[groundType],
-      }),
+      // Glasstone & Dolan §6.10: a nuclear airburst at sufficient
+      // height produces NO crater — the shock wave reaches the
+      // ground attenuated and the high-pressure region never
+      // touches the surface. For Hiroshima (HOB = 580 m, scaled
+      // z = 235 m/kt^(1/3)) the regime is HIGH_AIRBURST and the
+      // observed crater was zero. The Brode/Glasstone scaling
+      // K · W^0.3 only applies in the SURFACE / contact-burst
+      // regime; emit 0 for any airburst regime.
+      apparentDiameter:
+        regime === 'SURFACE'
+          ? nuclearApparentCraterDiameter({
+              yieldEnergy: yieldJoules,
+              groundCoefficient: NUCLEAR_CRATER_COEFFICIENT[groundType],
+            })
+          : m(0),
     },
     radiation: initialRadiationRadii(input.yieldMegatons),
     emp: electromagneticPulse(input.yieldMegatons, hobMeters),

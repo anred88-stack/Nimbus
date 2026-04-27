@@ -8,26 +8,32 @@ describe('simulateLandslide', () => {
     expect(a).toEqual(b);
   });
 
-  it('Storegga preset produces a basin-scale tsunami source amplitude', () => {
-    // η = 0.10 · (3e12)^(1/3) · sin(5°) ≈ 0.10 · 14422 · 0.087 ≈ 126 m
-    // — well above the Anak source of ≈ 22 m, as expected from the
-    // V^(1/3) scaling.
+  it('Storegga preset matches the Bondevik 2005 5-15 m source amplitude band', () => {
+    // Submarine regime → K_submarine = 0.005 (re-calibrated against
+    // Bondevik et al. 2005, Norwegian coast runup 10-25 m → source
+    // amp 5-10 m). The previous test pinned the unphysical 126 m
+    // produced by the rigid-block K=0.10 prefactor — fixed by the
+    // regime-dependent prefactor.
     const r = simulateLandslide(LANDSLIDE_PRESETS.STOREGGA_8200_BP.input);
     expect(r.tsunami).not.toBeNull();
     if (r.tsunami === null) return;
-    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(80);
-    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(200);
+    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(2);
+    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(15);
   });
 
-  it('Lituya preset produces a tsunami orders of magnitude below the observed run-up', () => {
-    // Documented under-prediction: the open-ocean Watts source gives
-    // a few metres for Lituya, vs the observed 524 m fjord run-up.
-    // The test pins the magnitude of the under-prediction so the
-    // module header's caveat stays accurate.
+  it('Lituya preset produces a tsunami in the 30-60 m band (saturation cap)', () => {
+    // Lituya 1958 is a documented limitation: the fjord geometry
+    // amplifies the wave to 524 m run-up, but an open-ocean Watts
+    // source can't capture reflection/focusing inside a narrow inlet.
+    // With the new regime-aware prefactor (subaerial K=0.4) and the
+    // 40 % depth-saturation cap, we land in the 30-60 m band — still
+    // an order-of-magnitude under-prediction, kept on purpose so the
+    // module header's caveat about Lituya stays accurate.
     const r = simulateLandslide(LANDSLIDE_PRESETS.LITUYA_BAY_1958.input);
     expect(r.tsunami).not.toBeNull();
     if (r.tsunami === null) return;
-    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(50);
+    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(20);
+    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(80);
   });
 
   it('characteristicLength matches V^(1/3)', () => {

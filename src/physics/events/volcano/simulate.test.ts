@@ -55,26 +55,27 @@ describe('simulateVolcano', () => {
     expect(r.lateralBlast).toBeUndefined();
   });
 
-  it('Anak Krakatau 2018 preset emits a flank-collapse tsunami in the 10–80 m source band', () => {
+  it('Anak Krakatau 2018 preset matches the Grilli 2019 source amplitude (~85 m)', () => {
     const r = simulateVolcano(VOLCANO_PRESETS.ANAK_KRAKATAU_2018.input);
     expect(r.tsunami).toBeDefined();
     if (!r.tsunami) return;
-    // Watts 2000-style fit: η = 0.10 · V^(1/3) · sin(θ) gives
-    // ≈ 0.10 · (2.7e8)^(1/3) · sin(20°) ≈ 22 m. The published Grilli
-    // 2019 source amplitude is ≈ 85 m — the model underestimates by
-    // a factor of ~4, which is within the published landslide-tsunami
-    // scatter envelope (Tappin 2017).
-    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(10);
-    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(80);
+    // Subaerial K=0.4 calibration → η = 0.4·647·sin(20°) ≈ 88 m, capped
+    // at 200·0.4 = 80 m. Matches Grilli 2019 within ~6 %.
+    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(60);
+    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(100);
   });
 
-  it('Krakatau 1883 preset emits a caldera-collapse tsunami in the 100–500 m source band', () => {
+  it('Krakatau 1883 caldera-collapse tsunami source ≤ 40 m (depth-saturation cap)', () => {
     const r = simulateVolcano(VOLCANO_PRESETS.KRAKATAU_1883.input);
     expect(r.tsunami).toBeDefined();
     if (!r.tsunami) return;
-    // η = 0.10 · (2.5e10)^(1/3) · sin(45°) ≈ 207 m at the source.
-    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(100);
-    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(500);
+    // Raw Watts 0.4·(2.5e10)^(1/3)·sin(45°) ≈ 827 m would be unphysical
+    // in 50 m of water. The 40 % wave-breaking cap clamps to 20 m, in
+    // the right order of magnitude vs Self 1992 / Maeno & Imamura 2011
+    // (coastal runup 30-40 m on Sunda Strait, source ~10-30 m before
+    // shoaling).
+    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(5);
+    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(40);
   });
 
   it('Mt St Helens preset has no flankCollapse → no tsunami', () => {

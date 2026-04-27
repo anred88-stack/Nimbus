@@ -85,6 +85,7 @@ export function simulateLandslide(input: LandslideScenarioInput): LandslideScena
   const tsunami = volcanoTsunami({
     collapseVolumeM3: input.volumeM3,
     slopeAngleRad: (slopeDeg * Math.PI) / 180,
+    regime,
     ...(input.meanOceanDepth !== undefined && { meanOceanDepth: input.meanOceanDepth }),
   });
   return {
