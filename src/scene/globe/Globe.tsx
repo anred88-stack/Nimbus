@@ -208,6 +208,50 @@ const AFTERSHOCK_COLOR_HIGH = Color.fromCssColorString('#b91c1c');
 const ISOCHRONE_ID_PREFIX = 'tsunami-isochrone-';
 const FMM_HEATMAP_ID = 'tsunami-fmm-heatmap';
 const FMM_AMPLITUDE_HEATMAP_ID = 'tsunami-fmm-amplitude';
+const SIGMA_BAND_SUFFIX = '-sigma-band';
+
+/**
+ * Per-ring 1σ scatter expressed as a fractional half-range on the
+ * radius. Sourced from the same papers cited in
+ * src/physics/uq/conventions.ts and src/physics/confidence.ts —
+ * single source-of-truth, just expressed in linear-radius form
+ * because the visual band is rendered in metres.
+ *
+ * Phase 8b of the defensibility plan: render an "upper σ" band ring
+ * at R(1+σ) for every entity in this table so the published scatter
+ * is visually proportional to the band width. A 1.5 km MMI VII ring
+ * with σ=0.25 shows a soft halo extending out to 1.875 km; the same
+ * ring at σ=0.7 (e.g. pyroclastic runout) shows a halo nearly twice
+ * the inner radius — visible at a glance. Rings with σ < 0.18 do not
+ * qualify (the halo would be < 1 mm at typical zoom, not legible).
+ *
+ * The lower-bound R(1−σ) is implicit in the visualisation: the user
+ * reads the inner solid ring as "the wave at least gets here" and
+ * the outer halo as "but might extend this far". A symmetrical
+ * inner halo would double entity count without adding clarity.
+ */
+const RING_RADIUS_SIGMA: Record<string, number> = {
+  // Impact damage rings (Collins 2005 ± Glasstone)
+  craterRim: 0.1,
+  thirdDegreeBurn: 0.3,
+  secondDegreeBurn: 0.3,
+  overpressure5psi: 0.18,
+  overpressure1psi: 0.18,
+  // MMI shaking radii — Worden 2012 GMICE ±0.5 MMI ≈ ±25 % radius.
+  mmi7: 0.25,
+  mmi8: 0.25,
+  mmi9: 0.3,
+  // Radiation / EMP
+  radiationLD50: 0.25,
+  empAffected: 0.4,
+  // Volcanic
+  pyroclasticRunout: 0.7,
+  lateralBlast: 0.5,
+  ashfallPlume: 1.0,
+  // Ejecta + tsunami cavity
+  ejectaBlanket: 0.5,
+  tsunamiCavity: 0.3,
+};
 
 /**
  * Every entity id the simulator pipeline creates starts with one of
@@ -1094,6 +1138,50 @@ export function Globe(): JSX.Element {
       }
     };
 
+    /**
+     * Phase 8b — make the published 1σ scatter visually proportional
+     * to the band width on the globe. After the main ring is spawned
+     * via scheduleRing, this helper adds a sibling "upper-σ" entity
+     * at R(1+σ) with a soft fill + thin outline. The eye reads the
+     * inner solid contour as "best estimate" and the outer halo as
+     * "the wave might extend this far".
+     *
+     * Pulls σ from RING_RADIUS_SIGMA. Returns silently when σ is
+     * below 0.18 (halo would be < 1 mm at typical zoom — not legible).
+     */
+    const addUpperSigmaBand = (
+      baseEntityId: string,
+      sigmaKey: string,
+      kind: RingKind,
+      baseSemiMajor: number,
+      baseSemiMinor: number,
+      position: Cartesian3,
+      color: Color,
+      cesiumRotation: number
+    ): void => {
+      const sigma = RING_RADIUS_SIGMA[sigmaKey];
+      if (sigma === undefined || sigma < 0.18) return;
+      const upperSemiMajor = clampToGreatCircle(baseSemiMajor * (1 + sigma));
+      const upperSemiMinor = clampToGreatCircle(baseSemiMinor * (1 + sigma));
+      if (!Number.isFinite(upperSemiMajor) || upperSemiMajor <= baseSemiMajor) return;
+      const bandEntity = viewer.entities.add({
+        id: `${baseEntityId}${SIGMA_BAND_SUFFIX}`,
+        position,
+        ellipse: {
+          semiMajorAxis: 0,
+          semiMinorAxis: 0,
+          rotation: cesiumRotation,
+          // Translucent fill keeps the halo readable without the
+          // sharp outline competing with the main ring's outline.
+          material: color.withAlpha(0.08),
+          outline: true,
+          outlineColor: color.withAlpha(0.3),
+          height: 0,
+        },
+      });
+      scheduleRing(bandEntity, kind, upperSemiMajor, upperSemiMinor);
+    };
+
     // Bullseye marker: a tight gold core dot wrapped in a faint
     // gold halo. Two entities so the halo can render with a
     // transparent fill (Cesium points don't allow per-channel alpha
@@ -1174,6 +1262,16 @@ export function Globe(): JSX.Element {
           },
         });
         scheduleRing(entity, impactRingKind[key], geom.semiMajor, geom.semiMinor);
+        addUpperSigmaBand(
+          entityId,
+          key,
+          impactRingKind[key],
+          geom.semiMajor,
+          geom.semiMinor,
+          geom.position,
+          RING_COLORS[key],
+          geom.cesiumRotation
+        );
         // Tooltip continues to report the NOMINAL ground-range radius
         // (not the elongated semi-major) — that is what is
         // scientifically meaningful and what the tooltip text claims
@@ -1352,6 +1450,7 @@ export function Globe(): JSX.Element {
           },
         });
         scheduleRing(entity, 'mmi', radius);
+        addUpperSigmaBand(id, mmiKindFor[id], 'mmi', radius, radius, centerCartesian, color, 0);
         registerRingTooltip(id, mmiKindFor[id], radius, color);
       });
     }
@@ -1502,6 +1601,16 @@ export function Globe(): JSX.Element {
           },
         });
         scheduleRing(entity, kind, geom.semiMajor, geom.semiMinor);
+        addUpperSigmaBand(
+          id,
+          tooltipKind,
+          kind,
+          geom.semiMajor,
+          geom.semiMinor,
+          geom.position,
+          color,
+          geom.cesiumRotation
+        );
         registerRingTooltip(id, tooltipKind, radius, color);
       });
       // Underwater / contact-water burst cavity. Same colour as the
@@ -1619,6 +1728,16 @@ export function Globe(): JSX.Element {
         },
       });
       scheduleRing(entity, 'overpressure', pyroRadius);
+      addUpperSigmaBand(
+        PYROCLASTIC_RING_ID,
+        'pyroclasticRunout',
+        'overpressure',
+        pyroRadius,
+        pyroRadius,
+        centerCartesian,
+        PYROCLASTIC_RING_COLOR,
+        0
+      );
       registerRingTooltip(
         PYROCLASTIC_RING_ID,
         'pyroclasticRunout',
