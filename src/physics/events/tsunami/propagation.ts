@@ -3,6 +3,25 @@ import type { Meters, MetersPerSecond, Seconds } from '../../units.js';
 import { m, mps, s } from '../../units.js';
 
 /**
+ * Tsunami modelling regimes used by the simulator, in increasing order
+ * of shore proximity. Each module covers exactly one regime — none of
+ * them are valid at the shore itself, which would require a non-linear
+ * Boussinesq or Saint-Venant solver:
+ *
+ *   1. Deep-water generation         → src/physics/events/tsunami/impact.ts
+ *      (Ward & Asphaug 2000 cavity scaling, depth ≫ impactor size)
+ *   2. Far-field linear propagation  → THIS FILE — Lamb 1932 long-wave
+ *      celerity + 1/r geometric decay; valid where wavelength ≫ depth
+ *      AND amplitude ≪ depth
+ *   3. Continental-shelf shoaling    → {@link shoalingAmplitude} (Green 1838)
+ *      — energy-flux conservation, valid until the wave starts to break
+ *   4. Run-up at the shoreline       → src/physics/tsunami/coastalSlope.ts
+ *      (Synolakis 1987 power-law, applies once the wave touches the
+ *      beach)
+ *
+ * A unified eikonal arrival-time field for stages 2-3 over real
+ * bathymetry lives in src/physics/tsunami/fastMarching.ts.
+ *
  * Phase speed of a long (shallow-water) gravity wave over an ocean of
  * uniform depth h:
  *

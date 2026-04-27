@@ -126,6 +126,50 @@ formulas are added.
 | Tōhoku 2011      | Moment magnitude | 9.1 Mw          | USGS                      |
 | Tōhoku 2011      | Source amplitude | 4–10 m          | Satake et al. 2013 (DART) |
 
+## Master formula table
+
+The single source of truth for every quantity rendered to the user.
+Each row links the UI label to the implementing file, the canonical
+equation, the citation, and the declared 1σ scatter (used both by
+{@link src/physics/confidence.ts} for static bands and by the Monte
+Carlo wrappers for sampled inputs).
+
+| UI quantity               | File                                | Formula                                             | Source                            | 1σ        |
+| ------------------------- | ----------------------------------- | --------------------------------------------------- | --------------------------------- | --------- |
+| Impactor kinetic energy   | events/impact/kinetic.ts            | E = ½ m v²                                          | Newtonian                         | inputs    |
+| Transient crater Ø        | events/impact/crater.ts             | D_tc = 1.161 (ρi/ρt)^⅓ L^0.78 v^0.44 g^-0.22 sinθ^⅓ | Collins et al. 2005, Eq. 21       | ±10%      |
+| Final crater Ø (simple)   | events/impact/crater.ts             | D = 1.25 D_tc                                       | Collins et al. 2005, Eq. 22       | ±5%       |
+| Final crater Ø (complex)  | events/impact/crater.ts             | D = 1.17 D_tc^1.13 D_c^-0.13                        | Collins et al. 2005, Eq. 27       | ±10%      |
+| Crater depth (simple)     | events/impact/crater.ts             | d = 0.196 D                                         | Pike 1980, Table III              | ±30%      |
+| Crater depth (complex)    | events/impact/crater.ts             | d = 1.044 D^0.301                                   | Pike 1980, Table III              | ±30%      |
+| Seismic Mw from impact    | events/impact/seismic.ts            | Mw ≈ 0.67 log₁₀ E - 5.87                            | Schultz & Gault 1975              | ±0.3 Mw   |
+| Seismic moment Mw → M₀    | events/earthquake/seismicMoment.ts  | M₀ = 10^(1.5 Mw + 9.1) N·m                          | Hanks & Kanamori 1979             | ±0.1 Mw   |
+| MMI from PGV              | events/earthquake/mmi.ts            | MMI = 3.78 + 1.47 log₁₀(PGV)                        | Wald et al. 1999                  | ±0.5 MMI  |
+| Rupture area from Mw      | events/earthquake/rupture.ts        | A = 10^(Mw - 4.0)                                   | Wells & Coppersmith 1994          | ±0.3 dec  |
+| Aftershock rate (Omori)   | events/earthquake/aftershocks.ts    | n(t) = K (t + c)^-p                                 | Reasenberg & Jones 1989           | ±factor 2 |
+| Plume height              | events/volcano/plumeHeight.ts       | H = 2.0 V̇^0.241                                     | Mastin et al. 2009                | ±50%      |
+| VEI ↔ ejecta volume       | events/volcano/vei.ts               | VEI = log₁₀(V) - 4 (V in m³)                        | Newhall & Self 1982               | discrete  |
+| Ashfall isopach           | events/volcano/ashfall.ts           | Suzuki 1983 column + Ganser 1993 fallout            | Bonadonna & Phillips 2003         | ±factor 2 |
+| Pyroclastic runout        | events/volcano/pyroclasticRunout.ts | r = 8.97 V^0.40                                     | Sheridan 1979 / Dade & Huppert 98 | ±70%      |
+| Lateral-blast wedge       | events/volcano/extendedEffects.ts   | Glicken 1996 directed-blast                         | Glicken 1996                      | ±50%      |
+| Overpressure ring         | events/explosion/overpressure.ts    | P = f(W, R/W^⅓) Sadovsky                            | Glasstone & Dolan 1977            | ±15%      |
+| Thermal fluence           | events/explosion/thermal.ts         | Q = η Y / (4π R²) τ_atm                             | Glasstone & Dolan 1977            | ±25%      |
+| Firestorm ignition radius | events/explosion/firestorm.ts       | R s.t. Q(R) = 4.19e5 J/m²                           | Glasstone & Dolan §7.40           | ±30%      |
+| Tsunami cavity radius     | events/tsunami/impact.ts            | R_C = (3 E / 2π ρ g)^¼                              | Ward & Asphaug 2000, Eq. 3        | ±30%      |
+| Tsunami far-field amp.    | events/tsunami/impact.ts            | A(r) = A₀ R_C / r · damping(r)                      | Ward & Asphaug + Wünnemann 2007   | ±factor 3 |
+| Tsunami arrival time      | tsunami/fastMarching.ts             | eikonal `\|∇T\|² = 1/c²`, c = √(gh)                 | Sethian 1996                      | ±15%      |
+| Tsunami shoaling          | events/tsunami/propagation.ts       | A_s = A_d (h_d / h_s)^¼                             | Green 1838                        | ±25%      |
+| Tsunami runup             | tsunami/coastalSlope.ts             | R / A = 2.831 (cot β)^½ (A/h)^¼                     | Synolakis 1987                    | ±30%      |
+| Submarine landslide tsun. | events/landslide/tsunami.ts         | Watts 2000 solid-block source                       | Watts 2000                        | ±factor 2 |
+| Atmospheric profile       | atmosphere/ussa1976.ts              | U.S. Standard Atmosphere 1976                       | NOAA-S/T 76-1562                  | ±5%       |
+
+**How to read the σ column.** Where σ is given as a percent it is the
+half-range of a symmetric 1σ Gaussian (or log-Gaussian) on the value;
+"factor-N" means the high-side bound is N× the value (corresponding
+σ_log = ln N). The σ column is the **published** scatter — propagation
+through the cascade is in `src/physics/uq/` (see Phase 3 of the
+[scientific-defensibility roadmap](./ROADMAP.md)).
+
 ## When the science is contested
 
 Some quantities have legitimately broad uncertainty in the

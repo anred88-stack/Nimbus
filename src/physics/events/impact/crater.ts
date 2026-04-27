@@ -3,11 +3,26 @@ import type { KilogramPerCubicMeter, Meters, MetersPerSecond, Radians } from '..
 import { m } from '../../units.js';
 
 /**
- * Inputs for the Collins–Melosh–Marcus (2005) transient-crater scaling.
+ * Crater morphology pipeline (Collins, Melosh & Marcus 2005, "Earth Impact
+ * Effects Program", MAPS 40 (6)). The simulator applies the three stages
+ * strictly in this order — every other physics module that consumes a
+ * crater diameter expects the *final* (Eq. 22 / 27) value, not the
+ * transient bowl:
  *
- * Angles are measured from the target horizontal (0° = grazing, 90° = vertical).
- * `surfaceGravity` defaults to Earth's standard gravity; override for other
- * bodies.
+ *   1. {@link transientCraterDiameter}  — Eq. 21, pi-group transient bowl
+ *   2. {@link finalCraterDiameter}       — Eq. 22 (simple) or Eq. 27 (complex)
+ *   3. {@link craterDepth}               — Pike 1980 morphometry on final D
+ *
+ * The "apparent" depth used by the UI is `craterDepth(finalCraterDiameter(
+ * transientCraterDiameter(input)))`. Skipping the final-modification step
+ * (collapse, central peak, terraces) under-predicts the real crater rim
+ * diameter by ~25 % for simple bowls and over-predicts complex craters by
+ * up to a factor of two — both already-known historical mistakes in the
+ * pre-2005 literature.
+ *
+ * Inputs for the transient-bowl scaling. Angles are measured from the
+ * target horizontal (0° = grazing, 90° = vertical). `surfaceGravity`
+ * defaults to Earth's standard gravity; override for other bodies.
  */
 export interface TransientCraterInput {
   impactorDiameter: Meters;
