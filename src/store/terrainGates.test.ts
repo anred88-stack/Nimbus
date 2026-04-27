@@ -167,6 +167,28 @@ describe('coastal-explosion tsunami flow', () => {
     }
     expect(useAppStore.getState().bathymetricTsunami).not.toBeNull();
   });
+
+  it('does not re-evaluate when the user pans to a new pin without pressing Launch', async () => {
+    const s = useAppStore.getState();
+    s.selectPreset('CASTLE_BRAVO_1954');
+    s.setMode('globe');
+    // First Launch on point A, with the grid already in the store so
+    // the result carries a real lastEvaluatedAtLocation.
+    s.setLocation({ latitude: 11.583, longitude: 165.383 });
+    useAppStore.getState().setElevationGrid(makeCoastalGrid());
+    await s.evaluate();
+    const stampA = useAppStore.getState().lastEvaluatedAt;
+    expect(stampA).not.toBeNull();
+
+    // User pans to point B but does NOT click Launch. A fresh DEM
+    // tile for B then lands. The catch-up must keep its hands off
+    // the result — Launch is the only trigger.
+    useAppStore.getState().setLocation({ latitude: 0, longitude: 0 });
+    useAppStore.getState().setElevationGrid(makeCoastalGrid());
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(useAppStore.getState().lastEvaluatedAt).toBe(stampA);
+  });
 });
 
 describe('landslide tsunami gate (volcanoTsunami null on dry runout)', () => {

@@ -309,6 +309,14 @@ export interface AppStore {
   status: SimulationStatus;
   error: string | null;
   lastEvaluatedAt: number | null;
+  /** Coordinates the most recent `evaluate()` was run against. Used by
+   *  the `setElevationGrid` catch-up to decide whether a freshly
+   *  arrived DEM tile should re-run the simulation: a re-run is the
+   *  right move only when the user is still pointing at the same
+   *  location. Click somewhere else without pressing Launch and the
+   *  catch-up stops, so we don't auto-fire a new sim every time the
+   *  user pans across the globe. */
+  lastEvaluatedAtLocation: Coordinates | null;
 
   // --- Global elevation / bathymetry grid -----------------------------
   /** Optional global DEM raster injected at app startup. When set,
@@ -406,6 +414,7 @@ type InitialSlice = Pick<
   | 'status'
   | 'error'
   | 'lastEvaluatedAt'
+  | 'lastEvaluatedAtLocation'
   | 'elevationGrid'
   | 'mode'
   | 'transitionPhase'
@@ -446,6 +455,7 @@ function initialState(): InitialSlice {
     status: 'idle',
     error: null,
     lastEvaluatedAt: null,
+    lastEvaluatedAtLocation: null,
     elevationGrid: null,
     mode: 'landing',
     transitionPhase: 'idle',
@@ -716,6 +726,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       status: 'idle',
       error: null,
       lastEvaluatedAt: null,
+      lastEvaluatedAtLocation: null,
     });
   },
 
@@ -747,6 +758,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
+        lastEvaluatedAtLocation: null,
       });
       return;
     }
@@ -764,6 +776,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
+        lastEvaluatedAtLocation: null,
       });
       return;
     }
@@ -781,6 +794,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
+        lastEvaluatedAtLocation: null,
       });
       return;
     }
@@ -798,6 +812,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
+        lastEvaluatedAtLocation: null,
       });
       return;
     }
@@ -815,6 +830,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
+        lastEvaluatedAtLocation: null,
       });
       return;
     }
@@ -859,6 +875,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
+        lastEvaluatedAtLocation: null,
       };
     });
   },
@@ -894,6 +911,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
+        lastEvaluatedAtLocation: null,
       };
     });
   },
@@ -929,6 +947,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
+        lastEvaluatedAtLocation: null,
       };
     });
   },
@@ -968,6 +987,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
+        lastEvaluatedAtLocation: null,
       };
     });
   },
@@ -1000,6 +1020,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
+        lastEvaluatedAtLocation: null,
       };
     });
   },
@@ -1046,8 +1067,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // search radius used by the evaluators below — so coastal
     // clicks (Yucatán shore, Beirut quay) catch up too, not only
     // open-ocean picks.
+    //
+    // Crucially, the catch-up only fires when the user is still
+    // pointing at the same location as the most recent evaluate.
+    // Clicking elsewhere on the globe must NOT auto-start a new
+    // simulation: Launch is the only trigger. We compare against
+    // `lastEvaluatedAtLocation` so a fresh DEM tile arriving for the
+    // new pin position simply updates the grid and stops there.
     const state = get();
     if (state.location === null || !gridCoversLocation(grid, state.location)) return;
+    const last = state.lastEvaluatedAtLocation;
+    if (last?.latitude !== state.location.latitude || last.longitude !== state.location.longitude) {
+      return;
+    }
     const z = sampleElevation(grid, state.location.latitude, state.location.longitude);
     // Re-evaluate when:
     //   - impact is pending and the click is over open water (impact
@@ -1305,6 +1337,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         populationStatus: 'fetching',
         status: 'idle',
         lastEvaluatedAt: Date.now(),
+        lastEvaluatedAtLocation: state.location,
       });
 
       // Kick off the COG-backed population lookup as fire-and-forget.
