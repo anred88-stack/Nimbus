@@ -1,4 +1,4 @@
-# VIS — Visual Impact Software
+# Nimbus — Nuclear & Impact Modeling & Blast Understanding System
 
 A browser-based simulator for catastrophic events on a 3D Earth: asteroid
 impacts, nuclear and conventional explosions, earthquakes, volcanic
@@ -38,8 +38,8 @@ Mw 9, between an inland impact and one in the open ocean.
 
 The fastest path is the bundled launcher. Install Node 20 LTS and:
 
-- **Windows** — double-click `vis.cmd`.
-- **macOS / Linux** — `./vis.sh`.
+- **Windows** — double-click `nimbus.cmd`.
+- **macOS / Linux** — `./nimbus.sh`.
 
 It checks the Node version, enables Corepack, runs `pnpm install` on
 first launch, then starts the dev server on http://localhost:5173.

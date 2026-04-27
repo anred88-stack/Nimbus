@@ -6,12 +6,12 @@ or have a written reason in the release PR before pushing the
 
 ## 1. Identity
 
-- [x] Project name resolved — **VIS** (display) / **Visual Impact Software**
-      (long form) / **vis** (technical).
+- [x] Project name resolved — **Nimbus** (display) / **Nuclear & Impact Modeling & Blast Understanding System**
+      (long form) / **nimbus** (technical).
 - [x] All `PROJECT_NAME` / `Project Name` / `project-name` placeholders
       substituted.
 - [x] All `GITHUB_USERNAME` placeholders substituted (repo:
-      `anred88-stack/Impact`).
+      `anred88-stack/Nimbus`).
 - [ ] `TBD` in `LICENSE`, `NOTICE`, `CODEOWNERS` replaced with the
       real copyright holder.
 - [ ] `conduct@example.com` and `security@example.com` replaced with
@@ -31,7 +31,7 @@ or have a written reason in the release PR before pushing the
       The deploy job is gated on `ENABLE_CF_DEPLOY=true`. Before
       flipping it:
 
-      1. Create a Pages project called `vis`.
+      1. Create a Pages project called `nimbus`.
       2. Add repo secrets `CLOUDFLARE_API_TOKEN` (Pages → Edit) and
          `CLOUDFLARE_ACCOUNT_ID`.
       3. Set `ENABLE_CF_DEPLOY=true` (Settings → Variables).

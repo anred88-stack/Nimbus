@@ -101,8 +101,8 @@ Commit subjects follow [Conventional Commits](https://www.conventionalcommits.or
 
 ### Changed
 
-- Project renamed to **VIS — Visual Impact Software** (technical id
-  `vis`). Repo: `anred88-stack/Impact`. All `PROJECT_NAME` /
+- Project renamed to **Nimbus — Nuclear & Impact Modeling & Blast Understanding System** (technical id
+  `nimbus`). Repo: `anred88-stack/Nimbus`. All `PROJECT_NAME` /
   `GITHUB_USERNAME` placeholders substituted across `package.json`,
   `index.html`, the i18n JSON, the landing page, the deploy workflow,
   README, NOTICE, LICENSE, the announcement draft, the release

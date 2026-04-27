@@ -1,5 +1,5 @@
 {
-  "name": "vis",
+  "name": "nimbus",
   "version": "0.0.0",
   "private": true,
   "description": "Browser-based simulator for catastrophic events on a 3D Earth: impacts, explosions, earthquakes, volcanoes, tsunamis. Numbers come from peer-reviewed papers.",

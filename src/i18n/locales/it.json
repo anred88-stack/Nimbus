@@ -6,7 +6,7 @@
   },
   "landing": {
     "skipLink": "Vai al contenuto principale",
-    "projectName": "VIS",
+    "projectName": "Nimbus",
     "tagline": "Simula l'impatto di eventi catastrofici su un globo terrestre 3D interattivo.",
     "description": "Un simulatore scientifico open source di impatti di asteroidi, esplosioni, terremoti, eruzioni vulcaniche e tsunami — formule rigorose, scene comparative cinematografiche, pensato per i curiosi di scienza.",
     "comingSoon": "In arrivo",
@@ -504,9 +504,9 @@
   "methodology": {
     "back": "Torna alla home",
     "title": "Metodologia & fonti scientifiche",
-    "subtitle": "Ogni formula che il motore VIS valuta, con la sua fonte peer-reviewed e il DOI a livello di equazione. Organizzato per tipo di evento, con in fondo l'elenco degli eventi storici usati per la validazione.",
+    "subtitle": "Ogni formula che il motore Nimbus valuta, con la sua fonte peer-reviewed e il DOI a livello di equazione. Organizzato per tipo di evento, con in fondo l'elenco degli eventi storici usati per la validazione.",
     "overviewTitle": "Panoramica",
-    "overviewBody": "VIS è un motore fisico TypeScript headless (Layer 2) avvolto da un globo Cesium (Layer 3) e da un'interfaccia React (Layer 4). Il Layer 2 non ha dipendenze runtime su React / Three / Cesium — la configurazione ESLint blocca tali import in modo che la fisica resti testabile da una CLI Node. Ogni formula qui elencata vive in un file sotto src/physics/ con un blocco JSDoc che cita l'articolo e il numero di equazione usato. Le tolleranze della test suite rispettano lo scatter pubblicato negli articoli originali — ±30 % per le soglie di fluenza termica, ±50 % per l'altezza dei pennacchi vulcanici, ±fattore-2 per runout di ejecta e lahar.",
+    "overviewBody": "Nimbus è un motore fisico TypeScript headless (Layer 2) avvolto da un globo Cesium (Layer 3) e da un'interfaccia React (Layer 4). Il Layer 2 non ha dipendenze runtime su React / Three / Cesium — la configurazione ESLint blocca tali import in modo che la fisica resti testabile da una CLI Node. Ogni formula qui elencata vive in un file sotto src/physics/ con un blocco JSDoc che cita l'articolo e il numero di equazione usato. Le tolleranze della test suite rispettano lo scatter pubblicato negli articoli originali — ±30 % per le soglie di fluenza termica, ±50 % per l'altezza dei pennacchi vulcanici, ±fattore-2 per runout di ejecta e lahar.",
     "validationTitle": "Validazione storica",
     "validationBody": "Quindici degli eventi meglio strumentati nel record storico vengono ri-simulati dalla test suite a ogni commit. Se un refactor fisico sposta l'output fuori dalla tolleranza pubblicata, il test di integrazione fallisce per primo.",
     "footer": "Open source con licenza Apache 2.0. Correzioni e citazioni aggiuntive sono benvenute tramite pull request GitHub."
@@ -689,7 +689,7 @@
     "equationsTitle": "Equazioni attivate da questa simulazione",
     "equationsBody": "L'elenco seguente è filtrato sulle formule effettivamente esercitate da questo scenario — un airburst cita Chyba & Popova, un megathrust cita Strasser e la catena tsunami, una detonazione di superficie cita Nordyke.",
     "bibliographyTitle": "Bibliografia",
-    "footer": "Generato da VIS — Visual Impact Software · Formule peer-reviewed · Open source con licenza Apache 2.0",
+    "footer": "Generato da Nimbus — Nuclear & Impact Modeling & Blast Understanding System · Formule peer-reviewed · Open source con licenza Apache 2.0",
     "meta": {
       "event": "Evento",
       "location": "Località",
@@ -698,7 +698,7 @@
   },
   "about": {
     "trigger": "Informazioni",
-    "title": "VIS — Visual Impact Software",
+    "title": "Nimbus — Nuclear & Impact Modeling & Blast Understanding System",
     "subtitle": "Open source · Formule peer-reviewed",
     "body": "Ogni numero a schermo viene da una formula pubblicata — niente enfasi simulata, niente arrotondamenti da spettacolo. Scegli un evento, un punto sul globo, e guarda cratere, onda d'urto, impronta termica, sisma e tsunami renderizzati alla scala geografica reale.",
     "sources": "Fonti scientifiche",
@@ -915,7 +915,7 @@
       },
       "vulnerabilityFunction": {
         "name": "Funzione di vulnerabilità (intenzionalmente non implementata)",
-        "definition": "Mappa l'intensità di un pericolo (sovrapressione, MMI, runup) sulla probabilità di vittime / feriti. Glasstone §12 letalità per blast, Wald & Quitoriano (1999) PAGER curve di fragilità per scuotimento, FEMA P-646 §3 per tsunami. Volutamente esclusa da VIS per evitare l'effetto 'rainbow numbers' — la cifra esposta è esposizione, non vittime.",
+        "definition": "Mappa l'intensità di un pericolo (sovrapressione, MMI, runup) sulla probabilità di vittime / feriti. Glasstone §12 letalità per blast, Wald & Quitoriano (1999) PAGER curve di fragilità per scuotimento, FEMA P-646 §3 per tsunami. Volutamente esclusa da Nimbus per evitare l'effetto 'rainbow numbers' — la cifra esposta è esposizione, non vittime.",
         "source": "Wald & Quitoriano (1999); FEMA P-646"
       }
     }

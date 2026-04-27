@@ -4,7 +4,7 @@ Read this in full at the start of every Claude Code session.
 
 ## Project brief
 
-**VIS — Visual Impact Software** is an open-source, browser-based
+**Nimbus — Nuclear & Impact Modeling & Blast Understanding System** is an open-source, browser-based
 popular-science simulator of catastrophic events on a 3D Earth globe.
 Audience: the scientifically curious, students, educators, journalists,
 documentary makers. Events covered (M1+):
@@ -218,9 +218,10 @@ on iOS / Android, polish the announcement copy. See
 
 ## Outstanding TODOs (human)
 
-Project identity is resolved: **VIS** (display) / **Visual Impact
-Software** (long form) / **vis** (technical) — repo
-**anred88-stack/Impact**. Remaining placeholders before public
+Project identity is resolved: **Nimbus** (display) /
+**Nuclear & Impact Modeling & Blast Understanding System**
+(long form) / **nimbus** (technical) — repo
+**anred88-stack/Nimbus**. Remaining placeholders before public
 release:
 
 - `TBD` — `LICENSE`, `NOTICE` (copyright holder).

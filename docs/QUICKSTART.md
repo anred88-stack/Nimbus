@@ -9,9 +9,9 @@ and Playwright browsers are provisioned on demand.
 
 ## Run
 
-**Windows.** Double-click `vis.cmd`.
+**Windows.** Double-click `nimbus.cmd`.
 
-**macOS / Linux.** `./vis.sh` (run `chmod +x vis.sh` once if needed).
+**macOS / Linux.** `./nimbus.sh` (run `chmod +x nimbus.sh` once if needed).
 
 The launcher checks the Node version, enables Corepack on first run,
 runs `pnpm install` (~1 minute), then starts the dev server on
@@ -19,18 +19,18 @@ http://localhost:5173. Subsequent launches are instant.
 
 ## Subcommands
 
-| Command       | What happens                                           |
-| ------------- | ------------------------------------------------------ |
-| `vis`         | dev server (default)                                   |
-| `vis setup`   | install dependencies and stop                          |
-| `vis test`    | unit tests                                             |
-| `vis build`   | production build into `dist/`                          |
-| `vis preview` | build, then serve the production bundle locally        |
-| `vis e2e`     | Playwright tests (auto-installs browsers on first run) |
-| `vis report`  | open the last Playwright HTML report                   |
+| Command          | What happens                                           |
+| ---------------- | ------------------------------------------------------ |
+| `nimbus`         | dev server (default)                                   |
+| `nimbus setup`   | install dependencies and stop                          |
+| `nimbus test`    | unit tests                                             |
+| `nimbus build`   | production build into `dist/`                          |
+| `nimbus preview` | build, then serve the production bundle locally        |
+| `nimbus e2e`     | Playwright tests (auto-installs browsers on first run) |
+| `nimbus report`  | open the last Playwright HTML report                   |
 
-On macOS / Linux replace `vis` with `./vis.sh` (`./vis.sh test`,
-`./vis.sh build`, …).
+On macOS / Linux replace `nimbus` with `./nimbus.sh` (`./nimbus.sh test`,
+`./nimbus.sh build`, …).
 
 ## When things go wrong
 

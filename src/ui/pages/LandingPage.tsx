@@ -8,7 +8,7 @@ import styles from './LandingPage.module.css';
 
 const FEATURE_KEYS = ['multiEvent', 'realScience', 'globe', 'accessible', 'shareable'] as const;
 
-const REPO_URL = 'https://github.com/anred88-stack/Impact';
+const REPO_URL = 'https://github.com/anred88-stack/Nimbus';
 
 export function LandingPage() {
   const { t } = useTranslation();

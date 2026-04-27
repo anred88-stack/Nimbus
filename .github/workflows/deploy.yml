@@ -57,6 +57,6 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: >-
             pages deploy dist
-            --project-name=vis
+            --project-name=nimbus
             --branch=${{ github.head_ref || github.ref_name }}
             --commit-dirty=true

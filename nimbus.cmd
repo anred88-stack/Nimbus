@@ -1,18 +1,18 @@
 @echo off
 REM ============================================================
-REM VIS - Visual Impact Software
+REM Nimbus - Nuclear & Impact Modeling & Blast Understanding System
 REM One-click launcher: setup-on-first-run + dev server.
-REM Double-click this file from Explorer, or run "vis [cmd]"
+REM Double-click this file from Explorer, or run "nimbus [cmd]"
 REM from a terminal.
 REM
 REM Subcommands:
-REM   vis            -> dev server (default)
-REM   vis setup      -> install deps and stop
-REM   vis test       -> unit tests
-REM   vis build      -> production build
-REM   vis preview    -> build + serve production locally
-REM   vis e2e        -> Playwright end-to-end tests
-REM   vis report     -> open Playwright HTML report
+REM   nimbus            -> dev server (default)
+REM   nimbus setup      -> install deps and stop
+REM   nimbus test       -> unit tests
+REM   nimbus build      -> production build
+REM   nimbus preview    -> build + serve production locally
+REM   nimbus e2e        -> Playwright end-to-end tests
+REM   nimbus report     -> open Playwright HTML report
 REM ============================================================
 
 setlocal EnableDelayedExpansion
@@ -26,7 +26,7 @@ if "%CMD%"=="" set "CMD=dev"
 
 echo.
 echo ============================================
-echo  VIS - Visual Impact Software
+echo  Nimbus - Nuclear ^& Impact Modeling ^& Blast Understanding System
 echo ============================================
 echo.
 
@@ -68,7 +68,7 @@ if not exist "node_modules\.modules.yaml" (
 REM 5) Branch on subcommand
 if /i "%CMD%"=="setup" (
   echo.
-  echo [OK] Setup complete. Run "vis" or double-click vis.cmd to start the dev server.
+  echo [OK] Setup complete. Run "nimbus" or double-click nimbus.cmd to start the dev server.
   pause
   exit /b 0
 )
@@ -119,6 +119,6 @@ if /i "%CMD%"=="dev" (
 )
 
 echo [ERROR] Unknown command: %CMD%
-echo         Usage: vis [dev^|setup^|test^|build^|preview^|e2e^|report]
+echo         Usage: nimbus [dev^|setup^|test^|build^|preview^|e2e^|report]
 pause
 exit /b 1

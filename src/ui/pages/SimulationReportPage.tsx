@@ -615,7 +615,9 @@ export function SimulationReportPage(): JSX.Element {
 
       <main className={styles.page}>
         <header className={styles.header}>
-          <p className={styles.brand}>VIS — Visual Impact Software</p>
+          <p className={styles.brand}>
+            Nimbus — Nuclear & Impact Modeling & Blast Understanding System
+          </p>
           <h1 className={styles.title}>{t('report.title')}</h1>
           <dl className={styles.meta}>
             <dt>{t('report.meta.event')}</dt>

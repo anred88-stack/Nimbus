@@ -11,7 +11,7 @@ Placeholders:
 
 ## Short post (≤ 280 chars)
 
-> VIS just hit v1.0: an open-source scientific simulator for cosmic
+> Nimbus just hit v1.0: an open-source scientific simulator for cosmic
 > impacts, nuclear blasts, earthquakes, volcanoes and tsunamis,
 > rendered at true scale on a 3D Earth. Peer-reviewed formulas,
 > shareable URLs.
@@ -19,7 +19,7 @@ Placeholders:
 
 ## Medium post (Mastodon / LinkedIn / HN)
 
-> **VIS** v1.0 is out — an open-source simulator of catastrophic
+> **Nimbus** v1.0 is out — an open-source simulator of catastrophic
 > events on an interactive 3D globe.
 >
 > Pick an event (asteroid impact, nuclear detonation, earthquake,
@@ -40,7 +40,7 @@ Placeholders:
 > WebKit and mobile viewports.
 >
 > Try it: PROJECT_URL
-> Source: https://github.com/anred88-stack/Impact
+> Source: https://github.com/anred88-stack/Nimbus
 
 ## Long-form post
 
@@ -53,7 +53,7 @@ Neither builds intuition for what a megaton actually looks like next
 to a kiloton, or why the Chicxulub impactor's tsunami matters more
 than the crater it left behind.
 
-VIS is the third option: rigorous numbers rendered legibly. Every
+Nimbus is the third option: rigorous numbers rendered legibly. Every
 visible quantity links to the paper that produced it. Every preset is
 a real historical event, dated and referenced. The whole thing runs
 in the browser. No install, no login, no ads.
@@ -124,7 +124,7 @@ the scientific-review policy.
 - 1200 × 630, dark palette (`#0A0E16`).
 - Foreground: a wide crater silhouette with a `--accent-hot`
   (`#D64A1F`) ring and a tiny landmark cluster on the rim.
-- Headline: "VIS" in Inter 700 64 px.
+- Headline: "Nimbus" in Inter 700 64 px.
 - Tagline: PROJECT_TAGLINE in Inter 400 24 px below.
 - Bottom right: the URL in JetBrains Mono 16 px (`--accent`).
 - Generator worker deferred to post-v1.0.

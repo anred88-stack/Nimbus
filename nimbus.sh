@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # ============================================================
-# VIS - Visual Impact Software
+# Nimbus — Nuclear & Impact Modeling & Blast Understanding System
 # One-click launcher: setup-on-first-run + dev server.
-# Run "./vis.sh [cmd]" from the repo root.
+# Run "./nimbus.sh [cmd]" from the repo root.
 #
 # Subcommands:
-#   ./vis.sh            -> dev server (default)
-#   ./vis.sh setup      -> install deps and stop
-#   ./vis.sh test       -> unit tests
-#   ./vis.sh build      -> production build
-#   ./vis.sh preview    -> build + serve production locally
-#   ./vis.sh e2e        -> Playwright end-to-end tests
-#   ./vis.sh report     -> open Playwright HTML report
+#   ./nimbus.sh            -> dev server (default)
+#   ./nimbus.sh setup      -> install deps and stop
+#   ./nimbus.sh test       -> unit tests
+#   ./nimbus.sh build      -> production build
+#   ./nimbus.sh preview    -> build + serve production locally
+#   ./nimbus.sh e2e        -> Playwright end-to-end tests
+#   ./nimbus.sh report     -> open Playwright HTML report
 # ============================================================
 
 set -euo pipefail
@@ -23,7 +23,7 @@ CMD="${1:-dev}"
 
 echo
 echo "============================================"
-echo " VIS - Visual Impact Software"
+echo " Nimbus — Nuclear & Impact Modeling & Blast Understanding System"
 echo "============================================"
 echo
 
@@ -56,7 +56,7 @@ fi
 case "$CMD" in
   setup)
     echo
-    echo "[OK] Setup complete. Run './vis.sh' to start the dev server."
+    echo "[OK] Setup complete. Run './nimbus.sh' to start the dev server."
     ;;
 
   test)
@@ -101,7 +101,7 @@ case "$CMD" in
 
   *)
     echo "[ERROR] Unknown command: $CMD"
-    echo "        Usage: ./vis.sh [dev|setup|test|build|preview|e2e|report]"
+    echo "        Usage: ./nimbus.sh [dev|setup|test|build|preview|e2e|report]"
     exit 1
     ;;
 esac
