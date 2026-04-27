@@ -646,7 +646,12 @@
       "rowAriaShow": "Mostra anello {{name}}",
       "rowAriaHide": "Nascondi anello {{name}}",
       "globalBadge": "globale",
-      "uncertaintyNote": "Ogni raggio è una linea netta sulla mappa ma in realtà è una banda: la dispersione 1σ pubblicata è ±15–30 % per anelli blast e sismici, fattore 2 per pennacchi e tsunami in campo lontano. Vedi pagina metodologia per la banda di ogni grandezza."
+      "uncertaintyNote": "Ogni raggio è una linea netta sulla mappa ma in realtà è una banda: la dispersione 1σ pubblicata è ±15–30 % per anelli blast e sismici, fattore 2 per pennacchi e tsunami in campo lontano. Vedi pagina metodologia per la banda di ogni grandezza.",
+      "tsunamiStatus": {
+        "globalActive": "Mappa tsunami: layer globale + locale attivi — propagazione trans-oceanica renderizzata.",
+        "localOnly": "Mappa tsunami: solo layer locale (~150 km) — calcolo mosaico globale fallito; controlla la console.",
+        "globalLoading": "Mappa tsunami: solo layer locale — mosaico globale in caricamento, premi Launch tra un momento."
+      }
     },
     "aftershockDetail": {
       "aria": "Pannello di dettaglio scossa di assestamento",

@@ -117,6 +117,34 @@
   font-style: italic;
 }
 
+.tsunamiStatus {
+  font-size: 10px;
+  line-height: 1.3;
+  margin: 8px 0 0 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+.tsunamiStatus[data-status='globalActive'] {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: rgba(187, 247, 208, 0.95);
+}
+
+.tsunamiStatus[data-status='localOnly'] {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: rgba(254, 240, 138, 0.95);
+}
+
+.tsunamiStatus[data-status='globalLoading'] {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: rgba(186, 230, 253, 0.95);
+}
+
 .list {
   list-style: none;
   margin: 0;

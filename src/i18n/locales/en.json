@@ -646,7 +646,12 @@
       "rowAriaShow": "Show {{name}} ring",
       "rowAriaHide": "Hide {{name}} ring",
       "globalBadge": "global",
-      "uncertaintyNote": "Each radius is a sharp line on the map but a band in reality: published 1σ scatter is ±15–30 % for blast and seismic rings, factor-2 for plumes and far-field tsunami. See the methodology page for the per-quantity envelope."
+      "uncertaintyNote": "Each radius is a sharp line on the map but a band in reality: published 1σ scatter is ±15–30 % for blast and seismic rings, factor-2 for plumes and far-field tsunami. See the methodology page for the per-quantity envelope.",
+      "tsunamiStatus": {
+        "globalActive": "Tsunami map: global + local layer active — trans-oceanic propagation rendered.",
+        "localOnly": "Tsunami map: local layer only (~150 km) — global mosaic computation failed; check console.",
+        "globalLoading": "Tsunami map: local layer only — global mosaic still loading; press Launch again in a moment."
+      }
     },
     "aftershockDetail": {
       "aria": "Aftershock detail panel",

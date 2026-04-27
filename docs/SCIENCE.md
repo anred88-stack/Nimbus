@@ -170,6 +170,57 @@ half-range of a symmetric 1σ Gaussian (or log-Gaussian) on the value;
 through the cascade is in `src/physics/uq/` (see Phase 3 of the
 [scientific-defensibility roadmap](./ROADMAP.md)).
 
+## Trans-oceanic tsunami propagation (Phase 11)
+
+Tsunami iso-amplitude contours render through a **two-layer
+hierarchical bathymetric pipeline** so trans-oceanic events
+(Chicxulub, Tōhoku 2011, Hunga Tonga 2022, mega-megathrusts) draw
+correct iso-curves all the way to the antipodes — not just inside the
+~150 km local terrain tile.
+
+| Layer      | Source                           | Resolution     | Coverage                                           | Used for                                      |
+| ---------- | -------------------------------- | -------------- | -------------------------------------------------- | --------------------------------------------- |
+| **Local**  | AWS Terrarium PNG, zoom 8        | ~600 m / pixel | ~150 km × 150 km centred on click                  | sub-km coastal detail, Synolakis run-up       |
+| **Global** | AWS Terrarium PNG, zoom 2 mosaic | ~40 km / pixel | full planet (-85° to +85° lat, -180° to +180° lon) | trans-oceanic iso-contours, far-field heatmap |
+
+The orchestrator `src/physics/tsunami/bathymetricTsunami.ts` runs the
+Fast-Marching eikonal solver, Green's-law shoaling and iso-amplitude
+extraction on **both** grids, returning a `result` object with both a
+local layer (existing Phase 7 behaviour) and an optional `result.global`
+layer (Phase 11 addition).
+
+**When the global layer activates:**
+
+- The browser has finished fetching the 16-tile zoom-2 mosaic
+  (~800 KB, kicked off at App shell mount, cached LRU for the session)
+- The simulator triggered a tsunami (any of impact, explosion, earthquake,
+  volcano, landslide source paths)
+
+**When it doesn't:**
+
+- Network failure on the mosaic fetch → falls back to local-only
+- User pressed Launch before fetch resolved → next Launch picks it up
+
+**UI status indicator.** The Ring Legend on the globe surfaces a
+small badge with three states:
+
+- 🟢 _globalActive_ — both layers rendered, trans-oceanic visible
+- 🟡 _localOnly_ — global compute failed, check console
+- 🔵 _globalLoading_ — global mosaic still in flight
+
+**Cancellation contract.** Phase 12a added a monotone evaluation
+token: a Launch issued while the previous evaluate is still in
+flight invalidates the previous resolution, so a stale
+`bathymetricTsunami` with a missing `.global` field can never
+overwrite a fresh dual-layer one.
+
+**Performance.** The 1024×1024 global FMM runs in a Web Worker
+(`src/physics/worker.ts`); the global heatmap is rendered at 512×512
+via the `downsample` option to keep main-thread render under 50 ms;
+each iso-band is capped at 800 segments via uniform stride sampling
+so the silhouette is preserved without flooding Cesium with thousands
+of entities.
+
 ## When the science is contested
 
 Some quantities have legitimately broad uncertainty in the

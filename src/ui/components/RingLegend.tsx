@@ -271,10 +271,25 @@ export function RingLegend(): JSX.Element {
   const hiddenRingKeys = useAppStore((s) => s.hiddenRingKeys);
   const toggleRingVisibility = useAppStore((s) => s.toggleRingVisibility);
   const showAllRings = useAppStore((s) => s.showAllRings);
+  const bathymetricTsunami = useAppStore((s) => s.bathymetricTsunami);
+  const globalBathymetricGrid = useAppStore((s) => s.globalBathymetricGrid);
   const [collapsed, setCollapsed] = useState(false);
 
   const rows = buildRingRows(result, t);
   const anyHidden = rows.some((r) => hiddenRingKeys.has(r.key));
+
+  // Phase 12c — tsunami map status. Surfaces the user-facing question
+  // "did the trans-oceanic propagation actually run for this scenario?"
+  // without making them open dev-tools.
+  const tsunamiPresent = bathymetricTsunami !== null;
+  const globalAvailable = globalBathymetricGrid !== null;
+  const globalActive = bathymetricTsunami?.global !== undefined;
+  let tsunamiStatusKey: 'globalActive' | 'localOnly' | 'globalLoading' | null = null;
+  if (tsunamiPresent) {
+    if (globalActive) tsunamiStatusKey = 'globalActive';
+    else if (!globalAvailable) tsunamiStatusKey = 'globalLoading';
+    else tsunamiStatusKey = 'localOnly';
+  }
 
   return (
     <aside
@@ -357,6 +372,11 @@ export function RingLegend(): JSX.Element {
                 );
               })}
             </ul>
+          )}
+          {tsunamiStatusKey !== null && (
+            <p className={styles.tsunamiStatus} data-status={tsunamiStatusKey}>
+              {t(`globe.legend.tsunamiStatus.${tsunamiStatusKey}`)}
+            </p>
           )}
           {rows.length > 0 && (
             <p className={styles.uncertaintyNote}>{t('globe.legend.uncertaintyNote')}</p>
