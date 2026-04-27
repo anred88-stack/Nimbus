@@ -945,15 +945,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // Race-condition catch-up: the user may have clicked "Simula" in
     // the brief window between picking an ocean point and the
     // Terrarium tile arriving. If the prior evaluate produced an
-    // impact result without a tsunami AND the freshly-loaded grid
-    // shows the pick is below sea level, transparently re-run so the
-    // tsunami cascade appears without a second "Simula" click.
+    // impact / explosion result without a tsunami AND the freshly-
+    // loaded grid puts the pick at or near water, transparently
+    // re-run so the tsunami cascade appears without a second
+    // "Simula" click. "Near" means a 5 km neighbourhood — same
+    // search radius used by the evaluators below — so coastal
+    // clicks (Yucatán shore, Beirut quay) catch up too, not only
+    // open-ocean picks.
     const state = get();
-    const isOceanicPick =
-      state.location !== null &&
-      gridCoversLocation(grid, state.location) &&
-      sampleElevation(grid, state.location.latitude, state.location.longitude) < -10;
-    if (!isOceanicPick) return;
+    if (state.location === null || !gridCoversLocation(grid, state.location)) return;
+    const z = sampleElevation(grid, state.location.latitude, state.location.longitude);
+    const hasWaterNearby =
+      z < -10 ||
+      findNearbyOceanDepth(grid, state.location.latitude, state.location.longitude, 5_000) !== null;
+    if (!hasWaterNearby) return;
     const impactNeedsRerun =
       state.eventType === 'impact' &&
       state.result?.type === 'impact' &&
@@ -1000,6 +1005,28 @@ export const useAppStore = create<AppStore>((set, get) => ({
           );
           if (z < -10) {
             impactInput = { ...impactInput, waterDepth: m(-z) };
+          } else {
+            // Coastal fall-through: the click cell is land but the
+            // event sits next to water (Yucatán, the Maremma, Beirut
+            // promontory, …). Without this, the impact-tsunami branch
+            // silently drops and the user sees no wave train even
+            // though a body of that scale would couple into the
+            // adjacent basin. Mirrors the explosion-evaluator path:
+            // search a 5 km lattice for ocean cells, take the median
+            // depth, cap at 200 m so the Ward & Asphaug cavity is
+            // sized to a near-shore basin rather than to the open
+            // ocean. The energy-coupling cap-off in the cavity model
+            // keeps the amplitude honest at the synthesised depth.
+            const coastalDepth = findNearbyOceanDepth(
+              state.elevationGrid,
+              state.location.latitude,
+              state.location.longitude,
+              5_000
+            );
+            if (coastalDepth !== null) {
+              const cappedDepth = Math.min(coastalDepth, 200);
+              impactInput = { ...impactInput, waterDepth: m(cappedDepth) };
+            }
           }
         }
         // DEM-driven beach slope for the Synolakis run-up — see
