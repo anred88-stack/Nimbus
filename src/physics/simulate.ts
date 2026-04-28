@@ -47,6 +47,13 @@ import { impactorMass, kineticEnergy } from './events/impact/kinetic.js';
 import { seismicMagnitude, seismicMagnitudeTeanbyWookey } from './events/impact/seismic.js';
 import { dispersionAmplitudeFactor, synolakisRunup } from './events/tsunami/extendedEffects.js';
 import {
+  MANNING_OPEN_OCEAN,
+  MANNING_SAND_BEACH,
+  manningCorrectedRunup,
+  manningPropagationDamping,
+} from './events/tsunami/manningFriction.js';
+import { nonLinearShoalingAmplitude } from './events/tsunami/nonLinearShoaling.js';
+import {
   impactAmplitudeAtDistance,
   impactAmplitudeWunnemann,
   impactCavityRadius,
@@ -179,6 +186,26 @@ export interface ImpactTsunamiResult {
   /** Crawford-Mader characteristic absorption depth d_critical (m),
    *  surfaced as a tooltip diagnostic. */
   characteristicAbsorptionDepth: Meters;
+  /** Phase-19 Manning-friction-corrected far-field amplitude at
+   *  1 000 km. Same as {@link amplitudeAt1000kmWunnemann} multiplied
+   *  by the open-ocean Manning damping factor (Imamura 1995,
+   *  n = 0.025) over the 1 000 km path at the basin's mean depth.
+   *  Smaller than the unmodified 1/r reach by ~3 % at deep-ocean
+   *  depth, ~30 % at shelf depth. */
+  amplitudeAt1000kmFrictionCorrected: Meters;
+  /** Phase-19 Manning-friction-corrected far-field amplitude at
+   *  5 000 km. */
+  amplitudeAt5000kmFrictionCorrected: Meters;
+  /** Manning's n actually used for the open-ocean propagation
+   *  damping. Echoed for transparency. */
+  manningNPropagation: number;
+  /** Manning's n actually used for the run-up correction
+   *  (Liu 2005 / Park 2013). */
+  manningNRunup: number;
+  /** Non-linear shoaling α (Madsen-Sorensen 1992) used to clip the
+   *  Green's-law amplitude before Synolakis. Caller can flip to the
+   *  raw Green prediction by setting α = 0. */
+  nonLinearShoalingAlpha: number;
 }
 
 /**
@@ -594,8 +621,53 @@ export function simulateImpact(input: ImpactScenarioInput): ImpactScenarioResult
       supplied >= SLOPE_LOWER &&
       supplied <= SLOPE_UPPER;
     const beachSlopeRad = slopeFromDEM ? supplied : FALLBACK_SLOPE_RAD;
-    const runup = synolakisRunup(amp1000W, beachSlopeRad, m(10));
-    const amp5000Dispersed = m((amp5000W as number) * dispersionAmplitudeFactor(m(5_000_000)));
+    // Phase-19 — Manning friction propagation damping + non-linear
+    // shoaling correction.
+    //
+    // Open-ocean propagation damping (Imamura 1995, n=0.025): the
+    // 1000 km path between source and DART buoy traversed at the
+    // configured basin depth. For h=4 km the damping is ~3 % at
+    // 1000 km, ~14 % at 5000 km — small but on the right side of the
+    // GeoClaw envelope.
+    const propDamp1000 = manningPropagationDamping({
+      pathLengthM: 1_000_000,
+      meanDepthM: meanOceanDepth,
+      manningN: MANNING_OPEN_OCEAN,
+    });
+    const propDamp5000 = manningPropagationDamping({
+      pathLengthM: 5_000_000,
+      meanDepthM: meanOceanDepth,
+      manningN: MANNING_OPEN_OCEAN,
+    });
+    const amp1000Friction = m((amp1000W as number) * propDamp1000);
+    const amp5000Friction = m((amp5000W as number) * propDamp5000);
+    // Non-linear shoaling: cap the amplification near the 10 m
+    // offshore reference where Synolakis is evaluated. Madsen-Sorensen
+    // 1992 weakly-non-linear correction. For Chicxulub (~30 m incident
+    // wave at 1000 km, ~10 m offshore reference) this trims the
+    // pre-runup amplitude by ~50 % — bringing the model into the
+    // GeoClaw / Range 2022 envelope rather than the unphysical Green
+    // upper bound.
+    const incidentAtBeach = m(
+      nonLinearShoalingAmplitude({
+        linearAmplitudeM: amp1000Friction,
+        localDepthM: 10,
+      })
+    );
+    const runupFrictionless = synolakisRunup(incidentAtBeach, beachSlopeRad, m(10));
+    // Manning correction on the run-up itself (Liu 2005 / Park 2013).
+    // Default to sand beach n=0.030, typical of open coast. For DEM-
+    // sampled slopes that look vegetated (slope 1:30 - 1:80) future
+    // work could pick a higher n; this is the conservative anchor.
+    const runup = manningCorrectedRunup({
+      frictionlessRunup: runupFrictionless,
+      manningN: MANNING_SAND_BEACH,
+      beachSlopeRad,
+      offshoreDepthM: m(10),
+    });
+    const amp5000Dispersed = m(
+      (amp5000Friction as number) * dispersionAmplitudeFactor(m(5_000_000))
+    );
     const celerity = shallowWaterWaveSpeed(meanOceanDepth);
     const wavelength = m(2 * (cavityRadius as number));
     const period = (wavelength / Math.max(celerity, 1e-6)) as Seconds;
@@ -625,6 +697,11 @@ export function simulateImpact(input: ImpactScenarioInput): ImpactScenarioResult
       beachSlopeFromDEM: slopeFromDEM,
       waterCouplingFraction: fWater,
       characteristicAbsorptionDepth: oceanPartition.characteristicDepth,
+      amplitudeAt1000kmFrictionCorrected: amp1000Friction,
+      amplitudeAt5000kmFrictionCorrected: amp5000Friction,
+      manningNPropagation: MANNING_OPEN_OCEAN,
+      manningNRunup: MANNING_SAND_BEACH,
+      nonLinearShoalingAlpha: 0.3,
     };
   }
 
