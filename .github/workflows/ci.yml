@@ -52,6 +52,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Bundle size budget
+        run: pnpm bundle:size
+
       - name: Build Storybook
         run: pnpm build-storybook --quiet
 

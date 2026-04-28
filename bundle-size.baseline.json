@@ -1,0 +1,10 @@
+{
+  "totalRaw": 8429491,
+  "totalGzip": 2546045,
+  "eagerRaw": 6293694,
+  "eagerGzip": 1872187,
+  "lazyRaw": 2135797,
+  "lazyGzip": 673858,
+  "recordedAt": "2026-04-28T18:50:56.433Z",
+  "tool": "scripts/bundle-size-check.ts"
+}
