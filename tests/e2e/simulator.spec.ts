@@ -26,14 +26,27 @@ test.beforeEach(async ({ page }) => {
 async function expandSimulatorPanelIfCollapsed(page: Page): Promise<void> {
   // Wait for the panel landmark first — the goto can resolve before
   // React mounts the simulator UI on slower CI runners, in which
-  // case the toggle button doesn't exist yet and our isVisible check
-  // returns false against thin air.
+  // case the toggle button doesn't exist yet.
   await expect(page.getByRole('complementary', { name: 'Simulator controls' })).toBeVisible();
+
+  // The mobile-only toggle is `display: none` on desktop and only
+  // `display: inline-flex` under `@media (max-width: 767px)`. On a
+  // slow mobile-chrome CI runner the CSS-module stylesheet can still
+  // be in flight when we reach this point, so a one-shot `isVisible`
+  // check would return false and we'd skip the expand step entirely —
+  // the body assertions downstream then time out against a hidden
+  // panel. Reading the live viewport width tells us whether the
+  // toggle is *expected* to render so we can wait the proper way.
+  const viewport = page.viewportSize();
+  const isNarrowViewport = viewport !== null && viewport.width < 768;
+  if (!isNarrowViewport) return;
+
   const expandButton = page.getByRole('button', { name: 'Expand simulator panel' });
-  if (await expandButton.isVisible().catch(() => false)) {
-    await expandButton.click();
-    await expect(page.getByRole('button', { name: 'Collapse simulator panel' })).toBeVisible();
-  }
+  // Auto-waits for visibility; covers the race where CSS modules /
+  // React commit haven't finished by the time we get here.
+  await expect(expandButton).toBeVisible();
+  await expandButton.click();
+  await expect(page.getByRole('button', { name: 'Collapse simulator panel' })).toBeVisible();
 }
 
 test.describe('simulator flow', () => {
