@@ -57,6 +57,27 @@ describe('Historical validation — cosmic impacts', () => {
     expect(['GLOBAL', 'EXTINCTION']).toContain(r.atmosphere.climateTier);
   });
 
+  it('Popigai: ~100 km complex crater (Tagle & Hecht 2006)', () => {
+    // Phase-17 audit guard: the previous L = 7 km preset under-shot
+    // the observed 100 km final diameter by 15 %, at the edge of the
+    // tolerance envelope. L = 8.1 km recovers it within ~1 %.
+    const r = simulateImpact(IMPACT_PRESETS.POPIGAI.input);
+    expect(r.crater.morphology).toBe('complex');
+    const observed = 100_000;
+    expect(Math.abs((r.crater.finalDiameter as number) - observed) / observed).toBeLessThan(0.15);
+  });
+
+  it('Boltysh: ~24 km complex crater (Kelley & Gurov 2002)', () => {
+    // Phase-17 audit guard: the previous L = 800 m preset predicted
+    // only 11.5 km — a 52 % under-shoot rooted in a confused inversion
+    // of Collins 2005 (D_tc vs D_fr). L = 1.76 km recovers the
+    // observed 24 km within < 1 %.
+    const r = simulateImpact(IMPACT_PRESETS.BOLTYSH.input);
+    expect(r.crater.morphology).toBe('complex');
+    const observed = 24_000;
+    expect(Math.abs((r.crater.finalDiameter as number) - observed) / observed).toBeLessThan(0.15);
+  });
+
   it('Impact→liquefaction cross-bridge: Chicxulub Mw feeds Youd-Idriss into a continental ring', () => {
     const r = simulateImpact(IMPACT_PRESETS.CHICXULUB.input);
     // Teanby-Wookey Mw for Chicxulub is ~7.3; Youd-Idriss should then

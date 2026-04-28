@@ -27,22 +27,38 @@ describe('impactCavityRadius (Ward & Asphaug 2000)', () => {
 });
 
 describe('impactSourceAmplitude — size-dependent coupling η', () => {
-  it('recovers Ward 2000 (≈ R/2) for small ocean impacts (R_C ≪ 5 km)', () => {
-    // R_C = 1 km → η ≈ 0.49, A ≈ 490 m (essentially Ward's 500 m).
+  it('recovers a Ward-like fraction of R_C for small ocean impacts (R_C ≪ R_ref)', () => {
+    // R_C = 1 km, R_ref = 3 km → η = 0.5/(1+1/3) = 0.375 → A ≈ 375 m.
+    // Ward's idealised limit is 0.5 R but the linear coupling damps
+    // even small impacts a little, anchoring the small-end of the
+    // calibration to Eltanin-class observations.
     const A = impactSourceAmplitude(meters(1_000)) as number;
-    expect(A).toBeGreaterThan(450);
-    expect(A).toBeLessThan(500);
+    expect(A).toBeGreaterThan(350);
+    expect(A).toBeLessThan(400);
   });
 
-  it('damps strongly for K-Pg-class cavities (R_C ≫ 5 km)', () => {
-    // R_C = 84 km → η ≈ 0.0017 → A ≈ 142 m.
-    // This matches the Range 2022 / Bralower 2018 hydrocode envelope
-    // (100-1500 m for Chicxulub) — Ward's raw 0.5·R = 42 km is
-    // unphysical because it ignores vapor + ejecta + crater
-    // excavation absorption of impact energy.
+  it('saturates near the asymptote for K-Pg-class cavities', () => {
+    // R_C = 84 km → η = 0.5/(1+84/3) = 0.0172 → A ≈ 1.45 km.
+    // Inside the Range 2022 / Bralower 2018 hydrocode envelope
+    // (100–1500 m for Chicxulub-class) and saturating toward the
+    // formal asymptote A∞ = 0.5·R_ref = 1.5 km.
     const A = impactSourceAmplitude(meters(84_000)) as number;
-    expect(A).toBeGreaterThan(100);
-    expect(A).toBeLessThan(300);
+    expect(A).toBeGreaterThan(1_400);
+    expect(A).toBeLessThan(1_500);
+  });
+
+  it('is strictly monotonic in cavity radius (Phase-17 invariant)', () => {
+    // Pre-Phase-17 the formula peaked at R_C = 5 km and decreased
+    // beyond, so a Boltysh-class impact (R_C ≈ 16 km) predicted a
+    // *larger* source amplitude than Chicxulub-class (R_C ≈ 84 km).
+    // Monotonicity is the load-bearing physics invariant: every step
+    // up in cavity radius must produce at least as large an A₀.
+    let last = 0;
+    for (const RC of [500, 1_000, 3_000, 10_000, 16_000, 25_000, 50_000, 84_000, 200_000]) {
+      const A = impactSourceAmplitude(meters(RC)) as number;
+      expect(A).toBeGreaterThan(last);
+      last = A;
+    }
   });
 
   it('returns 0 for non-positive cavity radii', () => {
@@ -72,7 +88,7 @@ describe('impactAmplitudeAtDistance', () => {
     expect(A).toBe(100);
   });
 
-  it('Chicxulub at 1 000 km from impact → tsunami in the metre-to-tens-of-metres range', () => {
+  it('Chicxulub at 1 000 km from impact → tsunami in the hundred-metre range', () => {
     const chicxulub = simulateImpact(IMPACT_PRESETS.CHICXULUB.input);
     const RC = impactCavityRadius({ kineticEnergy: chicxulub.impactor.kineticEnergy });
     const A0 = impactSourceAmplitude(RC);
@@ -81,11 +97,13 @@ describe('impactAmplitudeAtDistance', () => {
       cavityRadius: RC,
       distance: meters(1_000_000),
     }) as number;
-    // With the size-dependent η coupling, Ward 1/r decay gives
-    // A(1000 km) ≈ 12 m for K-Pg — consistent with Range 2022
-    // hydrocode at deep-ocean far-field (literature 5-50 m).
-    expect(A).toBeGreaterThan(5);
-    expect(A).toBeLessThan(50);
+    // Phase-17 calibration: A₀(R_C ≈ 84 km) ≈ 1.45 km, so the
+    // unmodified Ward 1/r reach at 1 000 km is A₀·R_C/r ≈ 122 m.
+    // The Wünnemann/Melosh hydrocode damping (applied separately
+    // in `impactAmplitudeWunnemann`) brings this down to ≈ 30 m,
+    // inside the literature deep-ocean far-field envelope.
+    expect(A).toBeGreaterThan(80);
+    expect(A).toBeLessThan(200);
   });
 });
 

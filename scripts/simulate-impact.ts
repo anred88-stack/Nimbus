@@ -32,7 +32,9 @@ Event selection:
   --event <type>     impact (default) | explosion | earthquake | volcano
 
 Impact options (used when --event = impact):
-  --preset <id>       CHICXULUB (default), CHICXULUB_OCEAN, TUNGUSKA, METEOR_CRATER
+  --preset <id>       CHICXULUB (default), CHICXULUB_OCEAN, TUNGUSKA,
+                      METEOR_CRATER, CHELYABINSK, POPIGAI, BOLTYSH,
+                      SIKHOTE_ALIN_1947
   --diameter <m>      Impactor diameter (m). Overrides the preset value.
   --velocity <m/s>    Impact velocity (m/s). Overrides the preset value.
   --density <kg/m3>   Impactor bulk density (kg/m³).
@@ -251,6 +253,16 @@ function buildImpactInput(args: ParsedArgs): ImpactScenarioInput {
     input.meanOceanDepth = meters(args.oceanDepth);
   } else if (base.meanOceanDepth !== undefined) {
     input.meanOceanDepth = base.meanOceanDepth;
+  }
+  // Phase-17 audit: pre-fix the CLI dropped impactorStrength on the
+  // floor when widening the preset. The METEOR_CRATER (IRON, 50 MPa)
+  // and SIKHOTE_ALIN_1947 (IRON, 50 MPa) presets were therefore
+  // simulated with the STONY default (1 MPa), which mis-classified
+  // their atmospheric-entry regime as PARTIAL_AIRBURST and zeroed
+  // their crater radii in CLI snapshots. Pass it through so audit
+  // outputs match what the app actually computes.
+  if (base.impactorStrength !== undefined) {
+    input.impactorStrength = base.impactorStrength;
   }
   return input;
 }

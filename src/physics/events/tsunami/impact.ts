@@ -44,38 +44,49 @@ export function impactCavityRadius(input: ImpactCavityInput): Meters {
  * crater excavation in the ocean floor, and shock dissipation
  * absorb the rest. Hydrocode reconstructions of the K-Pg event
  * (Range et al. 2022 GeoLogica, Bralower et al. 2018) settle on
- * source amplitudes 100–1500 m for a ~80 km cavity — i.e. an
- * effective η ≈ 0.005 – 0.04, NOT 0.5.
+ * source amplitudes 100–1500 m for a ~80 km cavity, NOT the 42 km
+ * Ward's raw 0.5·R would imply.
  *
- * The empirical fit below replaces the constant 0.5 with a size-
- * dependent attenuation that recovers Ward's value for very small
- * cavities (Eltanin-class, R_C < 10 km, where most of the energy
- * does displace water) and asymptotes to η ≈ 0.03 for K-Pg-class
- * cavities (R_C > 50 km, where vapor and ejecta dominate the
- * energy budget):
+ * Phase-17 audit. The previous fit
  *
- *     η(R_C) = 0.5 / (1 + (R_C / R_ref)²)
+ *     η(R_C) = 0.5 / (1 + (R_C / 5 km)²)
  *
- * with R_ref = 5 km. This passes through:
- *   R_C =  1 km → η ≈ 0.49 (Eltanin-class small ocean impact)
- *   R_C =  5 km → η = 0.25 (Belfast Bay, small)
- *   R_C = 25 km → η ≈ 0.019 (Popigai-class, large)
- *   R_C = 84 km → η ≈ 0.0017 (Chicxulub-class, K-Pg)
+ * had a fatal monotonicity bug: A₀(R_C) = R_C · η(R_C) reaches a
+ * maximum at R_C = 5 km (≈ 1.25 km source amplitude) and then
+ * *decreases* for larger cavities. So a Boltysh-class impact
+ * (R_C ≈ 16 km) was predicted to make a bigger source amplitude
+ * than a Chicxulub-class one (R_C ≈ 84 km) — physically backwards.
  *
- * For Chicxulub this gives A₀ = R_C · η = 84 km · 0.0017 ≈ 142 m,
- * inside the literature 100–1500 m envelope. For small ocean
- * impacts the formula degenerates to Ward's original 0.5·R_C.
+ * Replacement: linear damping at the denominator instead of
+ * quadratic.
+ *
+ *     η(R_C) = 0.5 / (1 + R_C / R_ref)
+ *     A₀(R_C) = 0.5 · R_C · R_ref / (R_ref + R_C)
+ *
+ * dA₀/dR_C = 0.5 · R_ref² / (R_ref + R_C)² > 0 for every R_C > 0,
+ * so the source amplitude is now strictly monotonic in cavity
+ * radius. A₀ asymptotes to 0.5 · R_ref for very large impacts.
+ *
+ * R_ref = 3 km is the calibration that lands K-Pg-class events at
+ * the upper end of the Range et al. 2022 envelope while still
+ * recovering Ward's small-impact limit:
+ *
+ *   R_C =  1 km → η ≈ 0.375 → A₀ ≈ 375 m  (Eltanin-class)
+ *   R_C =  3 km → η = 0.250 → A₀ = 750 m
+ *   R_C = 11 km → η ≈ 0.107 → A₀ ≈ 1.18 km (Boltysh-on-water)
+ *   R_C = 53 km → η ≈ 0.027 → A₀ ≈ 1.42 km (Popigai-on-water)
+ *   R_C = 84 km → η ≈ 0.017 → A₀ ≈ 1.45 km (Chicxulub-on-water)
+ *   R_C → ∞     → A₀ → 1.5 km                (asymptote)
  */
-const WARD_REFERENCE_CAVITY_M = 5_000;
+const WARD_REFERENCE_CAVITY_M = 3_000;
 
 export function impactSourceAmplitude(cavityRadius: Meters): Meters {
   const RC = cavityRadius as number;
   if (!Number.isFinite(RC) || RC <= 0) return m(0);
-  // η(R_C) = 0.5 / (1 + (R_C / R_ref)²) — recovers Ward's 0.5 for
-  // small R_C, asymptotes to ~0 for K-Pg-class cavities.
-  const ratio = RC / WARD_REFERENCE_CAVITY_M;
-  const eta = 0.5 / (1 + ratio * ratio);
-  return m(RC * eta);
+  // η(R_C) = 0.5 / (1 + R_C / R_ref) — linearly damped coupling
+  // produces A₀(R_C) = 0.5·R_C·R_ref/(R_ref+R_C), monotonically
+  // increasing and asymptoting to 0.5·R_ref for large cavities.
+  return m((0.5 * RC * WARD_REFERENCE_CAVITY_M) / (WARD_REFERENCE_CAVITY_M + RC));
 }
 
 export interface ImpactAmplitudeAtDistanceInput {

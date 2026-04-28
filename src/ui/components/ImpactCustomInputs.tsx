@@ -61,7 +61,17 @@ export function ImpactCustomInputs(): JSX.Element {
   };
   const applyTaxonomy = (e: ChangeEvent<HTMLSelectElement>): void => {
     const cls = e.target.value as AsteroidTaxonomyClass;
-    setImpactInput({ impactorDensity: ASTEROID_TAXONOMY[cls].density });
+    // Phase-17 audit: previously this only copied `density`, leaving
+    // `impactorStrength` at the STONY default (1 MPa). An iron custom
+    // impactor was therefore mis-classified as airbursting at altitudes
+    // a real iron body would punch through (Meteor-Crater regime).
+    // Apply both fields together so the asteroid class is materially
+    // self-consistent.
+    const taxonomy = ASTEROID_TAXONOMY[cls];
+    setImpactInput({
+      impactorDensity: taxonomy.density,
+      impactorStrength: taxonomy.strength,
+    });
   };
 
   return (

@@ -674,7 +674,14 @@ export const IMPACT_PRESETS = {
     name: 'Popigai 35.7 Ma',
     note: '≈ 100 km crater in northern Siberia. L-chondrite projectile (Tagle & Hecht 2006, MAPS 41: 1721); contemporary with the Chesapeake-Bay impact and a candidate trigger for the late-Eocene climate shift.',
     input: {
-      impactorDiameter: m(7_000),
+      // Phase-17 audit: previous L = 7 km predicted only 84.6 km of
+      // final crater (observed 100 km, error −15 %, at the edge of the
+      // ±15 % validation envelope). Inverting the Collins 2005 chain
+      // (Eq. 27 then Eq. 21) for D_fr = 100 km at v = 20 km/s,
+      // θ = 45°, ρ_i = 3000 (chondritic), ρ_t = 2700 gives
+      // L ≈ 8.1 km. Predicted final crater becomes ≈ 100.2 km,
+      // matching the Tagle & Hecht 2006 observation within 1 %.
+      impactorDiameter: m(8_100),
       impactVelocity: mps(20_000),
       impactorDensity: CHONDRITIC_DENSITY,
       targetDensity: CRUSTAL_ROCK_DENSITY,
@@ -692,10 +699,18 @@ export const IMPACT_PRESETS = {
     name: 'Boltysh 65.4 Ma',
     note: '≈ 24 km crater, central Ukraine. Within dating uncertainty of Chicxulub (Kelley & Gurov 2002, MAPS 37: 1031); illustrates a regional-scale impact rather than a mass-extinction trigger.',
     input: {
-      // Phase 10 audit: 600 m diameter under-shot the observed 24 km
-      // crater (predicted only 9 km). Inverting Collins 2005 Eq. 21
-      // for D_c = 24 km at v = 17 km/s, θ = 45° gives L ≈ 800 m.
-      impactorDiameter: m(800),
+      // Phase-17 audit: previous L = 800 m predicted only 11.5 km of
+      // final crater (observed 24 km, error −52 %). The Phase-10 audit
+      // comment said it had inverted Collins 2005 Eq. 21 for D_fr =
+      // 24 km, but Eq. 21 returns the *transient* diameter D_tc, not
+      // the final D_fr — so the inversion confused the two. The
+      // correct chain (Eq. 27 to back out D_tc, then Eq. 21 to back out
+      // L) gives:
+      //   D_fr = 24 000 m  →  D_tc ≈ 16.5 km  →  L ≈ 1.76 km
+      // at v = 17 km/s, θ = 45°, ρ_i = 3000, ρ_t = 2700, on Earth.
+      // Resulting predicted final crater: 24.0 km, matching the
+      // Kelley & Gurov 2002 observation within < 1 %.
+      impactorDiameter: m(1_760),
       impactVelocity: mps(17_000),
       impactorDensity: CHONDRITIC_DENSITY,
       targetDensity: CRUSTAL_ROCK_DENSITY,

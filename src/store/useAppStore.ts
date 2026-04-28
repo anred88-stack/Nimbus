@@ -57,7 +57,7 @@ import {
   type ImpactScenarioInput,
   type ImpactScenarioResult,
 } from '../physics/simulate.js';
-import { deg, degreesToRadians, kgPerM3, m, mps, sqm } from '../physics/units.js';
+import { deg, degreesToRadians, kgPerM3, m, mps, Pa, sqm } from '../physics/units.js';
 
 /** Top-level event categories the simulator supports. */
 export type EventType = 'impact' | 'explosion' | 'earthquake' | 'volcano' | 'landslide';
@@ -175,6 +175,12 @@ export interface ImpactInputOverrides {
   /** Compass azimuth (° from N) the impactor travels toward. Drives
    *  the downrange orientation of the asymmetric ejecta blanket. */
   impactAzimuthDeg?: number;
+  /** Tensile strength (Pa) — drives the atmospheric-entry regime via
+   *  the Chyba-Collins ram-pressure breakup criterion. Set together
+   *  with `impactorDensity` whenever the user picks an asteroid class
+   *  (Iron, S-type, …) so the airburst behaviour matches the body's
+   *  material, not the STONY default. */
+  impactorStrength?: number;
 }
 
 /** UI-facing overrides for the explosion scenario. */
@@ -910,6 +916,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (overrides.impactAzimuthDeg !== undefined && Number.isFinite(overrides.impactAzimuthDeg)) {
         // Normalise to [0, 360).
         next.impactAzimuthDeg = ((overrides.impactAzimuthDeg % 360) + 360) % 360;
+      }
+      if (
+        overrides.impactorStrength !== undefined &&
+        Number.isFinite(overrides.impactorStrength) &&
+        overrides.impactorStrength > 0
+      ) {
+        next.impactorStrength = Pa(overrides.impactorStrength);
       }
       return {
         eventType: 'impact',
