@@ -172,13 +172,65 @@ export function getCachedGlobalBathymetricMosaic(): ElevationGrid | null {
   return globalMosaicCache;
 }
 
+/**
+ * Phase 16 — reproject a Web-Mercator-aligned raster (rows spaced
+ * uniformly in Mercator Y) into an equirectangular raster (rows
+ * spaced uniformly in geographic latitude). Pure: no I/O, no Cesium,
+ * unit-testable from Node.
+ *
+ * Why this matters: every Terrarium tile arrives in Web Mercator (the
+ * standard XYZ tile scheme), so the row index of a stitched mosaic is
+ * linear in Mercator Y, NOT in latitude. Downstream pipeline
+ * (`computeTsunamiArrivalField`, `sampleElevation`, the Globe.tsx
+ * arrow loop) all assume `samples[i * nLon + j]` is at lat = maxLat −
+ * i · (maxLat − minLat) / (nLat − 1) — i.e. linear in latitude. On a
+ * 170°-tall global mosaic that mismatch puts the FMM source up to 24°
+ * off in latitude (a Chicxulub source at lat 44° gets sampled in
+ * Greenland), so the FMM bails on land and produces an empty
+ * arrival-time field. Reprojecting once at load time fixes the
+ * mismatch for every consumer.
+ *
+ * Implementation: for each output row in lat-linear space, compute
+ * the corresponding Mercator-Y fractional row, bilinear-interpolate
+ * along the Mercator column. Longitude is linear in both projections,
+ * so columns map 1:1.
+ */
+export function reprojectMercatorToLinearLat(
+  mercatorSamples: Float32Array,
+  nLat: number,
+  nLon: number,
+  minLat: number,
+  maxLat: number
+): Float32Array {
+  const out = new Float32Array(nLat * nLon);
+  // Web Mercator: y_norm = (1 − asinh(tan(lat·π/180)) / π) / 2,
+  // 0 at the top (latMax), 1 at the bottom (latMin). Inverse:
+  //   lat = atan(sinh(π · (1 − 2·y_norm))).
+  for (let outI = 0; outI < nLat; outI++) {
+    const lat = maxLat - (outI / (nLat - 1)) * (maxLat - minLat);
+    // Mercator-Y normalised in [0, 1] (0 = north).
+    const tanArg = Math.tan((Math.PI / 4) * (1 + lat / 90));
+    const yNorm = (Math.PI - Math.log(tanArg)) / (2 * Math.PI);
+    const mercFrac = yNorm * (nLat - 1);
+    const m0 = Math.max(0, Math.min(nLat - 1, Math.floor(mercFrac)));
+    const m1 = Math.max(0, Math.min(nLat - 1, m0 + 1));
+    const t = mercFrac - m0;
+    for (let j = 0; j < nLon; j++) {
+      const v0 = mercatorSamples[m0 * nLon + j] ?? 0;
+      const v1 = mercatorSamples[m1 * nLon + j] ?? 0;
+      out[outI * nLon + j] = v0 * (1 - t) + v1 * t;
+    }
+  }
+  return out;
+}
+
 export async function fetchGlobalBathymetricMosaic(): Promise<ElevationGrid> {
   if (globalMosaicCache !== null) return globalMosaicCache;
   if (globalMosaicInflight !== null) return globalMosaicInflight;
 
   globalMosaicInflight = (async (): Promise<ElevationGrid> => {
     const n = 2 ** GLOBAL_ZOOM;
-    const samples = new Float32Array(GLOBAL_GRID_DIMENSION * GLOBAL_GRID_DIMENSION);
+    const mercatorSamples = new Float32Array(GLOBAL_GRID_DIMENSION * GLOBAL_GRID_DIMENSION);
 
     const tilePromises: Promise<{ x: number; y: number; tile: Float32Array }>[] = [];
     for (let ty = 0; ty < n; ty++) {
@@ -192,23 +244,32 @@ export async function fetchGlobalBathymetricMosaic(): Promise<ElevationGrid> {
 
     const results = await Promise.all(tilePromises);
 
-    // Splice each tile into its quadrant of the global mosaic. Tile
-    // (tx, ty) covers samples[ty·256 .. (ty+1)·256][tx·256 .. (tx+1)·256]
-    // in the row-major north-to-south, west-to-east mosaic.
+    // Splice each tile into its quadrant of the Mercator-aligned
+    // mosaic. Rows are uniform in Web Mercator Y at this stage.
     for (const { x: tx, y: ty, tile } of results) {
       for (let py = 0; py < TILE_PIXELS; py++) {
         for (let px = 0; px < TILE_PIXELS; px++) {
           const mosaicRow = ty * TILE_PIXELS + py;
           const mosaicCol = tx * TILE_PIXELS + px;
-          samples[mosaicRow * GLOBAL_GRID_DIMENSION + mosaicCol] = tile[py * TILE_PIXELS + px] ?? 0;
+          mercatorSamples[mosaicRow * GLOBAL_GRID_DIMENSION + mosaicCol] =
+            tile[py * TILE_PIXELS + px] ?? 0;
         }
       }
     }
 
-    // Web Mercator at zoom 2 spans latitudes ±85.05° (the projection
-    // limit). Use the standard Mercator bounds so callers reading the
-    // grid know exactly what they have.
+    // Reproject to a lat-linear grid so every downstream consumer
+    // (FMM, elevation sampler, Globe arrows) can use the standard
+    // `lat → row` linear formula. See `reprojectMercatorToLinearLat`
+    // for the bug rationale.
     const MERCATOR_LIMIT_LAT = 85.05112878;
+    const samples = reprojectMercatorToLinearLat(
+      mercatorSamples,
+      GLOBAL_GRID_DIMENSION,
+      GLOBAL_GRID_DIMENSION,
+      -MERCATOR_LIMIT_LAT,
+      MERCATOR_LIMIT_LAT
+    );
+
     const grid = makeElevationGrid({
       minLat: -MERCATOR_LIMIT_LAT,
       maxLat: MERCATOR_LIMIT_LAT,

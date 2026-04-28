@@ -668,6 +668,7 @@
     },
     "tooltip": {
       "radiusLine": "Radius: ≈ {{value}}",
+      "waveHeightLine": "Wave height: ≈ {{value}}",
       "ring": {
         "craterRim": {
           "title": "Impact crater",
@@ -736,6 +737,10 @@
         "tsunamiIsochrone8h": {
           "title": "Tsunami arrival · ≈ 8 h",
           "description": "Trans-oceanic reach. Even at this distance the wave can cause damage on the far coast (the 2004 Sumatra tsunami killed people in East Africa more than 8 hours after the rupture). DART buoys typically detect the front first."
+        },
+        "tsunamiWaveAmplitude": {
+          "title": "Tsunami wave at this point",
+          "description": "Tsunami wave height computed at this point in the ocean by the FMM simulation with Green's-law shoaling: includes real bathymetric refraction (the wave speeds up over deep ocean, slows over continental shelves and curves around coastlines). The arrow shows the local direction of propagation (∇T from the arrival-time field). Coastal run-ups and onshore inundation are described in the analysis panel, not on the map."
         },
         "mmi9": {
           "title": "MMI IX · violent shaking",

@@ -33,9 +33,12 @@ import {
   type Coordinates,
 } from '../../store/index.js';
 import type { WindAdvectedAshfall } from '../../physics/events/volcano/index.js';
-import { extractAmplitudeContours } from '../../physics/tsunami/isochrones.js';
+// extractAmplitudeContours retired in Phase 16 with the iso-amplitude
+// triangle and polyline layers. The new tsunami visualisation reads
+// the FMM amplitude field directly via the heatmap discrete-band
+// renderer + the regular-grid arrow loop, no contour extraction.
 import { buildExceedanceProbability } from '../../physics/uq/ecdf.js';
-import { renderScalarFieldHeatmap } from '../heatmap.js';
+import { renderScalarFieldHeatmap, WAVE_AMPLITUDE_BANDS } from '../heatmap.js';
 import { renderRadialEcdfBitmap } from '../radialEcdfBitmap.js';
 import {
   animateAftershocksImperatively,
@@ -43,6 +46,7 @@ import {
 } from '../aftershockAnimation.js';
 import {
   animateRingsImperatively,
+  RING_INITIAL_RADIUS_M,
   type RingAnimationSpec,
   type RingKind,
 } from '../ringAnimation.js';
@@ -152,9 +156,9 @@ const TSUNAMI_CAVITY_COLOR = Color.fromCssColorString('#38BDF8');
  * so the ring on the globe and the damage-tier text in the panel
  * read as the same hazard story.
  */
-const TSUNAMI_WAVE_FRONT_5M_COLOR = Color.fromCssColorString('#DB2777');
-const TSUNAMI_WAVE_FRONT_1M_COLOR = Color.fromCssColorString('#22D3EE');
-const TSUNAMI_WAVE_FRONT_03M_COLOR = Color.fromCssColorString('#A5F3FC');
+// Wave-front tier colours (5 m / 1 m / 0.3 m red/cyan/azure) retired
+// in Phase 16; tsunami amplitude is now encoded by the discrete-band
+// heatmap palette (`WAVE_AMPLITUDE_BANDS` from heatmap.ts).
 
 /** Felt-intensity contour colours, ordered inside → outside. The
  *  ramp goes orange → red → wine so the eye reads VII–IX as an
@@ -196,7 +200,7 @@ const RING_ID_PREFIX = 'damage-ring-';
 const TSUNAMI_CAVITY_ID = 'tsunami-cavity';
 /** Entity ids for the three concentric wave-front rings painted at
  *  the source-amplitude → 5 m / 1 m / 0.3 m thresholds. */
-type TsunamiWaveFrontId = 'tsunami-wavefront-5m' | 'tsunami-wavefront-1m' | 'tsunami-wavefront-03m';
+// TsunamiWaveFrontId retired in Phase 16 with the closed-form ring tiers.
 type MmiRingId = 'mmi-ring-7' | 'mmi-ring-8' | 'mmi-ring-9';
 const PYROCLASTIC_RING_ID = 'pyroclastic-ring';
 const ASHFALL_PLUME_ID = 'ashfall-plume';
@@ -215,8 +219,7 @@ const AFTERSHOCK_DETAIL_IDS = [
  *  Mc-class events, deep-red for Båth-ceiling-class. */
 const AFTERSHOCK_COLOR_LOW = Color.fromCssColorString('#fbbf24');
 const AFTERSHOCK_COLOR_HIGH = Color.fromCssColorString('#b91c1c');
-const ISOCHRONE_ID_PREFIX = 'tsunami-isochrone-';
-const FMM_HEATMAP_ID = 'tsunami-fmm-heatmap';
+// Isochrone polylines and the arrival-time heatmap retired in Phase 16.
 const FMM_AMPLITUDE_HEATMAP_ID = 'tsunami-fmm-amplitude';
 const SIGMA_BAND_SUFFIX = '-sigma-band';
 
@@ -294,13 +297,7 @@ function purgeSimulationEntities(viewer: Viewer): void {
     .slice();
   for (const e of stale) viewer.entities.remove(e);
 }
-/** Colour ramp for the default 1/2/4/8 h isochrone set — cool to warm. */
-const ISOCHRONE_COLORS: readonly Color[] = [
-  Color.fromCssColorString('#38bdf8'), // 1 h — sky
-  Color.fromCssColorString('#60a5fa'), // 2 h — blue
-  Color.fromCssColorString('#c084fc'), // 4 h — violet
-  Color.fromCssColorString('#f472b6'), // 8 h — pink
-];
+// Isochrone palette retired in Phase 16 with the polyline layer.
 type ExplosionRingId =
   | 'explosion-crater'
   | 'explosion-thermal'
@@ -1049,182 +1046,83 @@ export function Globe(): JSX.Element {
      * great-circle antipode use {@link clampToGreatCircle}; tiers
      * whose amplitude exceeds the source value are skipped.
      */
-    type TsunamiSourceMode =
-      | { mode: 'cavity'; sourceAmplitude: number; cavityRadius: number }
-      | { mode: 'cylindrical'; sourceAmplitude: number; halfLength: number };
-    interface WaveFrontTier {
-      id: TsunamiWaveFrontId;
-      amplitude: number;
-      color: Color;
-      tooltipKind: RingTooltipKind;
-    }
-    const WAVE_FRONT_TIERS: WaveFrontTier[] = [
-      {
-        id: 'tsunami-wavefront-5m',
-        amplitude: 5,
-        color: TSUNAMI_WAVE_FRONT_5M_COLOR,
-        tooltipKind: 'tsunamiWaveFront5m',
-      },
-      {
-        id: 'tsunami-wavefront-1m',
-        amplitude: 1,
-        color: TSUNAMI_WAVE_FRONT_1M_COLOR,
-        tooltipKind: 'tsunamiWaveFront1m',
-      },
-      {
-        id: 'tsunami-wavefront-03m',
-        amplitude: 0.3,
-        color: TSUNAMI_WAVE_FRONT_03M_COLOR,
-        tooltipKind: 'tsunamiWaveFront03m',
-      },
-    ];
-
-    /**
-     * Bathymetric path: extract iso-amplitude contours from the
-     * Green-shoaled FMM amplitude field and render each tier as
-     * polyline segments that follow the coastlines. Falls back to
-     * the closed-form path silently when the field is missing.
-     * Returns true if it emitted at least one tier — caller uses
-     * the boolean to decide whether the closed-form fallback runs.
-     */
-    const addBathymetricWaveFronts = (sourceAmplitude: number): boolean => {
-      if (bathymetricTsunami?.amplitude === undefined) return false;
-      const grid = useAppStore.getState().elevationGrid;
-      if (grid === null) return false;
-      const ampField = bathymetricTsunami.amplitude;
-      const thresholds = WAVE_FRONT_TIERS.filter((t) => sourceAmplitude > t.amplitude).map(
-        (t) => t.amplitude
-      );
-      if (thresholds.length === 0) return false;
-      const bands = extractAmplitudeContours({
-        amplitudes: ampField.amplitudes,
-        nLat: ampField.nLat,
-        nLon: ampField.nLon,
-        minLat: grid.minLat,
-        maxLat: grid.maxLat,
-        minLon: grid.minLon,
-        maxLon: grid.maxLon,
-        thresholds,
-      });
-      let anyEmitted = false;
-      const tierAlpha = [0.95, 0.9, 0.8] as const;
-      const tierWidth = [4, 3.5, 3] as const;
-      bands.forEach((band, bandIdx) => {
-        const tier = WAVE_FRONT_TIERS.find((t) => t.amplitude === band.threshold);
-        if (tier === undefined) return;
-        if (band.segments.length === 0) return;
-        anyEmitted = true;
-        const alpha = tierAlpha[bandIdx] ?? 0.85;
-        const width = tierWidth[bandIdx] ?? 3;
-        let bandRadiusSum = 0;
-        let bandRadiusCount = 0;
-        band.segments.forEach((seg, segIdx) => {
-          const id = `${tier.id}-seg-${segIdx.toString()}`;
-          viewer.entities.add({
-            id,
-            polyline: {
-              positions: [
-                Cartesian3.fromDegrees(seg.lon1, seg.lat1),
-                Cartesian3.fromDegrees(seg.lon2, seg.lat2),
-              ],
-              width,
-              material: tier.color.withAlpha(alpha),
-              // Phase 14a hotfix — clampToGround removed. Each tsunami
-              // iso-contour generates 200-800 polyline segments per
-              // band × 3 bands; with clampToGround Cesium creates a
-              // GroundPolylinePrimitive per segment (terrain-mesh
-              // sampling + GPU drape upload), which froze Launch for
-              // several seconds on wide tsunamis. Iso-contours are
-              // overwhelmingly in the open ocean where the drape
-              // effect is invisible anyway, so they stay flat at sea
-              // level and Launch returns to sub-second responsiveness.
-            },
-          });
-          // Approximate ground-range distance to source for the
-          // hover tooltip. Lat/lon equirectangular at the source
-          // latitude — fine for tooltip-level precision.
-          const latDeg = ringAnchor.latitude;
-          const lonScale = Math.max(Math.cos((latDeg * Math.PI) / 180), 1e-6);
-          const dLat1 = (seg.lat1 - latDeg) * 111_000;
-          const dLon1 = (seg.lon1 - ringAnchor.longitude) * 111_000 * lonScale;
-          const dLat2 = (seg.lat2 - latDeg) * 111_000;
-          const dLon2 = (seg.lon2 - ringAnchor.longitude) * 111_000 * lonScale;
-          const r1 = Math.sqrt(dLat1 * dLat1 + dLon1 * dLon1);
-          const r2 = Math.sqrt(dLat2 * dLat2 + dLon2 * dLon2);
-          bandRadiusSum += (r1 + r2) / 2;
-          bandRadiusCount += 1;
-        });
-        const meanRadius = bandRadiusCount > 0 ? bandRadiusSum / bandRadiusCount : 0;
-        // Register one tooltip metadata row per segment so the hover
-        // detector picks any of them. They all carry the same tier
-        // identity and a shared "average distance" — consistent
-        // message anywhere along the front.
-        band.segments.forEach((_seg, segIdx) => {
-          const id = `${tier.id}-seg-${segIdx.toString()}`;
-          registerRingTooltip(id, tier.tooltipKind, meanRadius, tier.color);
-        });
-      });
-      return anyEmitted;
+    // Phase 16 — wave-direction triangle-glyph helpers. The previous
+    // tier-based wave-front cascade (5 m / 1 m / 0.3 m closed-form
+    // ellipses + iso-amplitude polylines/triangles) has been retired
+    // in favour of a unified "regular-grid arrows over a discrete-
+    // band amplitude heatmap" representation: the heatmap encodes the
+    // wave height in NOAA-standard amplitude bands (≥ 1 m only) and
+    // the arrows encode the local eikonal-ray direction (∇T). Both
+    // layers are honest to the FMM math — arrows appear ONLY where
+    // the simulation says the wave actually reaches with > 1 m
+    // amplitude, on ocean cells (FMM marks land / unreachable as
+    // Infinity arrival time). No synthetic closed-form fallback;
+    // events that don't propagate to a useful amplitude simply do
+    // not get a tsunami overlay, which is the physically honest
+    // outcome.
+    const buildWaveTriangleVerts = (
+      lat0: number,
+      lon0: number,
+      dirEast: number,
+      dirNorth: number,
+      sizeM: number
+    ): Cartesian3[] | null => {
+      const mag = Math.hypot(dirEast, dirNorth);
+      if (mag === 0) return null;
+      const dx = dirEast / mag;
+      const dy = dirNorth / mag;
+      const px = -dy;
+      const py = dx;
+      const cosLat = Math.max(Math.cos((lat0 * Math.PI) / 180), 1e-6);
+      const mPerLat = 111_000;
+      const mPerLon = 111_000 * cosLat;
+      const apexLat = lat0 + (sizeM * dy) / mPerLat;
+      const apexLon = lon0 + (sizeM * dx) / mPerLon;
+      const bcLat = lat0 - ((sizeM / 3) * dy) / mPerLat;
+      const bcLon = lon0 - ((sizeM / 3) * dx) / mPerLon;
+      const baseHalfM = sizeM / 3;
+      const b1Lat = bcLat + (baseHalfM * py) / mPerLat;
+      const b1Lon = bcLon + (baseHalfM * px) / mPerLon;
+      const b2Lat = bcLat - (baseHalfM * py) / mPerLat;
+      const b2Lon = bcLon - (baseHalfM * px) / mPerLon;
+      return [
+        Cartesian3.fromDegrees(apexLon, apexLat),
+        Cartesian3.fromDegrees(b1Lon, b1Lat),
+        Cartesian3.fromDegrees(b2Lon, b2Lat),
+      ];
     };
 
-    const addTsunamiWaveFronts = (source: TsunamiSourceMode): void => {
-      // Try the bathymetric path first; if it emitted any contour
-      // we are done. Otherwise fall through to closed-form circles.
-      if (addBathymetricWaveFronts(source.sourceAmplitude)) return;
-      const targets = WAVE_FRONT_TIERS;
-      // Per-tier alpha schedule. The 5 m ring (innermost, most
-      // severe) gets the highest fill so it reads with visual
-      // weight; the 0.3 m ring (outermost, mildest) is the most
-      // translucent so the eye reads inward → outward as
-      // intensifying. Cesium's WebGL line drawing ignores
-      // `outlineWidth` on most consumer browsers (the value clamps
-      // to the GPU's `ALIASED_LINE_WIDTH_RANGE`, typically [1, 1]),
-      // so an outline-only ring renders as a one-pixel hairline
-      // regardless of what we request. The fill below gives the
-      // band the body it needs to read as a wave; the outline
-      // colour stays at high alpha to anchor the rim.
-      const tierFillAlpha = [0.32, 0.22, 0.14] as const;
-      const tierOutlineAlpha = [0.95, 0.9, 0.8] as const;
-      for (let i = 0; i < targets.length; i++) {
-        const target = targets[i];
-        if (target === undefined) continue;
-        if (source.sourceAmplitude <= 0) continue;
-        if (source.sourceAmplitude < target.amplitude) continue; // never reached
-        let radius: number;
-        if (source.mode === 'cavity') {
-          if (source.cavityRadius <= 0) continue;
-          radius = (source.sourceAmplitude * source.cavityRadius) / target.amplitude;
-        } else {
-          if (source.halfLength <= 0) continue;
-          const ratio = source.sourceAmplitude / target.amplitude;
-          radius = source.halfLength * ratio * ratio;
-        }
-        const clampedRadius = clampToGreatCircle(radius);
-        if (!Number.isFinite(clampedRadius) || clampedRadius <= 0) continue;
-        const fillAlpha = tierFillAlpha[i] ?? 0.18;
-        const outlineAlpha = tierOutlineAlpha[i] ?? 0.85;
-        const entity = viewer.entities.add({
-          id: target.id,
-          position: centerCartesian,
-          ellipse: {
-            semiMajorAxis: 0,
-            semiMinorAxis: 0,
-            // `radialDamageMaterial` paints a soft radial gradient —
-            // brightest at the rim, fading toward the centre. That
-            // is exactly the "expanding wave-front, brighter near
-            // the edge" percept we want, and it does not depend on
-            // `outlineWidth` so the band stays visible on every
-            // browser.
-            material: radialDamageMaterial(target.color, fillAlpha),
-            outline: true,
-            outlineColor: target.color.withAlpha(outlineAlpha),
-            outlineWidth: 4,
-            heightReference: HeightReference.CLAMP_TO_GROUND,
-          },
-        });
-        scheduleRing(entity, 'tsunamiCavity', clampedRadius);
-        registerRingTooltip(target.id, target.tooltipKind, clampedRadius, target.color);
-      }
+    const sampleArrivalGradient = (
+      arrivalTimes: Float32Array,
+      gnLat: number,
+      gnLon: number,
+      gMinLat: number,
+      gMaxLat: number,
+      gMinLon: number,
+      gMaxLon: number,
+      lat: number,
+      lon: number
+    ): { east: number; north: number } => {
+      const ti = ((gnLat - 1) * (gMaxLat - lat)) / (gMaxLat - gMinLat);
+      const tj = ((gnLon - 1) * (lon - gMinLon)) / (gMaxLon - gMinLon);
+      const i = Math.round(ti);
+      const j = Math.round(tj);
+      if (i <= 0 || i >= gnLat - 1 || j <= 0 || j >= gnLon - 1) return { east: 0, north: 0 };
+      const tC = arrivalTimes[i * gnLon + j] ?? Number.POSITIVE_INFINITY;
+      if (!Number.isFinite(tC)) return { east: 0, north: 0 };
+      const tN = arrivalTimes[(i - 1) * gnLon + j] ?? Number.POSITIVE_INFINITY;
+      const tS = arrivalTimes[(i + 1) * gnLon + j] ?? Number.POSITIVE_INFINITY;
+      const tE = arrivalTimes[i * gnLon + (j + 1)] ?? Number.POSITIVE_INFINITY;
+      const tW = arrivalTimes[i * gnLon + (j - 1)] ?? Number.POSITIVE_INFINITY;
+      let dNorth = 0;
+      if (Number.isFinite(tN) && Number.isFinite(tS)) dNorth = (tN - tS) / 2;
+      else if (Number.isFinite(tN)) dNorth = tN - tC;
+      else if (Number.isFinite(tS)) dNorth = tC - tS;
+      let dEast = 0;
+      if (Number.isFinite(tE) && Number.isFinite(tW)) dEast = (tE - tW) / 2;
+      else if (Number.isFinite(tE)) dEast = tE - tC;
+      else if (Number.isFinite(tW)) dEast = tC - tW;
+      return { north: dNorth, east: dEast };
     };
 
     /**
@@ -1257,14 +1155,15 @@ export function Globe(): JSX.Element {
         id: `${baseEntityId}${SIGMA_BAND_SUFFIX}`,
         position,
         ellipse: {
-          semiMajorAxis: 0,
-          semiMinorAxis: 0,
+          semiMajorAxis: RING_INITIAL_RADIUS_M,
+          semiMinorAxis: RING_INITIAL_RADIUS_M,
           rotation: cesiumRotation,
           // Translucent fill keeps the halo readable without the
           // sharp outline competing with the main ring's outline.
           material: color.withAlpha(0.08),
           outline: true,
           outlineColor: color.withAlpha(0.3),
+          height: 0,
           heightReference: HeightReference.CLAMP_TO_GROUND,
         },
       });
@@ -1341,12 +1240,13 @@ export function Globe(): JSX.Element {
           id: entityId,
           position: geom.position,
           ellipse: {
-            semiMajorAxis: 0,
-            semiMinorAxis: 0,
+            semiMajorAxis: RING_INITIAL_RADIUS_M,
+            semiMinorAxis: RING_INITIAL_RADIUS_M,
             rotation: geom.cesiumRotation,
             material: radialDamageMaterial(RING_COLORS[key], 0.85),
             outline: true,
             outlineColor: RING_COLORS[key].withAlpha(0.5),
+            height: 0,
             heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
@@ -1375,11 +1275,12 @@ export function Globe(): JSX.Element {
             id: TSUNAMI_CAVITY_ID,
             position: centerCartesian,
             ellipse: {
-              semiMajorAxis: 0,
-              semiMinorAxis: 0,
+              semiMajorAxis: RING_INITIAL_RADIUS_M,
+              semiMinorAxis: RING_INITIAL_RADIUS_M,
               material: radialDamageMaterial(TSUNAMI_CAVITY_COLOR, 0.65),
               outline: true,
               outlineColor: TSUNAMI_CAVITY_COLOR.withAlpha(0.45),
+              height: 0,
               heightReference: HeightReference.CLAMP_TO_GROUND,
             },
           });
@@ -1391,11 +1292,11 @@ export function Globe(): JSX.Element {
             TSUNAMI_CAVITY_COLOR
           );
         }
-        addTsunamiWaveFronts({
-          mode: 'cavity',
-          sourceAmplitude: result.data.tsunami.sourceAmplitude,
-          cavityRadius: result.data.tsunami.cavityRadius,
-        });
+        // Phase 16 — wave-front rings retired. The propagating wave is
+        // now rendered globally as the discrete-band amplitude heatmap
+        // + uniform-grid direction arrows further down, driven directly
+        // by the FMM amplitude field. Only the cavity ring at the
+        // source point survives at the per-event level.
       }
 
       // --- Impact ejecta blanket: asymmetric ellipse offset downrange.
@@ -1430,12 +1331,13 @@ export function Globe(): JSX.Element {
           id: EJECTA_BLANKET_ID,
           position: Cartesian3.fromDegrees(blanketLon, blanketLat),
           ellipse: {
-            semiMajorAxis: 0,
-            semiMinorAxis: 0,
+            semiMajorAxis: RING_INITIAL_RADIUS_M,
+            semiMinorAxis: RING_INITIAL_RADIUS_M,
             rotation: cesiumRotation,
             material: radialDamageMaterial(EJECTA_BLANKET_COLOR, 0.7),
             outline: true,
             outlineColor: EJECTA_BLANKET_COLOR.withAlpha(0.45),
+            height: 0,
             heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
@@ -1575,6 +1477,7 @@ export function Globe(): JSX.Element {
               material: color.withAlpha(fillAlpha * 0.4),
               outline: true,
               outlineColor: color.withAlpha(outlineAlpha),
+              height: 0,
               heightReference: HeightReference.CLAMP_TO_GROUND,
             },
           });
@@ -1600,11 +1503,12 @@ export function Globe(): JSX.Element {
             id,
             position: centerCartesian,
             ellipse: {
-              semiMajorAxis: 0,
-              semiMinorAxis: 0,
+              semiMajorAxis: RING_INITIAL_RADIUS_M,
+              semiMinorAxis: RING_INITIAL_RADIUS_M,
               material: radialDamageMaterial(color, fillAlpha),
               outline: true,
               outlineColor: color.withAlpha(outlineAlpha),
+              height: 0,
               heightReference: HeightReference.CLAMP_TO_GROUND,
             },
           });
@@ -1655,9 +1559,17 @@ export function Globe(): JSX.Element {
           tooltipKind: 'secondDegreeBurn',
           asymmetry: asymmetry.secondDegreeBurn,
         },
+        // Phase-17 calibration. Use the HOB-corrected blast radii
+        // (`overpressure*RadiusHob` / `lightDamageRadiusHob`) instead
+        // of the bare surface-burst values, so an airburst at
+        // optimum HOB renders its Mach-stem-amplified ring on the
+        // map rather than the smaller surface-burst contour. For a
+        // surface burst the HOB factor is 1.0 and the two values
+        // coincide, so this is backwards-compatible with every
+        // ground-burst preset (Castle Bravo, surface-1Mt, …).
         {
           id: 'explosion-5psi',
-          radius: blast.overpressure5psiRadius,
+          radius: blast.overpressure5psiRadiusHob,
           color: RING_COLORS.overpressure5psi,
           kind: 'overpressure',
           tooltipKind: 'overpressure5psi',
@@ -1665,7 +1577,7 @@ export function Globe(): JSX.Element {
         },
         {
           id: 'explosion-1psi',
-          radius: blast.overpressure1psiRadius,
+          radius: blast.overpressure1psiRadiusHob,
           color: RING_COLORS.overpressure1psi,
           kind: 'overpressure',
           tooltipKind: 'overpressure1psi',
@@ -1673,7 +1585,7 @@ export function Globe(): JSX.Element {
         },
         {
           id: 'explosion-light-damage',
-          radius: blast.lightDamageRadius,
+          radius: blast.lightDamageRadiusHob,
           color: RING_COLORS.lightDamage,
           kind: 'overpressure',
           tooltipKind: 'lightDamage',
@@ -1751,12 +1663,13 @@ export function Globe(): JSX.Element {
           id,
           position: geom.position,
           ellipse: {
-            semiMajorAxis: 0,
-            semiMinorAxis: 0,
+            semiMajorAxis: RING_INITIAL_RADIUS_M,
+            semiMinorAxis: RING_INITIAL_RADIUS_M,
             rotation: geom.cesiumRotation,
             material: radialDamageMaterial(color, explosionFillAlpha),
             outline: true,
             outlineColor: color.withAlpha(explosionOutlineAlpha),
+            height: 0,
             heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
@@ -1783,11 +1696,12 @@ export function Globe(): JSX.Element {
             id: TSUNAMI_CAVITY_ID,
             position: centerCartesian,
             ellipse: {
-              semiMajorAxis: 0,
-              semiMinorAxis: 0,
+              semiMajorAxis: RING_INITIAL_RADIUS_M,
+              semiMinorAxis: RING_INITIAL_RADIUS_M,
               material: radialDamageMaterial(TSUNAMI_CAVITY_COLOR, 0.65),
               outline: true,
               outlineColor: TSUNAMI_CAVITY_COLOR.withAlpha(0.45),
+              height: 0,
               heightReference: HeightReference.CLAMP_TO_GROUND,
             },
           });
@@ -1799,11 +1713,7 @@ export function Globe(): JSX.Element {
             TSUNAMI_CAVITY_COLOR
           );
         }
-        addTsunamiWaveFronts({
-          mode: 'cavity',
-          sourceAmplitude: result.data.tsunami.sourceAmplitude,
-          cavityRadius: result.data.tsunami.cavityRadius,
-        });
+        // Wave-front rings retired in Phase 16 — see impact branch.
       }
     }
 
@@ -1815,22 +1725,19 @@ export function Globe(): JSX.Element {
           id: TSUNAMI_CAVITY_ID,
           position: centerCartesian,
           ellipse: {
-            semiMajorAxis: 0,
-            semiMinorAxis: 0,
+            semiMajorAxis: RING_INITIAL_RADIUS_M,
+            semiMinorAxis: RING_INITIAL_RADIUS_M,
             material: radialDamageMaterial(TSUNAMI_CAVITY_COLOR, 0.65),
             outline: true,
             outlineColor: TSUNAMI_CAVITY_COLOR.withAlpha(0.45),
+            height: 0,
             heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
         scheduleRing(entity, 'tsunamiCavity', cavityRadius);
         registerRingTooltip(TSUNAMI_CAVITY_ID, 'tsunamiCavity', cavityRadius, TSUNAMI_CAVITY_COLOR);
       }
-      addTsunamiWaveFronts({
-        mode: 'cavity',
-        sourceAmplitude: result.data.tsunami.sourceAmplitude,
-        cavityRadius: result.data.tsunami.cavityRadius,
-      });
+      // Wave-front rings retired in Phase 16 — see impact branch.
     }
 
     // --- Volcano: collapse-driven tsunami cavity --------------------
@@ -1841,35 +1748,59 @@ export function Globe(): JSX.Element {
           id: TSUNAMI_CAVITY_ID,
           position: centerCartesian,
           ellipse: {
-            semiMajorAxis: 0,
-            semiMinorAxis: 0,
+            semiMajorAxis: RING_INITIAL_RADIUS_M,
+            semiMinorAxis: RING_INITIAL_RADIUS_M,
             material: radialDamageMaterial(TSUNAMI_CAVITY_COLOR, 0.65),
             outline: true,
             outlineColor: TSUNAMI_CAVITY_COLOR.withAlpha(0.45),
+            height: 0,
             heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
         scheduleRing(entity, 'tsunamiCavity', cavityRadius);
         registerRingTooltip(TSUNAMI_CAVITY_ID, 'tsunamiCavity', cavityRadius, TSUNAMI_CAVITY_COLOR);
       }
-      addTsunamiWaveFronts({
-        mode: 'cavity',
-        sourceAmplitude: result.data.tsunami.sourceAmplitude,
-        cavityRadius: result.data.tsunami.cavityRadius,
-      });
+      // Wave-front rings retired in Phase 16 — see impact branch.
     }
 
-    // --- Earthquake: cylindrical-line-source wave fronts ------------
-    // Subduction-interface megathrust seeds a wave train whose
-    // amplitude decays as A₀·√(R₀/r) (line-source spreading) rather
-    // than the cavity-collapse 1/r law. We paint the same three
-    // wave-front rings using the cylindrical formula.
+    // --- Earthquake: source-region cavity ring + bathymetric wave fronts.
+    // Subduction-interface megathrust seeds a wave train whose amplitude
+    // decays as A₀·√(R₀/r) (line-source spreading) rather than the
+    // cavity-collapse 1/r law, but for the OVERLAY we now route through
+    // the same `cavity` mode used by impacts/explosions/volcanoes/
+    // landslides — this keeps the visual cascade coherent across event
+    // types and lets the bathymetric iso-amplitude path (which doesn't
+    // care about the closed-form propagation law) take precedence
+    // wherever the FMM amplitude field has segments to extract. The
+    // canonical equivalent cavity radius for a megathrust is
+    // ruptureLength / 4 — the same value `extractTsunamiMeta` feeds
+    // into computeBathymetricTsunami, so the cavity ring on screen and
+    // the FMM source seed are physically consistent.
     if (result.type === 'earthquake' && result.data.tsunami !== undefined) {
-      addTsunamiWaveFronts({
-        mode: 'cylindrical',
-        sourceAmplitude: result.data.tsunami.initialAmplitude,
-        halfLength: (result.data.ruptureLength as number) / 2,
-      });
+      const eqCavityRadius = Math.max((result.data.ruptureLength as number) / 4, 10_000);
+      if (Number.isFinite(eqCavityRadius) && eqCavityRadius > 0) {
+        const entity = viewer.entities.add({
+          id: TSUNAMI_CAVITY_ID,
+          position: centerCartesian,
+          ellipse: {
+            semiMajorAxis: RING_INITIAL_RADIUS_M,
+            semiMinorAxis: RING_INITIAL_RADIUS_M,
+            material: radialDamageMaterial(TSUNAMI_CAVITY_COLOR, 0.65),
+            outline: true,
+            outlineColor: TSUNAMI_CAVITY_COLOR.withAlpha(0.45),
+            height: 0,
+            heightReference: HeightReference.CLAMP_TO_GROUND,
+          },
+        });
+        scheduleRing(entity, 'tsunamiCavity', eqCavityRadius);
+        registerRingTooltip(
+          TSUNAMI_CAVITY_ID,
+          'tsunamiCavity',
+          eqCavityRadius,
+          TSUNAMI_CAVITY_COLOR
+        );
+      }
+      // Wave-front rings retired in Phase 16 — see impact branch.
     }
 
     // --- Volcano: pyroclastic-flow reach ring ------------------------
@@ -1879,11 +1810,12 @@ export function Globe(): JSX.Element {
         id: PYROCLASTIC_RING_ID,
         position: centerCartesian,
         ellipse: {
-          semiMajorAxis: 0,
-          semiMinorAxis: 0,
+          semiMajorAxis: RING_INITIAL_RADIUS_M,
+          semiMinorAxis: RING_INITIAL_RADIUS_M,
           material: radialDamageMaterial(PYROCLASTIC_RING_COLOR, 0.85),
           outline: true,
           outlineColor: PYROCLASTIC_RING_COLOR.withAlpha(0.5),
+          height: 0,
           heightReference: HeightReference.CLAMP_TO_GROUND,
         },
       });
@@ -1939,6 +1871,7 @@ export function Globe(): JSX.Element {
           material: radialDamageMaterial(LATERAL_BLAST_COLOR, 0.9),
           outline: true,
           outlineColor: LATERAL_BLAST_COLOR.withAlpha(0.55),
+          height: 0,
           heightReference: HeightReference.CLAMP_TO_GROUND,
         },
       });
@@ -1980,27 +1913,25 @@ export function Globe(): JSX.Element {
           material: radialDamageMaterial(ASHFALL_PLUME_COLOR, 0.55),
           outline: true,
           outlineColor: ASHFALL_PLUME_COLOR.withAlpha(0.5),
+          height: 0,
           heightReference: HeightReference.CLAMP_TO_GROUND,
         },
       });
       registerRingTooltip(ASHFALL_PLUME_ID, 'ashfallPlume', downwind, ASHFALL_PLUME_COLOR);
     }
 
-    // --- Tsunami isochrones (FMM) ----------------------------------
-    // When the scenario triggered a tsunami AND a bathymetric grid
-    // was loaded, the store orchestrator fills bathymetricTsunami
-    // with the Fast-Marching arrival-time polylines. Render each
-    // threshold as a coloured polyline; colour ramp matches the
-    // DEFAULT_ISOCHRONE_HOURS 1/2/4/8 h cadence.
-    let isochroneReach = 0;
+    // --- Tsunami amplitude heatmap + wave-direction arrows (Phase 16).
+    // When the scenario triggered a tsunami AND a bathymetric grid was
+    // loaded, the store orchestrator fills `bathymetricTsunami` with
+    // the FMM amplitude field (local high-res tile + planetary global
+    // layer). We render TWO things from it: a discrete-band amplitude
+    // heatmap (NOAA palette, ≥ 1 m only) and a uniform 1°×1° grid of
+    // small dark direction arrows pointing along ∇T. No isochrone
+    // polylines, no run-up coastal markers, no closed-form rings —
+    // anything the simulator computes about onshore inundation goes
+    // to the analysis panel as text.
     if (bathymetricTsunami !== null) {
-      // Dense heatmap of the raw arrival-time field — underlays the
-      // four isochrone polylines so the user sees BOTH the contour
-      // bands AND the continuous gradient between them. Ignored
-      // cells (land, too-shallow) stay transparent so the OSM
-      // imagery shows through.
       const grid = useAppStore.getState().elevationGrid;
-      const field = bathymetricTsunami.field;
       // Cesium Rectangle.fromDegrees enforces lon ∈ [−180, 180] and
       // lat ∈ [−90, 90]. Normalise via modular arithmetic so grids
       // that happen to use 200°E (= −160°) still render — Cesium
@@ -2023,21 +1954,52 @@ export function Globe(): JSX.Element {
       // airburst still produced a 0.5–1 m peak field that painted
       // sparse pixels world-wide and read as "covers half the globe".
       // Skipping the entity entirely keeps the visualisation honest.
+      // ──────────────────────────────────────────────────────────────
+      // Phase 16 — global tsunami layer: discrete-band amplitude
+      // heatmap + uniform-grid wave-direction arrows.
+      //
+      // Concept: every event whose physics produces a tsunami amplitude
+      // field is rendered with the SAME two-layer primitive,
+      // independent of source magnitude:
+      //
+      //   1. Heatmap rectangle painting the global amplitude field
+      //      with NOAA-standard discrete amplitude bands
+      //      (`WAVE_AMPLITUDE_BANDS` from heatmap.ts) — green / yellow
+      //      / orange / red for ≥1, ≥3, ≥6, ≥10 m. Below 1 m the
+      //      pixel is fully transparent so sub-metre swell never
+      //      paints "macchie" on the open ocean.
+      //
+      //   2. Uniform 1° × 1° geographic grid of small dark triangle
+      //      arrows pointing along the local eikonal-ray direction
+      //      (∇T from the FMM arrival-time field). Each arrow is
+      //      placed only on cells whose amplitude is ≥ 1 m AND whose
+      //      arrival time is finite (i.e. ocean, reachable from the
+      //      source). Land cells, sub-threshold cells and cells the
+      //      wave never reached emit nothing — the visualisation is
+      //      strictly honest to the simulation.
+      //
+      // No synthetic closed-form rings, no per-tier ellipses, no iso-
+      // contour glyphs. Coastal run-up and onshore inundation are
+      // described textually in the analysis panel, never as marker
+      // points on the globe.
       const globalAmpField = bathymetricTsunami.global?.amplitude;
-      if (globalAmpField !== undefined && globalAmpField.maxAmplitude > 0.5) {
+      const globalArrivalField = bathymetricTsunami.global?.field;
+      if (
+        globalAmpField !== undefined &&
+        globalArrivalField !== undefined &&
+        globalAmpField.maxAmplitude >= 1
+      ) {
         const tGlobalStart = performance.now();
         try {
           const gAmp = globalAmpField;
           const gHeatmap = renderScalarFieldHeatmap(gAmp.amplitudes, gAmp.nLat, gAmp.nLon, {
-            colormap: 'inferno',
-            opacity: 0.32,
-            transparentBelow: 0.5,
-            // Phase 12b — downsample 2× for the global 1024² heatmap.
-            // The canvas drops to 512², the main-thread loop runs in
-            // ~10-30 ms instead of 50-150 ms, and Cesium stretches it
-            // back to the planet-wide rectangle so visible coverage
-            // is unchanged. The local high-res tile keeps full
-            // resolution for sub-km coastal detail.
+            opacity: 0.6,
+            discreteBands: WAVE_AMPLITUDE_BANDS,
+            // downsample 2× — the global 1024² grid maps to a 512²
+            // canvas that Cesium stretches over the planet rectangle.
+            // Discrete bands stay sharp (no interpolation between
+            // adjacent pixels) so the 4-band silhouette reads cleanly
+            // even at the smaller canvas size.
             downsample: 2,
           });
           viewer.entities.add({
@@ -2048,14 +2010,6 @@ export function Globe(): JSX.Element {
                 image: gHeatmap.canvas,
                 transparent: true,
               }),
-              // Phase 14a hotfix — flat at sea level instead of
-              // CLAMP_TO_GROUND. Draping a planet-wide rectangle over
-              // the streamed terrain mesh forces Cesium to fetch terrain
-              // tiles for the entire globe synchronously, which froze
-              // Launch for several seconds. The amplitude information
-              // is in the colour gradient, not in the drape geometry —
-              // flat overlay reads identically once the camera tilts
-              // back to nadir.
               height: 0,
             },
           });
@@ -2064,65 +2018,131 @@ export function Globe(): JSX.Element {
         }
         try {
           const gAmp = globalAmpField;
+          const gT = globalArrivalField;
           const gGrid = useAppStore.getState().globalBathymetricGrid;
           if (gGrid !== null) {
-            const bands = extractAmplitudeContours({
-              amplitudes: gAmp.amplitudes,
-              nLat: gAmp.nLat,
-              nLon: gAmp.nLon,
-              minLat: gGrid.minLat,
-              maxLat: gGrid.maxLat,
-              minLon: gGrid.minLon,
-              maxLon: gGrid.maxLon,
-              thresholds: [5, 1, 0.3],
-            });
-            const tierColors = [
-              Color.fromCssColorString('#DB2777'),
-              Color.fromCssColorString('#22D3EE'),
-              Color.fromCssColorString('#A5F3FC'),
-            ];
-            const tierAlpha = [0.7, 0.55, 0.4] as const;
-            const tierWidth = [3, 2.5, 2] as const;
-            // Phase 12a — segment cap. On a 1024×1024 grid the global
-            // 0.3 m iso-amplitude can return 5 000+ tiny segments, and
-            // each one is a separate Cesium Entity (~0.3 ms creation +
-            // scene re-tessellation). Capping per band keeps the main
-            // thread responsive without changing the visible contour
-            // shape: we sample uniformly so the silhouette is preserved.
-            const MAX_SEGMENTS_PER_BAND = 800;
-            let totalSegments = 0;
-            bands.forEach((band, bandIdx) => {
-              const color = tierColors[bandIdx] ?? Color.WHITE;
-              const alpha = tierAlpha[bandIdx] ?? 0.4;
-              const width = tierWidth[bandIdx] ?? 2;
-              const stride = Math.max(1, Math.ceil(band.segments.length / MAX_SEGMENTS_PER_BAND));
-              for (let segIdx = 0; segIdx < band.segments.length; segIdx += stride) {
-                const seg = band.segments[segIdx];
-                if (seg === undefined) continue;
+            // Wave-direction arrows on a uniform 1°×1° geographic grid.
+            // The arrow is dark grey (neutral against the coloured
+            // amplitude bands underneath) and a constant 30 km long —
+            // size and colour do NOT encode intensity (the heatmap
+            // does that). Only the rotation varies, which is the
+            // local direction of propagation.
+            const ARROW_COLOR = Color.fromCssColorString('#1f2937'); // slate-800
+            const ARROW_ALPHA = 0.85;
+            const ARROW_SIZE_M = 30_000;
+            const MIN_AMPLITUDE_M = 1.0;
+            // Cap on total arrow entities. 39 000 entities for a
+            // Chicxulub-class run cluttered the globe AND made every
+            // subsequent purge / camera fly-to stutter on lower-end
+            // hardware. ~3 000 is the sweet spot: still dense enough
+            // to read as a continuous flow-field on a 1920px viewport,
+            // cheap enough that creation + purge + render stay
+            // sub-200 ms even on planetary footprints.
+            const MAX_ARROWS = 3_000;
+            const latLo = Math.max(-85, Math.ceil(gGrid.minLat));
+            const latHi = Math.min(85, Math.floor(gGrid.maxLat));
+            const lonLo = Math.max(-180, Math.ceil(gGrid.minLon));
+            const lonHi = Math.min(180, Math.floor(gGrid.maxLon));
+            // ── Pass 1: count candidate cells at 1°×1° (qualifying =
+            // ocean + amp ≥ 1 m + reachable). Cheap: just amplitude
+            // and arrival lookups, no entity allocation. ────────────
+            let candidateCount = 0;
+            for (let lat = latLo; lat <= latHi; lat += 1) {
+              for (let lon = lonLo; lon <= lonHi; lon += 1) {
+                const ti = Math.round(
+                  ((gAmp.nLat - 1) * (gGrid.maxLat - lat)) / (gGrid.maxLat - gGrid.minLat)
+                );
+                const tj = Math.round(
+                  ((gAmp.nLon - 1) * (lon - gGrid.minLon)) / (gGrid.maxLon - gGrid.minLon)
+                );
+                if (ti < 0 || ti >= gAmp.nLat || tj < 0 || tj >= gAmp.nLon) continue;
+                const amplitude = gAmp.amplitudes[ti * gAmp.nLon + tj] ?? 0;
+                if (!Number.isFinite(amplitude) || amplitude < MIN_AMPLITUDE_M) continue;
+                const arrival = gT.arrivalTimes[ti * gT.nLon + tj] ?? Number.POSITIVE_INFINITY;
+                if (!Number.isFinite(arrival)) continue;
+                candidateCount += 1;
+              }
+            }
+            // ── Adaptive step. step = ceil(√(candidates / MAX_ARROWS))
+            // keeps geographic uniformity within a single event (every
+            // grid step is the same in degrees) while bounding total
+            // count: a Chicxulub-class footprint with 39 000 candidates
+            // collapses to ~3 000 arrows at step 4°; a regional event
+            // with 244 candidates stays at step 1° (no thinning).
+            const stepDeg = Math.max(
+              1,
+              Math.ceil(Math.sqrt(Math.max(candidateCount, 1) / MAX_ARROWS))
+            );
+            // ── Pass 2: emit arrows at the adaptive step. ──────────
+            let totalArrows = 0;
+            for (let lat = latLo; lat <= latHi; lat += stepDeg) {
+              for (let lon = lonLo; lon <= lonHi; lon += stepDeg) {
+                // Look up amplitude at this geographic point. Map
+                // (lat, lon) to (i, j) in the global grid via the same
+                // row-major-north-to-south convention as the FMM.
+                const ti = Math.round(
+                  ((gAmp.nLat - 1) * (gGrid.maxLat - lat)) / (gGrid.maxLat - gGrid.minLat)
+                );
+                const tj = Math.round(
+                  ((gAmp.nLon - 1) * (lon - gGrid.minLon)) / (gGrid.maxLon - gGrid.minLon)
+                );
+                if (ti < 0 || ti >= gAmp.nLat || tj < 0 || tj >= gAmp.nLon) continue;
+                const amplitude = gAmp.amplitudes[ti * gAmp.nLon + tj] ?? 0;
+                if (!Number.isFinite(amplitude) || amplitude < MIN_AMPLITUDE_M) continue;
+                const arrival = gT.arrivalTimes[ti * gT.nLon + tj] ?? Number.POSITIVE_INFINITY;
+                if (!Number.isFinite(arrival)) continue;
+                const dir = sampleArrivalGradient(
+                  gT.arrivalTimes,
+                  gT.nLat,
+                  gT.nLon,
+                  gGrid.minLat,
+                  gGrid.maxLat,
+                  gGrid.minLon,
+                  gGrid.maxLon,
+                  lat,
+                  lon
+                );
+                if (dir.east === 0 && dir.north === 0) continue;
+                // Triangle size scales with the geographic step so
+                // bigger-spaced arrows stay visually proportionate to
+                // their cell. step=1 → 30 km, step=4 → 60 km, capped
+                // so very dense events don't get postage-stamp arrows.
+                const adaptiveSizeM = ARROW_SIZE_M * Math.min(stepDeg, 3);
+                const verts = buildWaveTriangleVerts(lat, lon, dir.east, dir.north, adaptiveSizeM);
+                if (verts === null) continue;
+                const id = `tsunami-arrow-${lat.toString()}-${lon.toString()}`;
                 viewer.entities.add({
-                  id: `tsunami-global-iso-${bandIdx.toString()}-${segIdx.toString()}`,
-                  polyline: {
-                    positions: [
-                      Cartesian3.fromDegrees(seg.lon1, seg.lat1),
-                      Cartesian3.fromDegrees(seg.lon2, seg.lat2),
-                    ],
-                    width,
-                    material: color.withAlpha(alpha),
-                    // Phase 14a hotfix — see local iso-contour above.
+                  id,
+                  polygon: {
+                    hierarchy: new PolygonHierarchy(verts),
+                    material: ARROW_COLOR.withAlpha(ARROW_ALPHA),
+                    outline: false,
+                    // Lifted 1 km above sea level so the hover-pick ray
+                    // hits the arrow BEFORE any damage ring (which is
+                    // CLAMP_TO_GROUND at the sea-level terrain). 1 km is
+                    // visually invisible at globe zoom (sub-pixel offset
+                    // from the underlying surface) but enough to win
+                    // the pick competition every time.
+                    height: 1_000,
                   },
                 });
-                totalSegments++;
+                // Tooltip: hovering over an arrow shows the local wave
+                // height at that point in metres, sourced directly
+                // from the FMM amplitude field. The tooltip's
+                // `radiusM` slot is repurposed as the amplitude — the
+                // formatter switches based on `kind`.
+                registerRingTooltip(id, 'tsunamiWaveAmplitude', amplitude, ARROW_COLOR);
+                totalArrows++;
               }
-            });
+            }
             if (import.meta.env.DEV) {
-              const total = bands.reduce((s, b) => s + b.segments.length, 0);
               console.info(
-                `[Globe] global iso-amplitude: extracted ${total.toString()} segments, rendered ${totalSegments.toString()} (cap ${MAX_SEGMENTS_PER_BAND.toString()}/band)`
+                `[Globe] tsunami arrows: ${totalArrows.toString()} placed (${candidateCount.toString()} candidates, step ${stepDeg.toString()}°×${stepDeg.toString()}°, cap ${MAX_ARROWS.toString()})`
               );
             }
           }
         } catch (err: unknown) {
-          console.warn('[Globe] global iso-amplitude render failed:', err);
+          console.warn('[Globe] tsunami arrow render failed:', err);
         }
         if (import.meta.env.DEV) {
           console.info(
@@ -2130,32 +2150,38 @@ export function Globe(): JSX.Element {
           );
         }
       }
+      // ──────────────────────────────────────────────────────────────
+      // Local high-res tile (~150 km, ~600 m/pixel). Renders the same
+      // discrete-band amplitude heatmap as the global layer, just on
+      // a tighter rectangle anchored on the source. Adds near-source
+      // resolution detail (sub-km pixels visible when the camera is
+      // zoomed in). Arrival-time heatmap retired in Phase 16 — the
+      // arrows + amplitude bands carry the visualisation; per-tier
+      // isochrones, run-up coastal point markers and per-cell colour
+      // dots are now exposed only in the analysis panel, never on the
+      // globe (per the Phase 16 directive that the map should never
+      // show indicators on land).
       if (
         grid !== null &&
         Number.isFinite(grid.minLat) &&
         Number.isFinite(grid.maxLat) &&
         Math.abs(grid.minLat) <= 90 &&
-        Math.abs(grid.maxLat) <= 90
+        Math.abs(grid.maxLat) <= 90 &&
+        bathymetricTsunami.amplitude !== undefined
       ) {
         try {
-          // Layered tsunami opacity hierarchy: the arrival-time map
-          // is the *background* layer (where + when), the amplitude
-          // map sits on top (how big), and the isochrone polylines
-          // are the sharp reference contours. Each step down the
-          // stack drops opacity so the polylines stay legible
-          // against the heatmap soup.
-          // Lower opacity than before (0.3 → 0.18) so the rectangular
-          // grid bbox does not read as a "yellow square" against the
-          // OSM imagery. The viridis tail at the lowest values now
-          // fades almost to invisibility, leaving the wave-front
-          // rings + isochrone polylines as the primary cues.
-          const heatmap = renderScalarFieldHeatmap(field.arrivalTimes, field.nLat, field.nLon, {
-            colormap: 'viridis',
-            opacity: 0.18,
-            transparentBelow: 0,
-          });
+          const ampField = bathymetricTsunami.amplitude;
+          const ampHeatmap = renderScalarFieldHeatmap(
+            ampField.amplitudes,
+            ampField.nLat,
+            ampField.nLon,
+            {
+              opacity: 0.7,
+              discreteBands: WAVE_AMPLITUDE_BANDS,
+            }
+          );
           viewer.entities.add({
-            id: FMM_HEATMAP_ID,
+            id: FMM_AMPLITUDE_HEATMAP_ID,
             rectangle: {
               coordinates: Rectangle.fromDegrees(
                 normLon(grid.minLon),
@@ -2164,166 +2190,94 @@ export function Globe(): JSX.Element {
                 grid.maxLat
               ),
               material: new ImageMaterialProperty({
-                image: heatmap.canvas,
+                image: ampHeatmap.canvas,
                 transparent: true,
               }),
-              // Phase 14a hotfix — see global heatmap above. Local tile
-              // rectangle is smaller (~150 km) but still expensive to
-              // drape over terrain on Launch.
               height: 0,
             },
           });
         } catch (err: unknown) {
-          console.warn('[Globe] FMM heatmap render failed:', err);
+          console.warn('[Globe] local amplitude heatmap render failed:', err);
         }
-        // When the orchestrator passed source-amplitude metadata to the
-        // FMM, the bathymetric block carries an amplitude field too —
-        // overlay it as a warm "inferno" heatmap on top of the cool
-        // arrival-time map so the eye reads the two layers as
-        // complementary (where + when vs how big).
-        if (bathymetricTsunami.amplitude !== undefined) {
-          try {
-            const ampField = bathymetricTsunami.amplitude;
-            const ampHeatmap = renderScalarFieldHeatmap(
-              ampField.amplitudes,
-              ampField.nLat,
-              ampField.nLon,
-              {
-                colormap: 'inferno',
-                opacity: 0.4,
-                // Bumped from 0.05 → 0.5 m: cells where the wave is
-                // smaller than half a metre are not the "tsunami
-                // damage" the user reads from this layer, and keeping
-                // them transparent collapses the rectangular grid
-                // bbox into a wave-shaped hot core. Coastal-tide-
-                // gauge-only signatures (cm-scale) still surface in
-                // the report panel, just not on the globe.
-                transparentBelow: 0.5,
-              }
+        // ── Local wave-direction arrows ──────────────────────────
+        // Sample a coarse cell stride on the local FMM tile (~150 km,
+        // ~600 m/pixel) so events that don't propagate widely enough
+        // on the global 40 km/pixel grid (sub-megaton explosions in
+        // confined basins, modest landslides, M9-class shelf events)
+        // STILL get a visual hint of the wave direction near the
+        // source, instead of leaving the user with an empty map.
+        // Same gating as the global pass: amplitude ≥ 1 m and arrival
+        // finite. Same primitive (small dark triangle, neutral grey)
+        // and same tooltip kind, so the user reads the two layers as
+        // a single uniform glyph field.
+        try {
+          const ampField = bathymetricTsunami.amplitude;
+          const arrField = bathymetricTsunami.field;
+          const LOCAL_ARROW_COLOR = Color.fromCssColorString('#1f2937');
+          const LOCAL_ARROW_ALPHA = 0.85;
+          const LOCAL_ARROW_SIZE_M = 6_000;
+          const LOCAL_MIN_AMPLITUDE_M = 1.0;
+          // Aim for ~10 arrows per side on the tile (~100 total).
+          // Stride is computed from the actual nLat / nLon so it
+          // adapts if the local tile resolution changes.
+          const TARGET_LOCAL_PER_SIDE = 10;
+          const stride = Math.max(
+            1,
+            Math.floor(Math.min(ampField.nLat, ampField.nLon) / TARGET_LOCAL_PER_SIDE)
+          );
+          let localArrows = 0;
+          for (let i = 0; i < ampField.nLat; i += stride) {
+            for (let j = 0; j < ampField.nLon; j += stride) {
+              const amp = ampField.amplitudes[i * ampField.nLon + j] ?? 0;
+              if (!Number.isFinite(amp) || amp < LOCAL_MIN_AMPLITUDE_M) continue;
+              const arrival =
+                arrField.arrivalTimes[i * arrField.nLon + j] ?? Number.POSITIVE_INFINITY;
+              if (!Number.isFinite(arrival)) continue;
+              const cellLat = grid.maxLat - (i / (ampField.nLat - 1)) * (grid.maxLat - grid.minLat);
+              const cellLon = grid.minLon + (j / (ampField.nLon - 1)) * (grid.maxLon - grid.minLon);
+              const dir = sampleArrivalGradient(
+                arrField.arrivalTimes,
+                arrField.nLat,
+                arrField.nLon,
+                grid.minLat,
+                grid.maxLat,
+                grid.minLon,
+                grid.maxLon,
+                cellLat,
+                cellLon
+              );
+              if (dir.east === 0 && dir.north === 0) continue;
+              const verts = buildWaveTriangleVerts(
+                cellLat,
+                cellLon,
+                dir.east,
+                dir.north,
+                LOCAL_ARROW_SIZE_M
+              );
+              if (verts === null) continue;
+              const id = `tsunami-arrow-local-${i.toString()}-${j.toString()}`;
+              viewer.entities.add({
+                id,
+                polygon: {
+                  hierarchy: new PolygonHierarchy(verts),
+                  material: LOCAL_ARROW_COLOR.withAlpha(LOCAL_ARROW_ALPHA),
+                  outline: false,
+                  height: 1_000,
+                },
+              });
+              registerRingTooltip(id, 'tsunamiWaveAmplitude', amp, LOCAL_ARROW_COLOR);
+              localArrows += 1;
+            }
+          }
+          if (import.meta.env.DEV) {
+            console.info(
+              `[Globe] tsunami local arrows: ${localArrows.toString()} placed (stride ${stride.toString()} cells over ${ampField.nLat.toString()}×${ampField.nLon.toString()} tile)`
             );
-            viewer.entities.add({
-              id: FMM_AMPLITUDE_HEATMAP_ID,
-              rectangle: {
-                coordinates: Rectangle.fromDegrees(
-                  normLon(grid.minLon),
-                  grid.minLat,
-                  normLon(grid.maxLon),
-                  grid.maxLat
-                ),
-                material: new ImageMaterialProperty({
-                  image: ampHeatmap.canvas,
-                  transparent: true,
-                }),
-                // Phase 14a hotfix — flat at sea level (see comments above).
-                height: 0,
-              },
-            });
-          } catch (err: unknown) {
-            console.warn('[Globe] amplitude heatmap render failed:', err);
           }
-        }
-        // Synolakis 1987 coastal run-up band — the *quantitative*
-        // counterpart to the iso-amplitude polylines. Renders one
-        // small coloured point per coastal cell, with the colour
-        // mapped to run-up height on a 5-tier inferno-style ramp:
-        //
-        //   < 1 m   neutral grey  (decorative — below felt threshold)
-        //   1–3 m   yellow         (alarm)
-        //   3–10 m  orange         (severe)
-        //   10–30 m red            (catastrophic, e.g. Sendai 2011 9 m)
-        //   > 30 m  magenta        (mega — Krakatau 1883 35 m, Lituya '58)
-        //
-        // Renders only when the orchestrator produced a runup field
-        // (which itself only happens when the source amplitude was
-        // passed in). Skipping this layer for tiny tsunamis keeps the
-        // map uncluttered for sub-metre events.
-        if (bathymetricTsunami.runup !== undefined) {
-          const runup = bathymetricTsunami.runup;
-          for (const cell of runup.cells) {
-            if (!Number.isFinite(cell.runupM) || cell.runupM <= 0.5) continue;
-            // Tier colour pick — must match the legend semantics
-            // exactly so a hover tooltip reads consistently.
-            let tierColor: Color;
-            if (cell.runupM < 1) tierColor = Color.fromCssColorString('#9CA3AF');
-            else if (cell.runupM < 3) tierColor = Color.fromCssColorString('#FACC15');
-            else if (cell.runupM < 10) tierColor = Color.fromCssColorString('#F97316');
-            else if (cell.runupM < 30) tierColor = Color.fromCssColorString('#DC2626');
-            else tierColor = Color.fromCssColorString('#D946EF');
-            // Cesium clamps the GPU pixelSize to the platform's
-            // ALIASED_POINT_SIZE_RANGE; values >12 are commonly
-            // ignored on integrated GPUs so we keep the dot small
-            // and rely on the colour gradient to carry the signal.
-            const radius = cell.runupM < 1 ? 4 : cell.runupM < 10 ? 6 : 8;
-            viewer.entities.add({
-              id: `tsunami-runup-${cell.latitude.toFixed(3)}-${cell.longitude.toFixed(3)}`,
-              position: Cartesian3.fromDegrees(cell.longitude, cell.latitude),
-              point: {
-                pixelSize: radius,
-                color: tierColor.withAlpha(0.85),
-                outlineColor: Color.BLACK.withAlpha(0.5),
-                outlineWidth: 1,
-              },
-            });
-          }
+        } catch (err: unknown) {
+          console.warn('[Globe] local tsunami arrow render failed:', err);
         }
       }
-      const fallbackColor = ISOCHRONE_COLORS[ISOCHRONE_COLORS.length - 1] ?? Color.WHITE;
-      const isochroneTooltipKindFor: RingTooltipKind[] = [
-        'tsunamiIsochrone1h',
-        'tsunamiIsochrone2h',
-        'tsunamiIsochrone4h',
-        'tsunamiIsochrone8h',
-      ];
-      bathymetricTsunami.isochrones.forEach((band, bandIdx) => {
-        const color = ISOCHRONE_COLORS[bandIdx] ?? fallbackColor;
-        const tooltipKind: RingTooltipKind =
-          isochroneTooltipKindFor[bandIdx] ?? 'tsunamiIsochrone8h';
-        // Approximate ring radius for the band: average great-circle
-        // distance from the source to every segment endpoint. Lets
-        // the hover tooltip surface "≈ X km from epicentre" alongside
-        // the band's onset time.
-        let bandRadiusSum = 0;
-        let bandRadiusCount = 0;
-        band.segments.forEach((seg, segIdx) => {
-          const id = `${ISOCHRONE_ID_PREFIX}${bandIdx.toString()}-${segIdx.toString()}`;
-          viewer.entities.add({
-            id,
-            polyline: {
-              positions: [
-                Cartesian3.fromDegrees(seg.lon1, seg.lat1),
-                Cartesian3.fromDegrees(seg.lon2, seg.lat2),
-              ],
-              // 2.5 → 4 px so the propagating wave fronts pop above
-              // the dimmed amplitude/arrival heatmap underneath, AND
-              // so the cursor target for hover tooltips is reachable
-              // without nano-precision aim.
-              width: 4,
-              material: color.withAlpha(0.95),
-              // Phase 14a hotfix — clampToGround removed; isochrones
-              // are open-ocean polylines, drape adds no visual.
-            },
-          });
-          const latSpan1 = Math.abs(seg.lat1 - ringAnchor.latitude);
-          const lonSpan1 = Math.abs(seg.lon1 - ringAnchor.longitude);
-          const latSpan2 = Math.abs(seg.lat2 - ringAnchor.latitude);
-          const lonSpan2 = Math.abs(seg.lon2 - ringAnchor.longitude);
-          const r1 = Math.sqrt(latSpan1 * latSpan1 + lonSpan1 * lonSpan1) * 111_000;
-          const r2 = Math.sqrt(latSpan2 * latSpan2 + lonSpan2 * lonSpan2) * 111_000;
-          bandRadiusSum += (r1 + r2) / 2;
-          bandRadiusCount += 1;
-          const segReach = Math.max(latSpan1, lonSpan1, latSpan2, lonSpan2) * 111_000;
-          if (segReach > isochroneReach) isochroneReach = segReach;
-        });
-        // Register one tooltip metadata row per segment so the hover
-        // detector picks any of the band's polylines. They all carry
-        // the same band-level tooltip kind and average radius, so the
-        // user sees a consistent message anywhere along the front.
-        const meanRadius = bandRadiusCount > 0 ? bandRadiusSum / bandRadiusCount : 0;
-        band.segments.forEach((_seg, segIdx) => {
-          const id = `${ISOCHRONE_ID_PREFIX}${bandIdx.toString()}-${segIdx.toString()}`;
-          registerRingTooltip(id, tooltipKind, meanRadius, color);
-        });
-      });
     }
 
     // Ring animation start is deferred until after the camera fly-to
@@ -2361,6 +2315,7 @@ export function Globe(): JSX.Element {
               semiMinorAxis: clampToGreatCircle(radius),
               material: radialDamageMaterial(color, alpha * 0.18),
               outline: false,
+              height: 0,
               heightReference: HeightReference.CLAMP_TO_GROUND,
             },
           });
@@ -2426,13 +2381,39 @@ export function Globe(): JSX.Element {
     }
 
     // --- Unified camera auto-framing -------------------------------
-    // Pull the camera back so EVERY overlay (damage rings, isochrones,
-    // ashfall plume, EMP footprint) fits in frame. The frame radius
-    // is the max ground-range the scenario reaches; BoundingSphere +
-    // flyToBoundingSphere then pick a correct altitude for Cesium's
-    // default FOV, regardless of event type or scale.
+    // Pull the camera back so the damage / ashfall / EMP overlays
+    // fit in frame. The tsunami amplitude footprint is sampled from
+    // the global FMM amplitude field — we walk the planetary grid,
+    // measure the great-circle distance from the source to every
+    // cell with amplitude ≥ 1 m, and take the maximum so the camera
+    // sees the whole tsunami reach (which can be antipodal for
+    // Chicxulub-class events and small for a megaton-class
+    // explosion in a confined basin).
+    let tsunamiReachM = 0;
+    if (bathymetricTsunami?.global?.amplitude !== undefined) {
+      const gAmp = bathymetricTsunami.global.amplitude;
+      const gGrid = useAppStore.getState().globalBathymetricGrid;
+      if (gGrid !== null) {
+        const latStep = (gGrid.maxLat - gGrid.minLat) / Math.max(1, gAmp.nLat - 1);
+        const lonStep = (gGrid.maxLon - gGrid.minLon) / Math.max(1, gAmp.nLon - 1);
+        const lat0Rad = (ringAnchor.latitude * Math.PI) / 180;
+        const cosLat0 = Math.max(Math.cos(lat0Rad), 1e-6);
+        for (let i = 0; i < gAmp.nLat; i += 4) {
+          const lat = gGrid.maxLat - i * latStep;
+          for (let j = 0; j < gAmp.nLon; j += 4) {
+            const a = gAmp.amplitudes[i * gAmp.nLon + j] ?? 0;
+            if (!Number.isFinite(a) || a < 1) continue;
+            const lon = gGrid.minLon + j * lonStep;
+            const dLat = (lat - ringAnchor.latitude) * 111_000;
+            const dLon = (lon - ringAnchor.longitude) * 111_000 * cosLat0;
+            const r = Math.sqrt(dLat * dLat + dLon * dLon);
+            if (r > tsunamiReachM) tsunamiReachM = r;
+          }
+        }
+      }
+    }
     const frameRadius = Math.min(
-      computeFrameRadius(result, ashfall, isochroneReach),
+      computeFrameRadius(result, ashfall, tsunamiReachM),
       EARTH_GREAT_CIRCLE_MAX
     );
     const reduceMotion =
@@ -2472,8 +2453,8 @@ export function Globe(): JSX.Element {
           id: WAVEFRONT_INDICATOR_ID,
           position: centerCartesian,
           ellipse: {
-            semiMajorAxis: 0,
-            semiMinorAxis: 0,
+            semiMajorAxis: RING_INITIAL_RADIUS_M,
+            semiMinorAxis: RING_INITIAL_RADIUS_M,
             // No fill — the wavefront is a propagating EDGE, not a
             // filled disc. Cesium's outline renders as a ground
             // polyline, always visible regardless of camera pitch.
@@ -2481,6 +2462,7 @@ export function Globe(): JSX.Element {
             outline: true,
             outlineColor: Color.fromCssColorString('#facc15').withAlpha(0.95),
             outlineWidth: 6,
+            height: 0,
             heightReference: HeightReference.CLAMP_TO_GROUND,
           },
         });
@@ -2661,6 +2643,7 @@ export function Globe(): JSX.Element {
           material: radialDamageMaterial(color, alpha),
           outline: true,
           outlineColor: color.withAlpha(0.55),
+          height: 0,
           heightReference: HeightReference.CLAMP_TO_GROUND,
         },
       });

@@ -65,6 +65,25 @@ export const NUCLEAR_THERMAL_PARTITION = 0.35;
 // (1997), Rev. Geophys. 35, Table 1. Nominal η = 3e-3, dimensionless.
 export const IMPACT_LUMINOUS_EFFICIENCY = 3e-3;
 
+// Atmospheric blast coupling efficiency for a cosmic impact —
+// fraction of the impactor's kinetic energy that is delivered to the
+// air-shock wave (and therefore drives the over-pressure damage rings
+// at ground level). The remainder goes into cratering work, ejecta
+// kinetic energy, ground-coupled seismic waves, melt/vapour formation
+// and the thermal pulse already accounted for via
+// IMPACT_LUMINOUS_EFFICIENCY. Pierazzo (1997, "Hydrocode simulations
+// of vertical impacts") and Collins, Melosh & Marcus (2005, "Earth
+// Impact Effects Program") both anchor the value near 0.5; we adopt
+// 0.5 as the canonical popular-science envelope.
+//
+// Without this factor, applying the Kinney-Graham over-pressure law
+// directly to the impactor's full KE over-states blast radii by
+// ≈ √(1/0.5) ≈ 1.41 × at every threshold — exactly the +42 % we saw
+// on the Tunguska 1 psi (71 km vs 50 km observed forest blowdown)
+// and Chicxulub 1 psi (8 510 km vs 6 000 km Collins-Melosh-Marcus
+// envelope) rings. Applying 0.5 brings both inside ±15 %.
+export const IMPACT_BLAST_COUPLING = 0.5;
+
 // Asteroid / comet taxonomy with class-midpoint bulk density (kg/m^3)
 // and tensile strength (Pa). Real bodies vary ±30%.
 // Britt & Consolmagno (2003), MAPS 38(8): 1161; Popova et al. (2011),

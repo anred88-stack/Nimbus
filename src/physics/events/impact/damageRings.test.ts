@@ -52,14 +52,24 @@ describe('impactDamageRadii', () => {
     expect(r.craterRim as number).toBe(1_000);
   });
 
-  it('Hiroshima-class (15 kt) produces ≈ 2–3 km burn radius and ≈ 3 km 1 psi ring', () => {
+  it('15 kt impact produces ≈ 200 m thermal-burn radius and ≈ 3 km 1 psi ring', () => {
     const r = impactDamageRadii(megatonsToJoules(Mt(0.015)), meters(200));
-    // Unshielded 3rd-degree burn radius ≈ 2.3 km (see thermal.test.ts).
-    expect(r.thirdDegreeBurn as number).toBeGreaterThan(2_000);
-    expect(r.thirdDegreeBurn as number).toBeLessThan(3_000);
-    // 1 psi (window-break) ring for a 15 kt surface burst ≈ 3.3 km —
-    // the oft-cited ≈4 km figure belongs to optimum-height airbursts
-    // with Mach-stem boost, not our contact-burst envelope.
+    // Phase-17 thermal calibration. A 15 kt IMPACT (not a 15 kt
+    // nuclear bomb) produces a much smaller thermal flash because the
+    // impact luminous efficiency is ≈ 3 × 10⁻³ (Collins-Melosh-Marcus
+    // 2005) rather than the 0.35 of a low-altitude nuclear burst —
+    // most of the impactor's kinetic energy goes into shock waves,
+    // crater excavation and ejecta, not radiated heat. Inverting
+    // R = √(f·W / (4π·Q)) with f = 3e-3, W = 15 kt × 4.184 × 10¹² J,
+    // Q = 3.35 × 10⁵ J/m² (3rd-burn fluence) gives ≈ 211 m. The
+    // earlier 2–3 km expectation was the symptom of the bug we just
+    // fixed: the impact pipeline was incorrectly inheriting the
+    // nuclear thermal partition through a default argument.
+    expect(r.thirdDegreeBurn as number).toBeGreaterThan(150);
+    expect(r.thirdDegreeBurn as number).toBeLessThan(300);
+    // Blast pipeline is unchanged — Kinney-Graham overpressure scaling
+    // doesn't care whether the energy was nuclear or kinetic, so the
+    // 1 psi reach for a 15 kt yield stays at ≈ 3.3 km.
     expect(r.overpressure1psi as number).toBeGreaterThan(2_500);
     expect(r.overpressure1psi as number).toBeLessThan(4_500);
   });

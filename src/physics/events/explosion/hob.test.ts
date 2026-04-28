@@ -29,9 +29,16 @@ describe('hobRegime', () => {
 });
 
 describe('hobBlastFactor (Needham 2018 / Glasstone Fig. 3.73)', () => {
-  it('surface burst reduces 5 psi ring to ~85 % of the optimum-HOB baseline', () => {
-    expect(hobBlastFactor(0)).toBeCloseTo(0.85, 2);
-    expect(hobBlastFactor(49)).toBeCloseTo(0.85, 2);
+  it('surface burst factor is 1.0 — Glasstone surface-burst tables are already published with ground coupling', () => {
+    // Phase-17 calibration. The factor was 0.85 ("slight ground
+    // loss") prior to the calibration sweep, but the Glasstone &
+    // Dolan 1977 Tab 12.20 surface-burst overpressure radii bake the
+    // ground-coupling loss into the tabulated values themselves —
+    // multiplying the Kinney-Graham surface-burst output by 0.85
+    // double-counted the loss and pulled Castle Bravo / 1 Mt
+    // surface from ✓ to ⚠ on the ring-radius benchmark.
+    expect(hobBlastFactor(0)).toBeCloseTo(1.0, 2);
+    expect(hobBlastFactor(49)).toBeCloseTo(1.0, 2);
   });
 
   it('optimum airburst band (150–300 m/kt^(1/3)) returns 1.50 — Mach-stem amplification', () => {
@@ -65,9 +72,12 @@ describe('correctRadiusForHob', () => {
     expect(r as number).toBeLessThanOrEqual(3_100);
   });
 
-  it('Surface burst cuts the radius by ~15 %', () => {
+  it('Surface burst returns the radius unchanged (factor 1.0)', () => {
+    // Phase-17 calibration: surface bursts no longer get a
+    // double-count "ground loss" multiplier. Kinney-Graham × 1.0 is
+    // already calibrated against Glasstone surface-burst tables.
     const r = correctRadiusForHob(m(2_000), 0, 15);
-    expect(r as number).toBeCloseTo(1_700, -1);
+    expect(r as number).toBeCloseTo(2_000, -1);
   });
 
   it('Stratospheric burst collapses the radius to ~25 %', () => {

@@ -77,9 +77,16 @@ export function hobRegime(scaled: number): HobRegime {
  * Tsar Bomba and Sublette nuclear FAQ for high-yield airbursts.
  */
 export function hobBlastFactor(scaled: number): number {
-  if (!Number.isFinite(scaled) || scaled <= 0) return 0.85;
-  if (scaled < 50) return 0.85;
-  if (scaled < 150) return 0.85 + (0.65 * (scaled - 50)) / 100;
+  // Phase-17 calibration. The previous baseline returned 0.85 for
+  // surface bursts ("slight ground loss"), but Glasstone & Dolan 1977
+  // Fig. 3.74a / Tab 12.20 publishes surface-burst overpressure radii
+  // that ALREADY account for surface coupling — Kinney-Graham × 0.85
+  // double-counted the loss and pulled Castle Bravo / 1 Mt surface
+  // from ✓ to ⚠ on the benchmark. Setting the surface baseline to 1.0
+  // recovers the published references within ±20 % across the range.
+  if (!Number.isFinite(scaled) || scaled <= 0) return 1.0;
+  if (scaled < 50) return 1.0;
+  if (scaled < 150) return 1.0 + (0.5 * (scaled - 50)) / 100;
   if (scaled < 300) return 1.5;
   if (scaled < 700) return 1.5 - (0.8 * (scaled - 300)) / 400;
   if (scaled < 1500) return 0.7 * Math.exp(-(scaled - 700) / 1500);

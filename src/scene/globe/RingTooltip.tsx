@@ -27,6 +27,7 @@ export type RingTooltipKind =
   | 'tsunamiIsochrone2h'
   | 'tsunamiIsochrone4h'
   | 'tsunamiIsochrone8h'
+  | 'tsunamiWaveAmplitude'
   | 'mmi7'
   | 'mmi8'
   | 'mmi9'
@@ -59,6 +60,17 @@ function formatRadius(radiusM: number): string {
   if (!Number.isFinite(radiusM) || radiusM <= 0) return '—';
   const clamped = clampToGreatCircle(radiusM) as number;
   return clamped < 1_000 ? `${clamped.toFixed(0)} m` : `${(clamped / 1_000).toFixed(1)} km`;
+}
+
+/**
+ * Format a tsunami wave amplitude as a human-readable height. Units
+ * stay in metres throughout (no km cross-over) — open-ocean tsunami
+ * amplitudes are in the 1–100 m range and showing "0.05 km" for a
+ * 50 m mega-tsunami would be terrible UX.
+ */
+function formatWaveHeight(metres: number): string {
+  if (!Number.isFinite(metres) || metres <= 0) return '—';
+  return metres < 10 ? `${metres.toFixed(1)} m` : `${metres.toFixed(0)} m`;
 }
 
 /**
@@ -103,16 +115,24 @@ export const RingTooltip = forwardRef(function RingTooltip(
   const { t } = useTranslation();
   const visible = info !== null;
 
-  const renderRing = (ringInfo: RingHoverInfo): JSX.Element => (
-    <>
-      <div className={styles.titleBar} style={{ backgroundColor: ringInfo.color }} aria-hidden />
-      <h3 className={styles.title}>{t(`globe.tooltip.ring.${ringInfo.kind}.title`)}</h3>
-      <p className={styles.meta}>
-        {t('globe.tooltip.radiusLine', { value: formatRadius(ringInfo.radiusM) })}
-      </p>
-      <p className={styles.description}>{t(`globe.tooltip.ring.${ringInfo.kind}.description`)}</p>
-    </>
-  );
+  const renderRing = (ringInfo: RingHoverInfo): JSX.Element => {
+    // The tsunami amplitude tooltip carries the local wave HEIGHT (in
+    // metres) in `radiusM` rather than a radial distance — its meta
+    // line therefore reads "wave height: X m" instead of "radius: X km".
+    // All other ring kinds keep the legacy radius formatter.
+    const isWaveAmplitude = ringInfo.kind === 'tsunamiWaveAmplitude';
+    const metaLine = isWaveAmplitude
+      ? t('globe.tooltip.waveHeightLine', { value: formatWaveHeight(ringInfo.radiusM) })
+      : t('globe.tooltip.radiusLine', { value: formatRadius(ringInfo.radiusM) });
+    return (
+      <>
+        <div className={styles.titleBar} style={{ backgroundColor: ringInfo.color }} aria-hidden />
+        <h3 className={styles.title}>{t(`globe.tooltip.ring.${ringInfo.kind}.title`)}</h3>
+        <p className={styles.meta}>{metaLine}</p>
+        <p className={styles.description}>{t(`globe.tooltip.ring.${ringInfo.kind}.description`)}</p>
+      </>
+    );
+  };
 
   const renderAftershock = (aftershock: AftershockHoverInfo): JSX.Element => (
     <>

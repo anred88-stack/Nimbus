@@ -1,4 +1,5 @@
 import { ussaPressure, USSA_SEA_LEVEL_PRESSURE } from '../atmosphere/ussa1976.js';
+import { IMPACT_BLAST_COUPLING, IMPACT_LUMINOUS_EFFICIENCY } from '../constants.js';
 import {
   OVERPRESSURE_LIGHT_DAMAGE,
   OVERPRESSURE_WINDOW_BREAK,
@@ -290,20 +291,42 @@ function computeEntryDamage(
     return ZERO_ENTRY_DAMAGE;
   }
   const yieldEnergy = J(atmosphericYieldJ);
+  // Phase-17 calibration. The Kinney-Graham over-pressure inverter
+  // assumes the FULL energy partitions into the air-shock; for an
+  // impact only ≈ 50 % does (the rest goes into thermal radiation,
+  // crater excavation, ejecta KE, ground-coupled seismic waves). See
+  // `IMPACT_BLAST_COUPLING` in `src/physics/constants.ts` for the
+  // citation chain. This brings the Tunguska 1 psi forest-blowdown
+  // ring from +43 % to +13 % of the published value (Svetsov 1996,
+  // Boslough & Crawford 2008).
+  const blastEnergy = J(atmosphericYieldJ * IMPACT_BLAST_COUPLING);
   const factor = bolideAirburstAmplification(burstAltitudeM);
   const scale = (raw: Meters): Meters => m((raw as number) * factor);
   const safeDistance = (target: Pascals): Meters => {
     try {
-      return scale(distanceForOverpressure(yieldEnergy, target));
+      return scale(distanceForOverpressure(blastEnergy, target));
     } catch {
       return m(0);
     }
   };
   return {
     flashBurnRadii: {
-      firstDegree: scale(firstDegreeBurnRadius({ yieldEnergy })),
-      secondDegree: scale(secondDegreeBurnRadius({ yieldEnergy })),
-      thirdDegree: scale(thirdDegreeBurnRadius({ yieldEnergy })),
+      // Phase-17 thermal calibration. The atmospheric-entry flash-burn
+      // radii are an impact phenomenon (thermal pulse from a meteor /
+      // bolide entry, not a nuclear detonation), so the burn-radius
+      // helpers must be passed the impact luminous efficiency rather
+      // than the nuclear default. See the matching note in
+      // `damageRings.ts` for the citation chain (Collins-Melosh-Marcus
+      // 2005 / Toon 1997).
+      firstDegree: scale(
+        firstDegreeBurnRadius({ yieldEnergy, thermalPartition: IMPACT_LUMINOUS_EFFICIENCY })
+      ),
+      secondDegree: scale(
+        secondDegreeBurnRadius({ yieldEnergy, thermalPartition: IMPACT_LUMINOUS_EFFICIENCY })
+      ),
+      thirdDegree: scale(
+        thirdDegreeBurnRadius({ yieldEnergy, thermalPartition: IMPACT_LUMINOUS_EFFICIENCY })
+      ),
     },
     shockWaveRadii: {
       fivePsi: safeDistance(OVERPRESSURE_BUILDING_COLLAPSE),

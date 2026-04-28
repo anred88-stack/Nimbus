@@ -173,11 +173,24 @@ function easeOutCubic(t: number): number {
  * (they get wrapped internally). This is the pragmatic escape hatch
  * documented in the module header.
  */
+/** Floor for ellipse semi-axes, in metres. Cesium's ground-geometry
+ *  pipeline (`StaticGroundGeometryPerMaterialBatch`, used whenever an
+ *  ellipse carries `heightReference: CLAMP_TO_GROUND` since Phase 14)
+ *  calls `pointOnEllipsoid → Cartesian3.normalize` on the ellipse axes
+ *  while it builds the GroundPrimitive. With a true 0, the normalize
+ *  receives a zero-length vector and throws `DeveloperError: normalized
+ *  result is not a number`, which halts the render loop globally —
+ *  every subsequent Launch then appears frozen. 1 mm is sub-pixel at
+ *  any practical zoom (the smallest meaningful damage radius is 4–5
+ *  orders of magnitude larger), so the clamp is visually invisible
+ *  while keeping every ground-geometry build numerically valid. */
+export const RING_INITIAL_RADIUS_M = 0.001;
+
 function writeEllipseAxes(entity: Entity, semiMajor: number, semiMinor: number): void {
   const ellipse = entity.ellipse;
   if (!ellipse) return;
-  const a = Math.max(semiMajor, semiMinor);
-  const b = Math.min(semiMajor, semiMinor);
+  const a = Math.max(Math.max(semiMajor, semiMinor), RING_INITIAL_RADIUS_M);
+  const b = Math.max(Math.min(semiMajor, semiMinor), RING_INITIAL_RADIUS_M);
   (ellipse as unknown as { semiMajorAxis: number; semiMinorAxis: number }).semiMajorAxis = a;
   (ellipse as unknown as { semiMajorAxis: number; semiMinorAxis: number }).semiMinorAxis = b;
 }

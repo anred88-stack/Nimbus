@@ -1,7 +1,8 @@
+import { IMPACT_BLAST_COUPLING, IMPACT_LUMINOUS_EFFICIENCY } from '../../constants.js';
 import { peakOverpressure } from '../explosion/overpressure.js';
 import { secondDegreeBurnRadius, thirdDegreeBurnRadius } from '../explosion/thermal.js';
 import type { Joules, Meters, Pascals } from '../../units.js';
-import { m, Pa } from '../../units.js';
+import { J, m, Pa } from '../../units.js';
 
 /**
  * Overpressure threshold: scattered window breakage and shop-front damage.
@@ -66,13 +67,48 @@ export function impactDamageRadii(
   kineticEnergy: Joules,
   finalCraterDiameter: Meters
 ): ImpactDamageRadii {
+  const blastEnergy = J((kineticEnergy as number) * IMPACT_BLAST_COUPLING);
+  // Phase-17 thermal calibration. The default `thermalPartition` in
+  // {@link thirdDegreeBurnRadius} is `NUCLEAR_THERMAL_PARTITION = 0.35`
+  // — the right value for a low-altitude nuclear detonation. For a
+  // cosmic impact the radiating fireball couples a much smaller
+  // fraction of the impactor's kinetic energy into the visible thermal
+  // pulse: Collins, Melosh & Marcus (2005) "Earth Impact Effects
+  // Program" Eq. 5 fits the impact luminous efficiency at ≈ 3 × 10⁻³,
+  // and Toon, Zahnle, Morrison, Turco & Covey (1997, Reviews of
+  // Geophysics 35) anchor it independently around the same value
+  // across a wide impactor-size range. Without this correction the
+  // impact thermal radii are pulled up by √(0.35 / 0.003) ≈ 11×, so
+  // Tunguska's 3rd-degree burn ring came out at ≈ 140 km on the map
+  // versus the ≈ 10 km reported by Boslough & Crawford (2008) hydrocode
+  // and the ≈ 8 km observed forest scorch in 1908. Passing the impact
+  // efficiency explicitly drops the ring back to its physically honest
+  // size.
   return {
     craterRim: m((finalCraterDiameter as number) / 2),
-    thirdDegreeBurn: thirdDegreeBurnRadius({ yieldEnergy: kineticEnergy }),
-    secondDegreeBurn: secondDegreeBurnRadius({ yieldEnergy: kineticEnergy }),
-    overpressure5psi: distanceForOverpressure(kineticEnergy, OVERPRESSURE_BUILDING_COLLAPSE),
-    overpressure1psi: distanceForOverpressure(kineticEnergy, OVERPRESSURE_WINDOW_BREAK),
-    lightDamage: distanceForOverpressure(kineticEnergy, OVERPRESSURE_LIGHT_DAMAGE),
+    thirdDegreeBurn: thirdDegreeBurnRadius({
+      yieldEnergy: kineticEnergy,
+      thermalPartition: IMPACT_LUMINOUS_EFFICIENCY,
+    }),
+    secondDegreeBurn: secondDegreeBurnRadius({
+      yieldEnergy: kineticEnergy,
+      thermalPartition: IMPACT_LUMINOUS_EFFICIENCY,
+    }),
+    // Phase-17 calibration. Pass `kineticEnergy × IMPACT_BLAST_COUPLING`
+    // (≈ 0.5 W) to the Kinney-Graham overpressure inverter, not the
+    // raw kinetic energy. The remainder of the impactor's kinetic
+    // energy goes into crater excavation, ejecta kinetic energy,
+    // ground-coupled seismic waves, melt/vapour and the thermal pulse
+    // (IMPACT_LUMINOUS_EFFICIENCY ≈ 3e-3) — only ≈ half drives the
+    // air-shock wave that the over-pressure rings represent. See
+    // `src/physics/constants.ts` for the citation chain (Pierazzo
+    // 1997 / Collins-Melosh-Marcus 2005). This is the calibration that
+    // brings Tunguska 1 psi from +43 % to +13 % vs the published
+    // forest-blowdown radius and Chicxulub 1 psi from +42 % to +12 %
+    // vs the Collins-Melosh-Marcus envelope.
+    overpressure5psi: distanceForOverpressure(blastEnergy, OVERPRESSURE_BUILDING_COLLAPSE),
+    overpressure1psi: distanceForOverpressure(blastEnergy, OVERPRESSURE_WINDOW_BREAK),
+    lightDamage: distanceForOverpressure(blastEnergy, OVERPRESSURE_LIGHT_DAMAGE),
   };
 }
 

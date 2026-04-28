@@ -668,6 +668,7 @@
     },
     "tooltip": {
       "radiusLine": "Raggio: ≈ {{value}}",
+      "waveHeightLine": "Altezza dell'onda: ≈ {{value}}",
       "ring": {
         "craterRim": {
           "title": "Cratere d'impatto",
@@ -736,6 +737,10 @@
         "tsunamiIsochrone8h": {
           "title": "Arrivo tsunami · ≈ 8 h",
           "description": "Portata transoceanica. Anche a questa distanza l'onda può causare danni sulla costa lontana (lo tsunami di Sumatra 2004 ha fatto vittime in Africa orientale più di 8 ore dopo la rottura). I mareografi DART di solito rilevano il fronte per primi."
+        },
+        "tsunamiWaveAmplitude": {
+          "title": "Onda di tsunami in questo punto",
+          "description": "Altezza dell'onda di tsunami calcolata in questo punto dell'oceano dalla simulazione FMM con shoaling di Green: include la rifrazione batimetrica reale (l'onda accelera in acqua profonda, rallenta sulle piattaforme continentali e si curva attorno alle coste). La freccia mostra la direzione locale di propagazione (∇T del campo tempo-d'arrivo). I run-up costieri e l'inondazione sulla terraferma sono descritti nel pannello dell'analisi, non sulla mappa."
         },
         "mmi9": {
           "title": "MMI IX · scuotimento violento",

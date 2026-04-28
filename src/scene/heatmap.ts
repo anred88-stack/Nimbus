@@ -58,6 +58,44 @@ const INFERNO_STOPS: readonly (readonly [number, number, number])[] = [
 
 export type Colormap = 'viridis' | 'inferno';
 
+/**
+ * Discrete band: when present in {@link HeatmapOptions}, replaces the
+ * continuous {@link Colormap} sampling with a lookup-table colour
+ * decision keyed on the absolute scalar value. Used for the tsunami
+ * amplitude visualisation, where the user-facing semantics are
+ * "1–3 m wave-front, 3–6 m wave-front, …" — i.e. the colour at a given
+ * pixel must encode the absolute wave height in metres, not a
+ * normalised position inside the field's dynamic range.
+ *
+ * Bands MUST be sorted ascending by `minValue`. The renderer assigns a
+ * cell to the band with the largest `minValue` that is ≤ the cell's
+ * value; cells below the first band's `minValue` are fully transparent.
+ */
+export interface DiscreteBand {
+  minValue: number;
+  rgb: readonly [number, number, number];
+}
+
+/**
+ * NOAA-standard tsunami-amplitude bands, restricted to ≥ 1 m so the
+ * map only highlights waves in the "felt / damaging / catastrophic"
+ * regime — sub-metre amplitudes are physically real but visually
+ * indistinguishable from natural ocean swell on a global view, and
+ * the user explicitly asked to start the rendering from 1 m so the
+ * mapping reads as a tsunami map, not a gentle-wave map.
+ *
+ *   1–3  m  → green  (felt, possible coastal flooding)
+ *   3–6  m  → yellow (damaging)
+ *   6–10 m  → orange (severe)
+ *   >10  m  → red    (catastrophic / mega-tsunami)
+ */
+export const WAVE_AMPLITUDE_BANDS: readonly DiscreteBand[] = [
+  { minValue: 1, rgb: [95, 197, 94] },
+  { minValue: 3, rgb: [244, 208, 63] },
+  { minValue: 6, rgb: [230, 126, 34] },
+  { minValue: 10, rgb: [192, 57, 43] },
+];
+
 function stopsFor(name: Colormap): readonly (readonly [number, number, number])[] {
   return name === 'inferno' ? INFERNO_STOPS : VIRIDIS_STOPS;
 }
@@ -100,6 +138,10 @@ export interface HeatmapOptions {
    *  full geographic rectangle. Cuts main-thread render time by d².
    *  Defaults to 1 (full resolution). */
   downsample?: number;
+  /** When set, replaces {@link colormap} sampling with absolute-value
+   *  band lookup (see {@link DiscreteBand}). Cells with value below
+   *  the first band's `minValue` are fully transparent. */
+  discreteBands?: readonly DiscreteBand[];
 }
 
 export interface HeatmapResult {
@@ -155,6 +197,8 @@ export function renderScalarFieldHeatmap(
   const opacity = options.opacity ?? 0.55;
   const colormap = options.colormap ?? 'viridis';
   const transparentBelow = options.transparentBelow ?? Number.NEGATIVE_INFINITY;
+  const discreteBands = options.discreteBands;
+  const bandMinValue = discreteBands !== undefined ? (discreteBands[0]?.minValue ?? 0) : null;
   // Phase 12b — downsample factor. When > 1, the heatmap canvas is
   // rendered at (nLon / d) × (nLat / d) pixels, sampling the source
   // field via stride-d nearest-neighbour reads. The output canvas is
@@ -199,8 +243,32 @@ export function renderScalarFieldHeatmap(
         img.data[base + 3] = 0;
         continue;
       }
-      const t = Math.max(0, Math.min(1, (v - vMin) / range));
-      const [r, g, b] = sampleColormap(t, colormap);
+      let r: number;
+      let g: number;
+      let b: number;
+      if (discreteBands !== undefined && bandMinValue !== null) {
+        // Below the lowest band's minValue → fully transparent. The
+        // tsunami visualisation uses this to keep ocean swell-scale
+        // amplitudes (< 1 m) from painting the whole open ocean.
+        if (v < bandMinValue) {
+          img.data[base + 3] = 0;
+          continue;
+        }
+        // Pick the highest band whose minValue is still ≤ v.
+        let chosen = discreteBands[0]?.rgb;
+        for (const band of discreteBands) {
+          if (v >= band.minValue) chosen = band.rgb;
+          else break;
+        }
+        if (chosen === undefined) {
+          img.data[base + 3] = 0;
+          continue;
+        }
+        [r, g, b] = chosen;
+      } else {
+        const t = Math.max(0, Math.min(1, (v - vMin) / range));
+        [r, g, b] = sampleColormap(t, colormap);
+      }
       img.data[base] = r;
       img.data[base + 1] = g;
       img.data[base + 2] = b;

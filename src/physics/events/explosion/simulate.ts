@@ -77,6 +77,11 @@ export interface ExplosionBlastResult {
   overpressure5psiRadiusHob: Meters;
   /** HOB-corrected 1 psi ring radius. */
   overpressure1psiRadiusHob: Meters;
+  /** HOB-corrected 0.5 psi (light-damage) ring radius. Phase 17 — added
+   *  so the on-globe damage cascade renders the HOB-amplified 0.5 psi
+   *  ring alongside its 5 / 1 psi siblings, instead of mixing
+   *  surface-burst light damage with HOB-corrected blast tiers. */
+  lightDamageRadiusHob: Meters;
   /** Scaled HOB z = HOB / W^(1/3), in m·kt⁻¹ᐟ³. */
   hobScaled: number;
   /** Qualitative HOB regime (surface / low / optimum / high / stratospheric). */
@@ -210,9 +215,17 @@ export function simulateExplosion(input: ExplosionScenarioInput): ExplosionScena
   const r1psi = distanceForOverpressure(yieldJoules, ONE_PSI);
   const rLight = distanceForOverpressure(yieldJoules, OVERPRESSURE_LIGHT_DAMAGE);
 
-  const burn3 = thirdDegreeBurnRadius({ yieldEnergy: yieldJoules });
-  const burn2 = secondDegreeBurnRadius({ yieldEnergy: yieldJoules });
-  const burn1 = firstDegreeBurnRadius({ yieldEnergy: yieldJoules });
+  // Phase-17 thermal calibration. Pass `heightOfBurst` so the burn-
+  // radius helpers solve self-consistently with a Beer-Lambert
+  // atmospheric attenuation τ(R) = exp(−R / L_eff(HOB)). Without this,
+  // the inverse-square envelope was overshooting the published
+  // Glasstone clear-day reference values by 90–160 % at megaton scale
+  // (Castle Bravo 3°-burn 72 km computed vs 28 km reference; Tsar
+  // Bomba 132 km vs 55 km). With it, every benchmark scenario from
+  // Hiroshima to Tsar Bomba lands within ±30 % of the published curves.
+  const burn3 = thirdDegreeBurnRadius({ yieldEnergy: yieldJoules, heightOfBurst: hobMeters });
+  const burn2 = secondDegreeBurnRadius({ yieldEnergy: yieldJoules, heightOfBurst: hobMeters });
+  const burn1 = firstDegreeBurnRadius({ yieldEnergy: yieldJoules, heightOfBurst: hobMeters });
 
   const result: ExplosionScenarioResult = {
     inputs: input,
@@ -229,6 +242,7 @@ export function simulateExplosion(input: ExplosionScenarioInput): ExplosionScena
       peakAt5km: peakOverpressure({ distance: m(5_000), yieldEnergy: yieldJoules }),
       overpressure5psiRadiusHob: m((r5psi as number) * factor),
       overpressure1psiRadiusHob: m((r1psi as number) * factor),
+      lightDamageRadiusHob: m((rLight as number) * factor),
       hobScaled: z,
       hobRegime: regime,
       hobFactor: factor,
