@@ -2539,21 +2539,37 @@ export function Globe(): JSX.Element {
       }
     };
     if (frameRadius > 0) {
-      const padded = Math.max(frameRadius * 1.2, 50_000);
-      // Camera pitch: pure top-down (−90°) for ground-pattern events
-      // (earthquake, volcano, landslide) where the rings are the
-      // entire story. For impact and explosion the mushroom cloud is
-      // the visual hero and a strictly top-down view collapses the
-      // cloud onto a single pixel column on the camera axis; tilt
-      // 30° off-vertical so the user sees the cloud's profile against
-      // the OSM imagery while the rings stay essentially circular
-      // (1 − cos 30° ≈ 13 % foreshortening, well within the visual
-      // budget for "this still looks like an aerial map").
+      // Cap padded radius at half-Earth so planetary-scale scenarios
+      // (Chicxulub light-damage ≈ 6 800 km) don't push the camera
+      // beyond the visible disc — past that point a wider frame just
+      // shows more void and makes mouse drags feel like the planet
+      // is sliding away.
+      const padded = Math.min(Math.max(frameRadius * 1.2, 30_000), 8_500_000);
+      // Camera pitch:
+      //  - Ground-pattern events (earthquake, volcano, landslide):
+      //    pure top-down (−90°). The rings are the whole story.
+      //  - Cloud events (impact, explosion): a *gentle* tilt 15° off
+      //    the vertical (−75°) so the mushroom cloud reads as a
+      //    profile against the imagery without breaking the
+      //    "aerial map" mental model. The previous −60° (30° off)
+      //    tilt was too oblique: combined with the wide pull-back it
+      //    caused `enableRotate` left-drags to orbit the camera around
+      //    a pick-point in deep space whenever the cursor missed the
+      //    Earth disc, drifting the epicentre off-centre.
       const isCloudEvent = result.type === 'impact' || result.type === 'explosion';
-      const cameraPitchRad = isCloudEvent ? -Math.PI / 3 : -Math.PI / 2;
+      const cameraPitchRad = isCloudEvent ? -CesiumMath.toRadians(75) : -Math.PI / 2;
+      // Range = camera-to-target distance. The previous ×2.5 multiplier
+      // pushed the camera 14 000 km up for planetary scenarios — past
+      // half the Earth–Moon distance, where any wheel-zoom or drag
+      // overshot wildly. ×1.6 keeps a 60 % visual margin around the
+      // bounding sphere while staying close enough that the screen-space
+      // picker keeps catching the globe under the cursor. Range is
+      // additionally clamped so the post-fly camera stays inside the
+      // configured `maximumZoomDistance`.
+      const range = Math.min(padded * 1.6, 28_000_000);
       viewer.camera.flyToBoundingSphere(new BoundingSphere(centerCartesian, padded), {
         duration: reduceMotion ? 0 : 0.6,
-        offset: new HeadingPitchRange(0, cameraPitchRad, padded * 2.5),
+        offset: new HeadingPitchRange(0, cameraPitchRad, range),
         complete: startCascade,
       });
     } else {
