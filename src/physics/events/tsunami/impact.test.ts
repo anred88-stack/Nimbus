@@ -88,7 +88,14 @@ describe('impactAmplitudeAtDistance', () => {
     expect(A).toBe(100);
   });
 
-  it('Chicxulub at 1 000 km from impact → tsunami in the hundred-metre range', () => {
+  it('Chicxulub raw KE cavity → undamped Ward reach at 1 000 km is hundred-metre scale', () => {
+    // This test pokes the formula directly with the impactor's full
+    // post-atmospheric KE (no Phase-18 ocean-coupling partition), so
+    // it produces the upper-bound "if all the energy went into the
+    // cavity" reach. Useful as a sanity check on impactCavityRadius
+    // + impactSourceAmplitude in isolation. The simulator-level
+    // Chicxulub-on-shelf result is much smaller (see simulate.test.ts
+    // for the full integrated value).
     const chicxulub = simulateImpact(IMPACT_PRESETS.CHICXULUB.input);
     const RC = impactCavityRadius({ kineticEnergy: chicxulub.impactor.kineticEnergy });
     const A0 = impactSourceAmplitude(RC);
@@ -97,11 +104,7 @@ describe('impactAmplitudeAtDistance', () => {
       cavityRadius: RC,
       distance: meters(1_000_000),
     }) as number;
-    // Phase-17 calibration: A₀(R_C ≈ 84 km) ≈ 1.45 km, so the
-    // unmodified Ward 1/r reach at 1 000 km is A₀·R_C/r ≈ 122 m.
-    // The Wünnemann/Melosh hydrocode damping (applied separately
-    // in `impactAmplitudeWunnemann`) brings this down to ≈ 30 m,
-    // inside the literature deep-ocean far-field envelope.
+    // A₀(R_C ≈ 84 km) ≈ 1.45 km → A₀·R_C/r ≈ 122 m.
     expect(A).toBeGreaterThan(80);
     expect(A).toBeLessThan(200);
   });

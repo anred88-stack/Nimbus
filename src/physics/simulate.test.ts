@@ -99,30 +99,37 @@ describe('simulateImpact — land vs. ocean cascade', () => {
   it('Chicxulub ocean preset produces a literature-consistent K-Pg tsunami', () => {
     const r = simulateImpact(IMPACT_PRESETS.CHICXULUB_OCEAN.input);
 
-    // The exit criterion for the Phase-17 audit: source amplitude must
-    // sit inside the Range 2022 / Bralower 2018 hydrocode envelope of
-    // 100-1500 m for K-Pg-class cavities AND respect monotonicity
-    // (smaller-energy events must give smaller A₀). The η formula was
-    // rewritten with linear damping to satisfy both — A₀ asymptotes to
-    // 0.5 · R_ref = 1.5 km for very large impacts, and Chicxulub-class
-    // cavities (R_C ≈ 84 km) land at A₀ ≈ 1.45 km.
+    // The exit criterion for the Phase-18 audit: source amplitude
+    // must sit inside the Range 2022 / Bralower 2018 hydrocode
+    // envelope (100-1500 m for K-Pg-class) AND the cavity must be
+    // sized by the WATER-COUPLED fraction of KE only (Crawford-Mader
+    // 1998 / Gisler 2011 partition), not by the full post-atmospheric
+    // KE. CHICXULUB_OCEAN is a 100 m carbonate-shelf strike, so
+    // f_water ≈ 0.008 (almost everything punches through to the
+    // seafloor) and the cavity is ≈ 25 km, not the 84 km the
+    // pre-Phase-18 model produced. A₀ stays high (≈ 1.34 km) because
+    // the η saturation asymptote dominates once R_C exceeds R_ref.
     expect(r.tsunami).toBeDefined();
     if (!r.tsunami) return;
 
-    // Cavity radius ≈ 80 km at Chicxulub-class KE (≈ 1.06 × 10²⁴ J).
-    expect(r.tsunami.cavityRadius as number).toBeGreaterThan(70_000);
-    expect(r.tsunami.cavityRadius as number).toBeLessThan(100_000);
+    // Cavity radius scales with f_water · KE for shelf impacts.
+    expect(r.tsunami.cavityRadius as number).toBeGreaterThan(20_000);
+    expect(r.tsunami.cavityRadius as number).toBeLessThan(35_000);
 
     // Source amplitude near the upper bound of the K-Pg envelope.
-    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(1_400);
-    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(1_500);
+    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(1_300);
+    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(1_400);
 
     // Far-field at 1 000 km — undamped Ward 1/r reach scales as
-    // A₀·R_C/r ≈ 1.45 km · 84 km / 1 000 km ≈ 122 m at continent
-    // range. The Wünnemann hydrocode damping (separate function) drops
-    // this to ≈ 30 m for the deep-ocean comparison.
-    expect(r.tsunami.amplitudeAt1000km as number).toBeGreaterThan(80);
-    expect(r.tsunami.amplitudeAt1000km as number).toBeLessThan(200);
+    // A₀·R_C/r ≈ 1.34 km · 25 km / 1 000 km ≈ 33 m at continent
+    // range. The Wünnemann hydrocode damping (separate function)
+    // drops this further for the deep-ocean comparison.
+    expect(r.tsunami.amplitudeAt1000km as number).toBeGreaterThan(20);
+    expect(r.tsunami.amplitudeAt1000km as number).toBeLessThan(60);
+
+    // Water-coupling partition exposed to the report panel.
+    expect(r.tsunami.waterCouplingFraction).toBeGreaterThan(0);
+    expect(r.tsunami.waterCouplingFraction).toBeLessThan(0.05);
 
     // Travel time at 3 000 m mean basin depth: t = 1 000 km / √(g·3 000)
     // ≈ 5 830 s (≈ 97 min). A 4 km basin would drop this to ≈ 84 min.
@@ -134,18 +141,28 @@ describe('simulateImpact — land vs. ocean cascade', () => {
     // dominant period ≈ λ/c ≈ 940 s ≈ 15 min.
     expect(r.tsunami.deepWaterCelerity as number).toBeGreaterThan(160);
     expect(r.tsunami.deepWaterCelerity as number).toBeLessThan(180);
-    expect(r.tsunami.sourceWavelength as number).toBeGreaterThan(140_000);
-    expect(r.tsunami.sourceWavelength as number).toBeLessThan(200_000);
-    expect(r.tsunami.dominantPeriod as number).toBeGreaterThan(800);
-    expect(r.tsunami.dominantPeriod as number).toBeLessThan(1_200);
+    // Phase-18: source wavelength = 2 × cavity. Cavity is now ~25 km
+    // (driven by f_water · KE), so wavelength ≈ 50 km and dominant
+    // period ≈ 50 km / 171 m/s ≈ 290 s.
+    expect(r.tsunami.sourceWavelength as number).toBeGreaterThan(40_000);
+    expect(r.tsunami.sourceWavelength as number).toBeLessThan(70_000);
+    expect(r.tsunami.dominantPeriod as number).toBeGreaterThan(200);
+    expect(r.tsunami.dominantPeriod as number).toBeLessThan(400);
   });
 
-  it('ocean cascade leaves crater/seismic/damage unchanged relative to the land impact', () => {
+  it('ocean cascade on a shallow shelf leaves crater/seismic essentially unchanged vs land', () => {
+    // Phase-18: CHICXULUB_OCEAN sits on a 100 m carbonate shelf, so
+    // f_seafloor ≈ exp(-100 / 12 832) ≈ 0.992. The crater shrinks by
+    // less than 1 % (165.62 → 165.19 km), well within rounding for
+    // popular-science output. Seismic moment scales with crater
+    // volume so it tracks the same fractional change.
     const land = simulateImpact(IMPACT_PRESETS.CHICXULUB.input);
     const ocean = simulateImpact(IMPACT_PRESETS.CHICXULUB_OCEAN.input);
-    expect(ocean.crater.finalDiameter).toBe(land.crater.finalDiameter);
-    expect(ocean.seismic.magnitude).toBe(land.seismic.magnitude);
-    expect(ocean.damage.craterRim).toBe(land.damage.craterRim);
+    const craterRatio =
+      (ocean.crater.finalDiameter as number) / (land.crater.finalDiameter as number);
+    expect(craterRatio).toBeGreaterThan(0.99);
+    expect(craterRatio).toBeLessThanOrEqual(1.0);
+    expect(ocean.seismic.magnitude).toBeCloseTo(land.seismic.magnitude, 1);
   });
 
   it('5 000 km tsunami amplitude is 1/5 of the 1 000 km amplitude (1/r decay)', () => {
@@ -214,12 +231,14 @@ describe('simulateImpact — land vs. ocean cascade', () => {
     expect(overridden.ejecta.azimuthDeg).toBe(250);
   });
 
-  it('ocean cavity radius scales with surface-coupled energy, not raw KE', () => {
-    // For a deep-penetration impact (Chicxulub, gf = 1) the Ward &
-    // Asphaug cavity is identical whether we apply the gf scaling or
-    // not — multiplying by 1 changes nothing. This regression test
-    // pins the behaviour so future tweaks to the entry classifier
-    // can't silently inflate or deflate the megatsunami branch.
+  it('ocean cavity radius scales with water-coupled fraction of KE (Phase-18)', () => {
+    // Pre-Phase-18 the cavity used the full post-atmospheric KE
+    // regardless of water depth. Phase-18 routes only `f_water · KE`
+    // into the cavity, where f_water = 1 − exp(-d_water / d_critical)
+    // and d_critical = β·L·√(ρ_i/ρ_water). For the Chicxulub shelf
+    // preset (100 m water on a 15 km impactor) f_water ≈ 0.008, so
+    // the cavity is ≈ 25 km — much smaller than the 84 km the old
+    // model produced.
     const land = IMPACT_PRESETS.CHICXULUB.input;
     const ocean = IMPACT_PRESETS.CHICXULUB_OCEAN.input;
     const r = simulateImpact(ocean);
@@ -228,9 +247,48 @@ describe('simulateImpact — land vs. ocean cascade', () => {
       expect.fail('expected tsunami for Chicxulub ocean preset');
       return;
     }
-    expect(r.tsunami.cavityRadius as number).toBeGreaterThan(70_000);
+    // Phase-18 cavity matches the f_water-scaled energy.
+    expect(r.tsunami.cavityRadius as number).toBeGreaterThan(20_000);
+    expect(r.tsunami.cavityRadius as number).toBeLessThan(35_000);
+    expect(r.tsunami.waterCouplingFraction).toBeLessThan(0.05);
     // Sanity: same impactor on land has no tsunami at all.
     expect(simulateImpact(land).tsunami).toBeUndefined();
+  });
+
+  it('Phase-18 deep-ocean strike suppresses the seafloor crater (Eltanin regime)', () => {
+    // 1 km stony asteroid in a 5 km Pacific deep-ocean basin: the
+    // Crawford-Mader d_critical = 0.5 · 1 km · √(3000/1025) ≈ 0.86 km
+    // gives f_seafloor = exp(-5 km / 0.86 km) ≈ 0.003. The seafloor
+    // crater therefore shrinks to ≈ 25 % of the equivalent land
+    // crater (D ∝ KE^(1/3.4) so D drops by 0.003^0.294 ≈ 0.18×),
+    // matching the Eltanin asteroid's geological "no observable
+    // crater" record (1-4 km, 5 km Pacific basin, 2.5 Ma; Gersonde
+    // et al. 1997 Nature 390:357). Tsunami branch fires fully.
+    const land = simulateImpact({
+      impactorDiameter: m(1_000),
+      impactVelocity: mps(20_000),
+      impactorDensity: kgPerM3(3_000),
+      targetDensity: kgPerM3(2_700),
+      impactAngle: degreesToRadians(deg(45)),
+    });
+    const ocean = simulateImpact({
+      impactorDiameter: m(1_000),
+      impactVelocity: mps(20_000),
+      impactorDensity: kgPerM3(3_000),
+      targetDensity: kgPerM3(2_700),
+      impactAngle: degreesToRadians(deg(45)),
+      waterDepth: m(5_000),
+      meanOceanDepth: m(5_000),
+    });
+    const craterRatio =
+      (ocean.crater.finalDiameter as number) / (land.crater.finalDiameter as number);
+    // Aggressive suppression — ocean crater under 25 % of land crater.
+    expect(craterRatio).toBeLessThan(0.25);
+    // Tsunami branch fires with f_water close to 1.
+    expect(ocean.tsunami).toBeDefined();
+    if (ocean.tsunami) {
+      expect(ocean.tsunami.waterCouplingFraction).toBeGreaterThan(0.99);
+    }
   });
 
   it('every IMPACT_PRESETS entry simulates without throwing and yields plausible KE', () => {

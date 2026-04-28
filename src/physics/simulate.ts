@@ -40,6 +40,7 @@ import {
   flammableIgnitionArea,
   flammableIgnitionRadius,
 } from './effects/firestorm.js';
+import { oceanCouplingPartition } from './effects/oceanCoupling.js';
 import { liquefactionRadius } from './events/earthquake/liquefaction.js';
 import { impactDamageRadii, type ImpactDamageRadii } from './events/impact/damageRings.js';
 import { impactorMass, kineticEnergy } from './events/impact/kinetic.js';
@@ -167,6 +168,17 @@ export interface ImpactTsunamiResult {
   /** True when {@link beachSlopeRadUsed} came from a DEM sample at
    *  the click site (rather than the 1:100 reference fallback). */
   beachSlopeFromDEM: boolean;
+  /** Phase-18 ocean-coupling partition (Crawford & Mader 1998 /
+   *  Gisler 2011): fraction of the post-atmospheric KE that drove
+   *  the water-cavity formation. Complement = fraction that reached
+   *  the seafloor as a coherent body and excavated the seafloor
+   *  crater. Surfaced for the UI so the report panel can explain
+   *  why a deep-ocean strike has a tsunami but no crater (or vice
+   *  versa for a shallow shelf). */
+  waterCouplingFraction: number;
+  /** Crawford-Mader characteristic absorption depth d_critical (m),
+   *  surfaced as a tooltip diagnostic. */
+  characteristicAbsorptionDepth: Meters;
 }
 
 /**
@@ -333,7 +345,32 @@ export function simulateImpact(input: ImpactScenarioInput): ImpactScenarioResult
   const burstAltitude = entry.burstAltitude as number;
   const diameterM = input.impactorDiameter as number;
   const fragmentsTooHigh = burstAltitude > diameterM * 5;
-  const craterScale = gf > 0 && !fragmentsTooHigh ? Math.pow(gf, 1 / 3.4) : 0;
+
+  // Phase-18 audit. Before this fix the model passed `ke · gf` to
+  // BOTH the seafloor crater pipeline and the Ward-Asphaug cavity
+  // pipeline, double-counting the impactor's energy whenever the
+  // click sat over water. The Crawford-Mader 1998 / Gisler 2011
+  // partition routes the post-atmospheric KE between the two
+  // mechanisms based on the water column the impactor must traverse:
+  //
+  //   f_seafloor = exp(-d_water / (β · L · √(ρ_i / ρ_water)))
+  //   f_water    = 1 − f_seafloor
+  //
+  // For Chicxulub on a 100 m carbonate shelf f_seafloor ≈ 0.99 →
+  // crater is essentially unchanged. For a 1 km asteroid in 4 km
+  // open ocean f_seafloor ≈ 0.01 → seafloor crater is suppressed
+  // (matching Eltanin's geological "no crater" record). See
+  // {@link oceanCouplingPartition} for the calibration anchors.
+  const waterDepth = (input.waterDepth as number | undefined) ?? 0;
+  const oceanPartition = oceanCouplingPartition({
+    impactorDiameter: input.impactorDiameter,
+    waterDepth: input.waterDepth ?? m(0),
+    impactorDensity: input.impactorDensity,
+  });
+  const fSeafloor = oceanPartition.seafloorFraction;
+  const fWater = oceanPartition.waterFraction;
+
+  const craterScale = gf > 0 && !fragmentsTooHigh ? Math.pow(gf * fSeafloor, 1 / 3.4) : 0;
 
   const Dtc = m((transientCraterDiameter(input) as number) * craterScale);
   const Dfr = m(finalCraterDiameter(Dtc));
@@ -479,7 +516,6 @@ export function simulateImpact(input: ImpactScenarioInput): ImpactScenarioResult
     atmosphere,
   };
 
-  const waterDepth = (input.waterDepth as number | undefined) ?? 0;
   // Tsunami cascade activation rule — Phase 14 tightening.
   //
   // The Ward & Asphaug (2000) cavity formula assumes a coherent
@@ -510,7 +546,15 @@ export function simulateImpact(input: ImpactScenarioInput): ImpactScenarioResult
   const reachesSurface = regime === 'INTACT' || (regime === 'PARTIAL_AIRBURST' && gf >= 0.5);
   if (waterDepth > 0 && reachesSurface) {
     const meanOceanDepth = input.meanOceanDepth ?? m(DEFAULT_MEAN_OCEAN_DEPTH);
-    const surfaceCoupledKe = J((ke as number) * gf);
+    // Phase-18: route only the water-coupled fraction of the post-
+    // atmospheric KE into the Ward-Asphaug cavity. For a Chicxulub
+    // strike on a 100 m shelf this is just ~1 % (cavity stays small
+    // even though the impactor is huge), keeping the seafloor crater
+    // dominant. For a 1 km asteroid in 4 km open ocean it is ~99 %,
+    // so almost all the energy goes into the tsunami source while
+    // the seafloor crater is suppressed by the f_seafloor factor
+    // applied above to `craterScale`.
+    const surfaceCoupledKe = J((ke as number) * gf * fWater);
     const cavityRadius = impactCavityRadius({ kineticEnergy: surfaceCoupledKe });
     const sourceAmplitude = impactSourceAmplitude(cavityRadius);
     const amp1000 = impactAmplitudeAtDistance({
@@ -579,6 +623,8 @@ export function simulateImpact(input: ImpactScenarioInput): ImpactScenarioResult
       inundationDistanceAt1000km: inundation,
       beachSlopeRadUsed: beachSlopeRad,
       beachSlopeFromDEM: slopeFromDEM,
+      waterCouplingFraction: fWater,
+      characteristicAbsorptionDepth: oceanPartition.characteristicDepth,
     };
   }
 
