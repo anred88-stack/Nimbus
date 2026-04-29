@@ -109,6 +109,14 @@ export interface SaintVenant1DInput {
    *  at every listed cell index. Use to extract DART-buoy-equivalent
    *  amplitudes. */
   probeCellIndices?: readonly number[];
+  /** Numerical scheme. Default `'muscl-rk2'` is MUSCL second-order
+   *  TVD reconstruction (minmod limiter) + SSP-RK2 time stepping —
+   *  the same combo GeoClaw uses for shallow water. The fall-back
+   *  `'hll-euler'` is plain first-order HLL + forward Euler, kept
+   *  for regression tests against pre-Phase-21b behaviour and for
+   *  diagnosing whether a regression is from the reconstruction
+   *  vs the time stepper. */
+  scheme?: 'muscl-rk2' | 'hll-euler';
 }
 
 export interface SaintVenant1DProbeRecord {
@@ -142,6 +150,22 @@ export interface SaintVenant1DResult {
    *  {@link SaintVenant1DInput.probeCellIndices}. Empty when no
    *  probes were requested. */
   probes: SaintVenant1DProbeRecord[];
+}
+
+/**
+ * Minmod slope limiter (Roe 1986). Returns the minimum-magnitude
+ * common direction of the two slopes, or 0 when they have opposite
+ * signs. The result is used as a TVD slope for MUSCL reconstruction:
+ * never overshoots the local extrema, which prevents spurious
+ * oscillations near shocks while keeping the second-order accuracy
+ * of the reconstruction in smooth regions.
+ *
+ * Reference: Roe, P. L. (1986). "Characteristic-based schemes for
+ *   the Euler equations." Annu. Rev. Fluid Mech. 18: 337-365.
+ */
+function minmod(a: number, b: number): number {
+  if (a * b <= 0) return 0;
+  return Math.sign(a) * Math.min(Math.abs(a), Math.abs(b));
 }
 
 /**
@@ -257,8 +281,121 @@ export function simulateSaintVenant1D(input: SaintVenant1DInput): SaintVenant1DR
 
   let t = 0;
   let step = 0;
+  const useMuscl = (input.scheme ?? 'muscl-rk2') === 'muscl-rk2';
+
+  // Scratch buffers reused every step to avoid per-step allocation.
   const fluxMass = new Float64Array(N + 1);
   const fluxMom = new Float64Array(N + 1);
+  const slopeH = new Float64Array(N);
+  const slopeHU = new Float64Array(N);
+  const dh = new Float64Array(N);
+  const dhu = new Float64Array(N);
+  const hStar = new Float64Array(N);
+  const huStar = new Float64Array(N);
+  const dhStar = new Float64Array(N);
+  const dhuStar = new Float64Array(N);
+
+  /**
+   * Compute the right-hand side L(U) = -∂F/∂x + S of the Saint-Venant
+   * system at every cell, given the conservative state (hLocal,
+   * huLocal). Writes into dhOut, dhuOut. Used twice per RK2 step or
+   * once per Euler step.
+   *
+   * Reconstruction: piecewise-constant for `'hll-euler'`, MUSCL with
+   * minmod limiter for `'muscl-rk2'`. The MUSCL reconstruction
+   * advances the interface states from the cell centres by ±½·Δx·s,
+   * where s is the limited slope, before passing to the HLL Riemann
+   * solver. This is the key step that drops HLL's numerical
+   * dissipation by an order of magnitude on smooth waves.
+   */
+  const computeRhs = (
+    hLocal: Float64Array,
+    huLocal: Float64Array,
+    dhOut: Float64Array,
+    dhuOut: Float64Array
+  ): void => {
+    if (useMuscl) {
+      // Reset boundary slopes; interior slopes use minmod of the
+      // backward and forward differences.
+      slopeH[0] = 0;
+      slopeHU[0] = 0;
+      slopeH[N - 1] = 0;
+      slopeHU[N - 1] = 0;
+      for (let i = 1; i < N - 1; i++) {
+        const hPrev = hLocal[i - 1] ?? 0;
+        const hCur = hLocal[i] ?? 0;
+        const hNext = hLocal[i + 1] ?? 0;
+        const huPrev = huLocal[i - 1] ?? 0;
+        const huCur = huLocal[i] ?? 0;
+        const huNext = huLocal[i + 1] ?? 0;
+        slopeH[i] = minmod((hCur - hPrev) / dx, (hNext - hCur) / dx);
+        slopeHU[i] = minmod((huCur - huPrev) / dx, (huNext - huCur) / dx);
+      }
+    } else {
+      slopeH.fill(0);
+      slopeHU.fill(0);
+    }
+
+    // Hydrostatic-balanced wall boundary. A no-flux wall must
+    // mirror the local pressure (½·g·h²) to cancel the momentum
+    // flux divergence in a lake-at-rest state. Setting fluxMom = 0
+    // here would generate spurious negative momentum at the
+    // boundary cells equal to the full -½·g·h²·Δt/Δx — for h = 4 km
+    // that is ~−2 × 10⁵ m²/s per step at deep ocean, blowing the
+    // solver up within tens of steps. Mass flux stays at zero
+    // (no water crosses the wall).
+    const hBoundaryL = hLocal[0] ?? 0;
+    const hBoundaryR = hLocal[N - 1] ?? 0;
+    fluxMass[0] = 0;
+    fluxMom[0] = 0.5 * g * hBoundaryL * hBoundaryL;
+    fluxMass[N] = 0;
+    fluxMom[N] = 0.5 * g * hBoundaryR * hBoundaryR;
+
+    for (let i = 0; i < N - 1; i++) {
+      // MUSCL-reconstructed states at the cell-edges. For 'hll-euler'
+      // the slopes are zero so the reconstruction degenerates to
+      // piecewise-constant (cell average).
+      const hLraw = (hLocal[i] ?? 0) + 0.5 * dx * (slopeH[i] ?? 0);
+      const hRraw = (hLocal[i + 1] ?? 0) - 0.5 * dx * (slopeH[i + 1] ?? 0);
+      const huLraw = (huLocal[i] ?? 0) + 0.5 * dx * (slopeHU[i] ?? 0);
+      const huRraw = (huLocal[i + 1] ?? 0) - 0.5 * dx * (slopeHU[i + 1] ?? 0);
+      // Clamp h ≥ 0 to keep the reconstructed state physical at
+      // wet-dry interfaces.
+      const hL = hLraw > 0 ? hLraw : 0;
+      const hR = hRraw > 0 ? hRraw : 0;
+      const uL = hL > DRY_DEPTH_M ? huLraw / hL : 0;
+      const uR = hR > DRY_DEPTH_M ? huRraw / hR : 0;
+      const f = hllFlux(hL, uL, hR, uR, g);
+      fluxMass[i + 1] = f.mass;
+      fluxMom[i + 1] = f.momentum;
+    }
+
+    for (let i = 0; i < N; i++) {
+      const fluxDivMass = (fluxMass[i + 1] ?? 0) - (fluxMass[i] ?? 0);
+      const fluxDivMom = (fluxMom[i + 1] ?? 0) - (fluxMom[i] ?? 0);
+      // Topography slope source: -g·h·∂z/∂x, centred difference.
+      const zL = z[Math.max(i - 1, 0)] ?? 0;
+      const zR = z[Math.min(i + 1, N - 1)] ?? 0;
+      const dzdx = (zR - zL) / (2 * dx);
+      const sourceMom = -g * (hLocal[i] ?? 0) * dzdx;
+      dhOut[i] = -fluxDivMass / dx;
+      dhuOut[i] = -fluxDivMom / dx + sourceMom;
+    }
+  };
+
+  /**
+   * Apply the implicit Manning friction step to (hCell, huCell).
+   * Returns the friction-corrected huCell. Solves
+   *     hu_{n+1} = hu_n / (1 + Δt · g·n²·|u|/h^(4/3))
+   * which keeps the velocity bounded as h → 0 (where the explicit
+   * form would blow up). Cells below DRY_DEPTH_M get zero momentum.
+   */
+  const applyManningFriction = (hCell: number, huCell: number, dtLocal: number): number => {
+    if (hCell <= DRY_DEPTH_M || n <= 0) return hCell <= DRY_DEPTH_M ? 0 : huCell;
+    const uTrial = huCell / hCell;
+    const friction = (dtLocal * g * n * n * Math.abs(uTrial)) / Math.pow(hCell, 4 / 3);
+    return huCell / (1 + friction);
+  };
 
   while (t < duration && step < MAX_TIME_STEPS) {
     // CFL-constrained time step. Compute the maximum local wave
@@ -278,65 +415,48 @@ export function simulateSaintVenant1D(input: SaintVenant1DInput): SaintVenant1DR
     if (t + dt > duration) dt = duration - t;
     if (dt <= 0) break;
 
-    // HLL flux at every interior interface (i + 1/2 between cells
-    // i and i+1). Boundary interfaces use a wall reflection — we
-    // only care about the open-sea interior for tsunami probes.
-    fluxMass[0] = 0;
-    fluxMom[0] = 0;
-    fluxMass[N] = 0;
-    fluxMom[N] = 0;
-    for (let i = 0; i < N - 1; i++) {
-      const hL = h[i] ?? 0;
-      const hR = h[i + 1] ?? 0;
-      const huL = hu[i] ?? 0;
-      const huR = hu[i + 1] ?? 0;
-      const uL = hL > DRY_DEPTH_M ? huL / hL : 0;
-      const uR = hR > DRY_DEPTH_M ? huR / hR : 0;
-      const f = hllFlux(hL, uL, hR, uR, g);
-      fluxMass[i + 1] = f.mass;
-      fluxMom[i + 1] = f.momentum;
-    }
-
-    // Update conserved variables. Forward-Euler with the HLL flux
-    // divergence + topography source (well-balanced via a centred
-    // gradient of z) + Manning friction.
-    for (let i = 0; i < N; i++) {
-      const hOld = h[i] ?? 0;
-      const huOld = hu[i] ?? 0;
-
-      const fluxDivMass = (fluxMass[i + 1] ?? 0) - (fluxMass[i] ?? 0);
-      const fluxDivMom = (fluxMom[i + 1] ?? 0) - (fluxMom[i] ?? 0);
-
-      let hNew = hOld - (dt / dx) * fluxDivMass;
-      // Numeric safety: very small negative h can appear from FP
-      // round-off near the wet-dry interface. Clamp at zero.
-      if (hNew < 0) hNew = 0;
-
-      // Topography slope source: -g·h·∂z/∂x, centred difference.
-      const zL = z[Math.max(i - 1, 0)] ?? 0;
-      const zR = z[Math.min(i + 1, N - 1)] ?? 0;
-      const dzdx = (zR - zL) / (2 * dx);
-      const sourceMom = -g * hOld * dzdx;
-      let huNew = huOld - (dt / dx) * fluxDivMom + dt * sourceMom;
-
-      // Manning friction. Implicit treatment for stability — the
-      // explicit form blows up when h → 0. Solve the ODE
-      //     d(hu)/dt = -g·n²·u·|u|/h^(1/3)
-      // to first order: hu_{n+1} = hu_n / (1 + Δt · g·n²·|u|/h^(4/3)).
-      if (hNew > DRY_DEPTH_M && n > 0) {
-        const uTrial = huNew / hNew;
-        const friction = (dt * g * n * n * Math.abs(uTrial)) / Math.pow(hNew, 4 / 3);
-        huNew = huNew / (1 + friction);
-      } else {
-        huNew = 0;
+    if (useMuscl) {
+      // SSP-RK2 (Shu & Osher 1988): two-stage Runge-Kutta that
+      // preserves TVD if the underlying spatial discretisation does.
+      // Stage 1: U* = U^n + Δt · L(U^n).
+      computeRhs(h, hu, dh, dhu);
+      for (let i = 0; i < N; i++) {
+        const hNext = (h[i] ?? 0) + dt * (dh[i] ?? 0);
+        hStar[i] = hNext > 0 ? hNext : 0;
+        huStar[i] = (hu[i] ?? 0) + dt * (dhu[i] ?? 0);
       }
-
-      h[i] = hNew;
-      hu[i] = huNew;
-
-      const eta = hNew + (z[i] ?? 0);
-      const absEta = Math.abs(eta);
-      if (absEta > (maxAbsEta[i] ?? 0)) maxAbsEta[i] = absEta;
+      // Stage 2: U^{n+1} = ½(U^n + U* + Δt · L(U*)).
+      computeRhs(hStar, huStar, dhStar, dhuStar);
+      for (let i = 0; i < N; i++) {
+        const hOld = h[i] ?? 0;
+        const huOld = hu[i] ?? 0;
+        let hNew = 0.5 * hOld + 0.5 * ((hStar[i] ?? 0) + dt * (dhStar[i] ?? 0));
+        if (hNew < 0) hNew = 0;
+        let huNew = 0.5 * huOld + 0.5 * ((huStar[i] ?? 0) + dt * (dhuStar[i] ?? 0));
+        huNew = applyManningFriction(hNew, huNew, dt);
+        h[i] = hNew;
+        hu[i] = huNew;
+        const eta = hNew + (z[i] ?? 0);
+        const absEta = Math.abs(eta);
+        if (absEta > (maxAbsEta[i] ?? 0)) maxAbsEta[i] = absEta;
+      }
+    } else {
+      // Plain forward-Euler with first-order HLL — kept for
+      // regression diagnostic. Same behaviour as Phase-21a.
+      computeRhs(h, hu, dh, dhu);
+      for (let i = 0; i < N; i++) {
+        const hOld = h[i] ?? 0;
+        const huOld = hu[i] ?? 0;
+        let hNew = hOld + dt * (dh[i] ?? 0);
+        if (hNew < 0) hNew = 0;
+        let huNew = huOld + dt * (dhu[i] ?? 0);
+        huNew = applyManningFriction(hNew, huNew, dt);
+        h[i] = hNew;
+        hu[i] = huNew;
+        const eta = hNew + (z[i] ?? 0);
+        const absEta = Math.abs(eta);
+        if (absEta > (maxAbsEta[i] ?? 0)) maxAbsEta[i] = absEta;
+      }
     }
 
     // Record probes after the step. Pushed at the END of the step

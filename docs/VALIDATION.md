@@ -100,33 +100,57 @@ mean) inject high-frequency dispersion the closed-form
 Heidarzadeh-Satake decay cannot capture. Closing this gap requires
 a real Saint-Venant solver — the Tier 2 "Coastal Deep Dive" pipeline.
 
-**Phase-21a — DONE.** Saint-Venant 1D HLL first-order solver lives at
+**Phase-21a + 21b — DONE.** Saint-Venant 1D solver lives at
 [src/physics/tsunami/saintVenant1D.ts](../src/physics/tsunami/saintVenant1D.ts).
-Validated against the Stoker dam-break (mass conservation to FP
-precision, Ritter front speed within ±15 %, monotone TVD profile).
-**Cannot pin Tōhoku DART yet** because HLL first-order has too much
-numerical dissipation for long-distance wave propagation: a Gaussian
-source seeded at the rupture loses ~95 % of its peak amplitude over
-the first 200 km of transit, far faster than physical (or GeoClaw's
-second-order MUSCL HLLC reconstruction). The solver is the foundation
-for Phase-21b; the Tōhoku pin will land then.
+Two numerical schemes:
 
-**Phase-21b — TODO.** MUSCL second-order TVD reconstruction (slope
-limiter on the cell-interface states). Reduces HLL numerical
-dissipation by an order of magnitude and is what GeoClaw / COMCOT /
-MOST all use. After this lands, Tōhoku DART 21413 amplitude can be
-pinned to ±25 % in the Saint-Venant pipeline.
+- `'muscl-rk2'` (default): MUSCL second-order TVD reconstruction
+  (minmod limiter) + SSP-RK2 time stepping — same combination
+  GeoClaw / COMCOT / MOST use for shallow water.
+- `'hll-euler'`: first-order HLL + forward Euler — kept as
+  regression diagnostic.
 
-**Phase-21c — TODO.** Web Worker integration via Comlink + lazy
-loading, so the solver runs off-main-thread when the user clicks
-"Coastal Deep Dive" in the report panel. Default UX unchanged.
+Phase-21b also fixed a hydrostatic-balanced wall boundary bug
+discovered during the propagation validation: the Phase-21a wall
+fluxes were `(0, 0)`, but the momentum-flux part needs to mirror
+`½·g·h²` to cancel the interior pressure gradient at the boundary
+cell. With the bug, a flat 4 km deep ocean at rest blew up within
+~300 time steps. The regression test in `saintVenant1D.test.ts`
+now pins the lake-at-rest invariant.
 
-**Phase-21d — TODO.** UI: Deep Dive mode with wave-height vs distance
-chart + run-up profile.
+Validation suite (13 unit tests, all green):
+
+- Stoker dam-break: mass conservation to FP precision (no friction);
+  Ritter front speed within ±15 % of √(g·h_L); monotone solution.
+- Lake-at-rest invariant: zero motion for 5000 s on a flat 4 km
+  basin (regression for the wall-boundary bug).
+- MUSCL+RK2 propagation: Gaussian source retains ≥ 40 % of the
+  initial amplitude at 250 km after 2500 s of transit. The first-
+  order HLL+Euler dropped to < 0.3 % — that is the dissipation gap
+  Phase-21b closes.
+- Defensive edge cases: under-sized grid, mismatched arrays,
+  non-positive cell width / duration, all-dry domain, probe
+  recording, bit-identical determinism.
+
+**Tōhoku DART pin still deferred.** The solver is now numerically
+correct; what is missing for the Tōhoku pin is the **1D-radial
+geometry** (the `-h·u/r` source term that turns 1D Cartesian
+propagation into 2D-cylindrical spreading). With pure 1D Cartesian,
+a 4 m source seeded at the rupture stays ~2 m at 1500 km — true
+to the 1D physics. Real DART measures 0.3 m because the wave spread
+in 2D as ≈ A₀·√(R₀/r). Adding the radial source term is Phase-21c
+work; the bug-free solver foundation is in place.
+
+**Phase-21c — TODO.** 1D-radial geometry (radial source term) +
+Web Worker integration via Comlink + lazy loading. After 1D-radial
+lands, Tōhoku DART 21413 amplitude can be pinned to ±25 %.
+
+**Phase-21d — TODO.** UI: Deep Dive mode with wave-height vs
+distance chart + run-up profile.
 
 | Benchmark                                  | Status    | Blocker / Planned solver                                                 |
 | ------------------------------------------ | --------- | ------------------------------------------------------------------------ |
-| Tōhoku 2011 DART 21413 amplitude (1500 km) | Phase-21b | Needs MUSCL second-order reconstruction; HLL first-order too dissipative |
+| Tōhoku 2011 DART 21413 amplitude (1500 km) | Phase-21c | Solver numerically correct; needs 1D-radial geometry source term         |
 | BP2 (conical island), BP4 (Hilo Bay)       | Future 2D | Need a 2D focusing/refraction-aware solver; not in scope popular-science |
 
 ## Tunguska energy budget

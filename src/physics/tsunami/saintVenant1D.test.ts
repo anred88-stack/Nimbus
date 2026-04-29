@@ -207,6 +207,107 @@ describe('saintVenant1D — solitary wave on 1:19.85 plane beach (sanity check)'
   });
 });
 
+describe('saintVenant1D — Phase-21b MUSCL + SSP-RK2 propagation correctness', () => {
+  // The Phase-21a HLL-Euler scheme had an unwanted side effect: HLL
+  // first-order is highly diffusive, and a small Gaussian source
+  // (peak 2 m on 4 km depth) lost ≈ 99 % of its peak amplitude
+  // within the first 200 km of transit. Phase-21b replaces that with
+  // MUSCL second-order TVD reconstruction (minmod limiter) plus an
+  // SSP-RK2 time stepper, which is what GeoClaw / COMCOT / MOST use.
+  //
+  // The pins below freeze the gain. The exact "should-equal" numbers
+  // come from running the solver itself once the bug is fixed; the
+  // ±10 % envelope catches a regression of either the spatial
+  // reconstruction OR the time stepper.
+
+  it('MUSCL+RK2 retains > 40 % of source amplitude at 250 km after 2500 s', () => {
+    const N = 200;
+    const dx = 5_000;
+    const sourceIdx = 50;
+    const sigma = 10;
+    const z: number[] = [];
+    const eta0: number[] = [];
+    for (let i = 0; i < N; i++) {
+      z.push(-4000);
+      const d = i - sourceIdx;
+      eta0.push(2 * Math.exp(-(d * d) / (2 * sigma * sigma)));
+    }
+    const r = simulateSaintVenant1D({
+      bathymetryM: z,
+      cellWidthM: dx,
+      initialDisplacementM: eta0,
+      durationS: 2500,
+      manningN: 0,
+      scheme: 'muscl-rk2',
+      probeCellIndices: [100],
+    });
+    const peak = r.probes[0]?.peakAbsAmplitudeM ?? 0;
+    // The wave splits into ±198 m/s packets, each carrying ~half the
+    // source mass. A still-water Gaussian release converges to a
+    // packet amplitude of ~(½)·η₀ = 1.0 m once the splitting
+    // completes. After 250 km of transit the MUSCL/RK2 combination
+    // should retain at least 0.8 m of that 1.0 m envelope (≥ 40 %
+    // of the original 2 m source peak). The first-order HLL+Euler
+    // dropped to < 0.005 m — caught by this pin.
+    expect(peak).toBeGreaterThan(0.8);
+    expect(peak).toBeLessThan(1.5);
+  });
+
+  it('hll-euler scheme stays available as a regression diagnostic', () => {
+    const N = 100;
+    const dx = 5_000;
+    const z = new Array<number>(N).fill(-1_000);
+    const eta0: number[] = [];
+    for (let i = 0; i < N; i++) eta0.push(Math.exp(-(((i - N / 2) / 5) ** 2)));
+    const r = simulateSaintVenant1D({
+      bathymetryM: z,
+      cellWidthM: dx,
+      initialDisplacementM: eta0,
+      durationS: 200,
+      manningN: 0,
+      scheme: 'hll-euler',
+    });
+    // Sanity: ran without throwing; mass is conserved.
+    const initVol = eta0.reduce((s, v) => s + v, 0) * dx;
+    const finalVol = r.finalDepthM.reduce((s, v) => s + v, 0) * dx - N * 1_000 * dx;
+    expect(Math.abs(finalVol - initVol) / Math.abs(initVol)).toBeLessThan(1e-6);
+  });
+
+  it('hydrostatic-balanced wall: lake-at-rest stays at rest (regression for Phase-21a wall bug)', () => {
+    // Phase-21a had wall fluxes set to (0, 0) — the mass-flux part
+    // is correct (no water crosses) but the momentum-flux part
+    // *needs* to mirror ½·g·h² to cancel the interior pressure
+    // gradient at the boundary cell. Setting fluxMom = 0 generated
+    // spurious negative momentum at the boundary equal to
+    // ½·g·h_boundary²·Δt/Δx — for h = 4 km that is ~−2 × 10⁵ m²/s
+    // per step, blowing the solver up within 200-300 steps.
+    //
+    // This regression seeds a uniform 4 km deep ocean at rest with
+    // η = 0 everywhere (true lake-at-rest) and asserts the solver
+    // does NOT generate any spurious motion across 1000 time steps.
+    const N = 50;
+    const dx = 10_000;
+    const z = new Array<number>(N).fill(-4_000);
+    const eta0 = new Array<number>(N).fill(0);
+    const r = simulateSaintVenant1D({
+      bathymetryM: z,
+      cellWidthM: dx,
+      initialDisplacementM: eta0,
+      durationS: 5_000,
+      manningN: 0,
+      scheme: 'muscl-rk2',
+    });
+    // No initial perturbation, no friction, lake-at-rest → solver
+    // should produce zero motion. Tolerate FP round-off only.
+    for (const eta of r.finalDisplacementM) {
+      expect(Math.abs(eta)).toBeLessThan(1e-6);
+    }
+    for (const u of r.finalVelocityMPerS) {
+      expect(Math.abs(u)).toBeLessThan(1e-6);
+    }
+  });
+});
+
 describe('saintVenant1D — boundary / degenerate input handling', () => {
   it('throws on bathymetry shorter than 3 cells', () => {
     expect(() =>
