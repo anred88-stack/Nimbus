@@ -1,4 +1,4 @@
-import type { Meters, Seconds } from '../../units.js';
+import type { Meters, Seconds, SquareMeters } from '../../units.js';
 import { m } from '../../units.js';
 import { impactAmplitudeAtDistance } from '../tsunami/impact.js';
 import { tsunamiTravelTime } from '../tsunami/propagation.js';
@@ -113,6 +113,19 @@ export interface VolcanoTsunamiInput {
    *  sinks hundreds of metres. Defaults to `meanOceanDepth` for
    *  back-compat with callers that don't make the distinction. */
   sourceWaterDepth?: Meters;
+  /** Optional: planform area of the slide footprint (m²). When set,
+   *  the equivalent cavity radius is sqrt(area/π) — appropriate for
+   *  elongated submarine slumps where the V^(1/3) generic estimate
+   *  under-counts the line-source character.
+   *
+   *  Storegga ~8 200 BP is the canonical case: ≈ 290 km long × ≈ 100 km
+   *  wide footprint over 250 m thickness gives V^(1/3) = 14 km but a
+   *  proper equivalent-disc radius of ≈ 96 km. The 1/r far-field decay
+   *  over 14 km vs 96 km is a ~7× under-prediction at trans-Atlantic
+   *  ranges, which matters for Bondevik 2005 Sula / Shetland comparison.
+   *  For compact volcanic flank collapses (Anak Krakatau ~1 km block),
+   *  V^(1/3) is already a good approximation; the field is opt-in. */
+  slideFootprintArea?: SquareMeters;
   /** Regime selects the per-style prefactor. Defaults to 'subaerial'
    *  for back-compat with the volcano-collapse callers. */
   regime?: LandslideTsunamiRegime;
@@ -178,12 +191,23 @@ export function volcanoTsunami(input: VolcanoTsunamiInput): VolcanoTsunamiResult
   // displaced volume — and 2·η₀ produces tens-of-metres cavities for
   // kilometres-of-collapse events, which then under-predicts far-field
   // amplitudes by 10²-10³× via the impactAmplitudeAtDistance 1/r decay.
-  // For Krakatau 1883 (V = 2.5 × 10¹⁰ m³) the geometric cavity is
-  // 2.9 km, which is consistent with the ~5 km caldera footprint
-  // (Pelinovsky et al. 2005). For Anak Krakatau 2018 (V = 2.7 × 10⁸)
-  // it is 0.65 km, consistent with the ~1 km observed slide footprint
-  // (Grilli et al. 2019, Fig. 2).
-  const cavityRadius = m(Math.cbrt(V));
+  //
+  // For elongated slumps (Storegga 290×100 km footprint) the V^(1/3)
+  // generic estimate under-counts the line-source character; callers
+  // can pass `slideFootprintArea` for an equivalent-disc radius
+  // sqrt(A/π) that captures the actual planform spread.
+  //
+  // Calibration anchors: Krakatau 1883 (V = 2.5 × 10¹⁰ m³) → 2.9 km
+  // ≈ 5 km caldera footprint (Pelinovsky et al. 2005); Anak Krakatau
+  // 2018 (V = 2.7 × 10⁸) → 0.65 km ≈ 1 km observed slide footprint
+  // (Grilli et al. 2019); Storegga (V = 3 × 10¹², A = 2.9 × 10¹⁰ m²)
+  // → 96 km vs V^(1/3) = 14 km, matching Bondevik 2005 Fig. 1.
+  const footprintArea = input.slideFootprintArea as number | undefined;
+  const cavityRadius = m(
+    footprintArea !== undefined && Number.isFinite(footprintArea) && footprintArea > 0
+      ? Math.sqrt(footprintArea / Math.PI)
+      : Math.cbrt(V),
+  );
   const amp100 = impactAmplitudeAtDistance({
     sourceAmplitude,
     cavityRadius,

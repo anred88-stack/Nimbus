@@ -51,6 +51,15 @@ export interface LandslideScenarioInput {
    *  1 000 m (continental shelf); set to a larger value for open-
    *  ocean submarine slides. */
   meanOceanDepth?: Meters;
+  /** Optional planform area of the slide footprint (m²). When set,
+   *  the equivalent cavity radius driving the 1/r far-field decay is
+   *  sqrt(A/π) instead of the V^(1/3) generic estimate — important
+   *  for elongated slumps (e.g. Storegga, 290 × 100 km footprint
+   *  gives 96 km vs V^(1/3) = 14 km, a 7× difference at trans-basin
+   *  ranges). For compact rockfalls and flank collapses (Anak
+   *  Krakatau, Lituya, Vaiont), V^(1/3) is already a good estimate
+   *  and this field can be omitted. */
+  slideFootprintArea?: SquareMeters;
   /** Qualitative tag: 'submarine' (sliding sediment on the seafloor)
    *  vs 'subaerial' (rockfall or flank collapse entering water).
    *  Currently used only as metadata in the report; both regimes use
@@ -87,6 +96,9 @@ export function simulateLandslide(input: LandslideScenarioInput): LandslideScena
     slopeAngleRad: (slopeDeg * Math.PI) / 180,
     regime,
     ...(input.meanOceanDepth !== undefined && { meanOceanDepth: input.meanOceanDepth }),
+    ...(input.slideFootprintArea !== undefined && {
+      slideFootprintArea: input.slideFootprintArea,
+    }),
   });
   return {
     inputs: input,
@@ -117,7 +129,14 @@ export const LANDSLIDE_PRESETS = {
     } satisfies LandslideScenarioInput,
   },
   /** ≈ 8 200 BP Storegga submarine slide, Norwegian continental
-   *  slope — ≈ 3 000 km³ of sediment, basin-scale tsunami. */
+   *  slope — ≈ 3 000 km³ of sediment, basin-scale tsunami.
+   *  Slide footprint ≈ 290 km long × 100 km wide along the slope
+   *  (Bondevik et al. 2005 Fig. 1; Bryn et al. 2005 MPGS 22:11),
+   *  yielding an equivalent-disc cavity radius of ≈ 96 km — far
+   *  larger than the V^(1/3) = 14 km generic estimate, so we set
+   *  `slideFootprintArea` explicitly. Without this, the 1/r decay
+   *  at trans-Atlantic ranges (Sula 600 km, Shetland 950 km)
+   *  under-predicts by ~7×. */
   STOREGGA_8200_BP: {
     name: 'Storegga ≈ 8 200 BP',
     note: 'Norwegian continental-margin submarine slide; trans-Atlantic tsunami',
@@ -125,6 +144,7 @@ export const LANDSLIDE_PRESETS = {
       volumeM3: 3e12,
       slopeAngleDeg: 5,
       meanOceanDepth: m(1_500),
+      slideFootprintArea: 2.9e10 as SquareMeters,
       regime: 'submarine',
     } satisfies LandslideScenarioInput,
   },

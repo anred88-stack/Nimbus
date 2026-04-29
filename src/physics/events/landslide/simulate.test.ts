@@ -21,6 +21,25 @@ describe('simulateLandslide', () => {
     expect(r.tsunami.sourceAmplitude as number).toBeLessThan(15);
   });
 
+  it('Storegga preset reaches Bondevik 2005 trans-Atlantic amplitudes via slide-footprint cavity', () => {
+    // The 1/r far-field decay needs the actual slide-footprint radius
+    // (≈ 96 km from the 290 × 100 km Bondevik 2005 Fig. 1 outline),
+    // NOT the V^(1/3) generic estimate (≈ 14 km). Pre-fix the cavity
+    // was 12.6 m (back-derived from η₀), giving sub-millimetre
+    // amplitudes at trans-Atlantic ranges. With the proper cavity:
+    //   - cavityRadius ≈ 96 km
+    //   - amp @ 1000 km ≈ 0.6-1.0 m (deep-water; Sula coast at
+    //     ~600 km gets 1.5-2 m before Norwegian-shelf shoaling × 2-3
+    //     and run-up ×2-3, reproducing the 10 m sediment scour).
+    const r = simulateLandslide(LANDSLIDE_PRESETS.STOREGGA_8200_BP.input);
+    expect(r.tsunami).not.toBeNull();
+    if (r.tsunami === null) return;
+    expect(r.tsunami.cavityRadius as number).toBeGreaterThan(50_000);
+    expect(r.tsunami.cavityRadius as number).toBeLessThan(200_000);
+    expect(r.tsunami.amplitudeAt1000km as number).toBeGreaterThan(0.3);
+    expect(r.tsunami.amplitudeAt1000km as number).toBeLessThan(3);
+  });
+
   it('Lituya preset produces a tsunami in the 30-60 m band (saturation cap)', () => {
     // Lituya 1958 is a documented limitation: the fjord geometry
     // amplifies the wave to 524 m run-up, but an open-ocean Watts
