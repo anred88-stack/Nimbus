@@ -1,0 +1,198 @@
+{
+  "scenarios": [
+    {
+      "id": "tohoku-2011",
+      "displayName": "Tōhoku 2011 megathrust",
+      "input": {
+        "type": "seismic-megathrust",
+        "magnitude": 9.1,
+        "ruptureLengthM": 700000,
+        "ruptureWidthM": 350000,
+        "meanSlipM": 7.0,
+        "rakeDeg": 90,
+        "dipDeg": 12,
+        "centroidLat": 38.3,
+        "centroidLon": 142.5,
+        "basinDepthM": 4000
+      },
+      "domain": {
+        "boundsDeg": [120, 280, -60, 60],
+        "amrLevels": 3,
+        "baseGridDeg": 1.0
+      },
+      "probes": [
+        { "label": "DART 21413", "lat": 30.5, "lon": 152.1 },
+        { "label": "DART 21418", "lat": 38.7, "lon": 148.7 },
+        { "label": "Hilo, HI tide gauge", "lat": 19.7, "lon": -155.1 }
+      ],
+      "publishedReferences": [
+        { "label": "DART 21413", "peakAmplitudeM": 0.3, "source": "Satake 2013 BSSA 103(2B):1473" },
+        { "label": "DART 21418", "peakAmplitudeM": 1.85, "source": "Satake 2013 Fig. 6" },
+        {
+          "label": "Hilo tide gauge",
+          "peakAmplitudeM": 1.6,
+          "source": "Yamazaki & Cheung 2011 GRL 38"
+        }
+      ]
+    },
+    {
+      "id": "sumatra-2004",
+      "displayName": "Sumatra-Andaman 2004 megathrust",
+      "input": {
+        "type": "seismic-megathrust",
+        "magnitude": 9.1,
+        "ruptureLengthM": 1300000,
+        "ruptureWidthM": 200000,
+        "meanSlipM": 11.0,
+        "rakeDeg": 90,
+        "dipDeg": 8,
+        "centroidLat": 6.0,
+        "centroidLon": 94.0,
+        "basinDepthM": 4000
+      },
+      "domain": {
+        "boundsDeg": [40, 130, -40, 30],
+        "amrLevels": 3,
+        "baseGridDeg": 1.0
+      },
+      "probes": [
+        { "label": "Cocos Island", "lat": -12.1, "lon": 96.9 },
+        { "label": "Hanimaadhoo, Maldives", "lat": 6.8, "lon": 73.2 },
+        { "label": "Salalah, Oman", "lat": 17.0, "lon": 54.1 }
+      ],
+      "publishedReferences": [
+        {
+          "label": "Cocos Island deep-water",
+          "peakAmplitudeM": 0.4,
+          "source": "Bernard et al. 2006 Phil. Trans. R. Soc. A 364"
+        },
+        { "label": "Hanimaadhoo", "peakAmplitudeM": 1.6, "source": "Rabinovich et al. 2006 GRL 33" }
+      ]
+    },
+    {
+      "id": "krakatau-1883",
+      "displayName": "Krakatau 1883 caldera collapse",
+      "input": {
+        "type": "volcanic-collapse",
+        "collapseVolumeM3": 4.0e9,
+        "collapseAreaM2": 8.0e7,
+        "centroidLat": -6.1,
+        "centroidLon": 105.42,
+        "basinDepthM": 50,
+        "deepBasinDepthM": 1500
+      },
+      "domain": {
+        "boundsDeg": [95, 115, -10, -2],
+        "amrLevels": 4,
+        "baseGridDeg": 0.1
+      },
+      "probes": [
+        { "label": "Anjer, Java tide gauge", "lat": -6.05, "lon": 105.97 },
+        { "label": "Batavia (Jakarta) tide gauge", "lat": -6.13, "lon": 106.81 }
+      ],
+      "publishedReferences": [
+        { "label": "Anjer", "peakAmplitudeM": 36.0, "source": "Verbeek 1885; Choi et al. 2003" },
+        { "label": "Batavia tide gauge", "peakAmplitudeM": 2.4, "source": "Symons 1888" }
+      ]
+    },
+    {
+      "id": "storegga-8200bp",
+      "displayName": "Storegga ~8200 BP submarine landslide",
+      "input": {
+        "type": "submarine-landslide",
+        "slideVolumeM3": 3.0e12,
+        "slideLengthM": 290000,
+        "slideThicknessM": 220,
+        "slopeRad": 0.087,
+        "centroidLat": 65.0,
+        "centroidLon": 2.0,
+        "basinDepthM": 800
+      },
+      "domain": {
+        "boundsDeg": [-25, 30, 50, 75],
+        "amrLevels": 3,
+        "baseGridDeg": 0.5
+      },
+      "probes": [
+        { "label": "Norwegian coast, Sula", "lat": 63.5, "lon": 8.5 },
+        { "label": "Shetland, Sullom Voe", "lat": 60.4, "lon": -1.3 },
+        { "label": "East Scotland, Montrose", "lat": 56.7, "lon": -2.5 }
+      ],
+      "publishedReferences": [
+        {
+          "label": "Sula sediment scour",
+          "peakAmplitudeM": 10.0,
+          "source": "Bondevik et al. 2005 QSR 24"
+        },
+        { "label": "Shetland", "peakAmplitudeM": 20.0, "source": "Smith et al. 2004 QSR 23" }
+      ]
+    },
+    {
+      "id": "cascadia-m9",
+      "displayName": "Cascadia M9 reference scenario",
+      "input": {
+        "type": "seismic-megathrust",
+        "magnitude": 9.0,
+        "ruptureLengthM": 1100000,
+        "ruptureWidthM": 100000,
+        "meanSlipM": 14.0,
+        "rakeDeg": 90,
+        "dipDeg": 10,
+        "centroidLat": 45.0,
+        "centroidLon": -125.0,
+        "basinDepthM": 3500
+      },
+      "domain": {
+        "boundsDeg": [-160, -110, 30, 60],
+        "amrLevels": 3,
+        "baseGridDeg": 1.0
+      },
+      "probes": [
+        { "label": "Newport, OR coast", "lat": 44.6, "lon": -124.0 },
+        { "label": "Seaside, OR coast", "lat": 45.99, "lon": -123.93 },
+        { "label": "Crescent City, CA", "lat": 41.74, "lon": -124.2 }
+      ],
+      "publishedReferences": [
+        {
+          "label": "Newport reference",
+          "peakAmplitudeM": 8.0,
+          "source": "Witter et al. 2013 USGS Open-File 2013-1170"
+        }
+      ]
+    },
+    {
+      "id": "eltanin-2.5ma",
+      "displayName": "Eltanin 2.5 Ma deep-ocean asteroid impact",
+      "input": {
+        "type": "impact-deep-ocean",
+        "impactorDiameterM": 1500,
+        "impactorVelocityMPerS": 20000,
+        "impactorDensityKgPerM3": 3000,
+        "centroidLat": -57.3,
+        "centroidLon": -90.5,
+        "basinDepthM": 5000
+      },
+      "domain": {
+        "boundsDeg": [-180, 0, -80, 0],
+        "amrLevels": 3,
+        "baseGridDeg": 1.0
+      },
+      "probes": [
+        { "label": "South-east Pacific reference", "lat": -45.0, "lon": -85.0 },
+        { "label": "Antarctic Peninsula", "lat": -65.0, "lon": -65.0 }
+      ],
+      "publishedReferences": [
+        {
+          "label": "Geological no-crater record",
+          "peakAmplitudeM": 0.0,
+          "source": "Gersonde et al. 1997 Nature 390:357"
+        }
+      ]
+    }
+  ],
+  "_metadata": {
+    "schemaVersion": 1,
+    "format": "Each scenario.id matches a setrun.py template generated by setrun_template.py and a fixture file at src/physics/validation/geoclawFixtures/<id>.json. publishedReferences are NOT GeoClaw outputs; they are the historical observation we expect GeoClaw to reproduce. The actual GeoClaw output goes into the fixture file's geoclawProbes field.",
+    "generatorRef": "scripts/geoclaw/run_scenario.py + extract_results.py"
+  }
+}

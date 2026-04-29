@@ -165,6 +165,38 @@ Phase-20 is now closed.
 loading + UI Deep Dive mode (wave-height vs distance chart +
 run-up profile).
 
+## Tier 3 — GeoClaw fixture comparison (Sprint 3)
+
+For canonical events with a published GeoClaw run, we commit a JSON
+fixture in [src/physics/validation/geoclawFixtures/](../src/physics/validation/geoclawFixtures/)
+and the test in
+[geoclawComparison.test.ts](../src/physics/validation/geoclawComparison.test.ts)
+asserts that the Phase-21c Saint-Venant 1D-radial pipeline lands
+within `±25 %` of the GeoClaw value at every probe. The tolerance
+band matches the Synolakis et al. 2008 §6 inter-model spread (MOST,
+GeoClaw, COMCOT, Tsunami-HySEA on the same NOAA benchmark) — the
+inherent operational-grade scatter, not a sloppy pin.
+
+Setup details: see [docs/GEOCLAW_SETUP.md](GEOCLAW_SETUP.md).
+Generating new fixtures requires WSL2 / Linux + gfortran + Python
+clawpack (~30 min one-time install + ~1-30 min per scenario).
+Committed JSON fixtures make the validation testable in the regular
+`pnpm test` sweep without anyone needing GeoClaw locally.
+
+| Fixture (committed)     | GeoClaw output                            | Nimbus Phase-21c | Error | Pin     |
+| ----------------------- | ----------------------------------------- | ---------------- | ----- | ------- |
+| Maule 2010 @ DART 32412 | 0.178 m peak amplitude (Mw 8.92, 2050 km) | 0.139 m          | −22 % | ±25 % ✓ |
+
+Five additional scenarios (Tōhoku, Sumatra, Krakatau, Storegga,
+Cascadia, Eltanin) are listed in
+[scripts/geoclaw/scenarios.json](../scripts/geoclaw/scenarios.json)
+with their input parameters and probe locations. Their fixture JSON
+files are not yet generated; the test reports them as `it.todo` so
+the suite stays green until each one is committed.
+
+When a new fixture lands, no test code changes are needed — the
+comparator iterates over the directory automatically.
+
 | Benchmark                                  | Status    | Notes                                                                    |
 | ------------------------------------------ | --------- | ------------------------------------------------------------------------ |
 | Tōhoku 2011 DART 21413 amplitude (1500 km) | ✅ Pinned | Saint-Venant 1D-radial + Heidarzadeh-Satake dispersion, ±25 % envelope   |

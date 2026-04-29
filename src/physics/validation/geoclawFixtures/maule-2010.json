@@ -1,0 +1,49 @@
+{
+  "scenarioId": "maule-2010",
+  "displayName": "Maule (Chile) 2010 Mw 8.8 megathrust",
+  "geoclawVersion": "5.14.0",
+  "geoclawCommit": "11479f675dd8bb19066a2430c28206999cebf299",
+  "computedAt": "2026-04-29",
+  "computedBy": "Nimbus Sprint 3 / docs/GEOCLAW_SETUP.md",
+  "computedOn": "WSL2 Ubuntu 22.04, gfortran 11.4, x86_64",
+  "computeSeconds": 25.3,
+  "input": {
+    "type": "seismic-megathrust",
+    "magnitude": 8.92,
+    "epicentreLat": -35.9,
+    "epicentreLon": -72.6,
+    "ruptureLengthM": 450000,
+    "ruptureWidthM": 100000,
+    "meanSlipM": 8.0,
+    "rakeDeg": 105,
+    "dipDeg": 18,
+    "depthM": 35000,
+    "basinDepthM": 4500,
+    "_provenance": "GeoClaw chile2010 example setrun.py + maketopo.py (v5.14.0). Okada model dtopo with the published USGS finite-fault inversion."
+  },
+  "geoclawProbes": [
+    {
+      "label": "DART 32412",
+      "lat": -17.975,
+      "lon": -86.392,
+      "distanceFromEpicentreM": 2050000,
+      "peakAmplitudeM": 0.178,
+      "peakTimeSeconds": 11984,
+      "_dartObservedM": 0.13,
+      "_dartObservedSource": "NOAA NCTR DART 32412 record, 2010-02-27"
+    }
+  ],
+  "publishedReference": [
+    {
+      "label": "DART 32412 NOAA NCTR record",
+      "peakAmplitudeM": 0.13,
+      "source": "NOAA Center for Tsunami Research, DART buoy 32412, 2010-02-27 record"
+    }
+  ],
+  "_metadata": {
+    "schemaVersion": 1,
+    "tolerance": 0.25,
+    "tolerationRationale": "Operational-grade scatter envelope (Synolakis et al. 2008 §6 inter-model spread for the same NOAA benchmark). Our closed-form / 1D Saint-Venant pipeline is not 2D AMR; ±25 % is the honest pin width.",
+    "comparisonStrategy": "We feed the same Mw + rupture length to seismicTsunamiFromMegathrust (Phase-19 closed-form pipeline) and assert the dispersion-corrected amplitude at the gauge distance lands within ±25 % of the GeoClaw value above."
+  }
+}
