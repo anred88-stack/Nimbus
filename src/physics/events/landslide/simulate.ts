@@ -60,6 +60,17 @@ export interface LandslideScenarioInput {
    *  Krakatau, Lituya, Vaiont), V^(1/3) is already a good estimate
    *  and this field can be omitted. */
   slideFootprintArea?: SquareMeters;
+  /** Optional planform area of the CONFINED BASIN the slide enters
+   *  (m²). When set, source amplitude is computed as the basin-fill
+   *  formula `η = V/A × dynamic_factor` capped at `meanOceanDepth`,
+   *  instead of the open-ocean Watts cube-root form. Use this for
+   *  reservoirs, fjords, and other geometrically confined cases
+   *  where 2D radial spreading does not apply (Vaiont 1963 is the
+   *  textbook case; Lituya Bay 1958 partially). */
+  confinedBasinArea?: SquareMeters;
+  /** Optional dynamic-amplification factor for the confined-basin
+   *  formula above. Defaults to 3.0 (calibrated against Vaiont). */
+  confinementDynamicFactor?: number;
   /** Qualitative tag: 'submarine' (sliding sediment on the seafloor)
    *  vs 'subaerial' (rockfall or flank collapse entering water).
    *  Currently used only as metadata in the report; both regimes use
@@ -98,6 +109,12 @@ export function simulateLandslide(input: LandslideScenarioInput): LandslideScena
     ...(input.meanOceanDepth !== undefined && { meanOceanDepth: input.meanOceanDepth }),
     ...(input.slideFootprintArea !== undefined && {
       slideFootprintArea: input.slideFootprintArea,
+    }),
+    ...(input.confinedBasinArea !== undefined && {
+      confinedBasinArea: input.confinedBasinArea,
+    }),
+    ...(input.confinementDynamicFactor !== undefined && {
+      confinementDynamicFactor: input.confinementDynamicFactor,
     }),
   });
   return {
@@ -175,11 +192,19 @@ export const LANDSLIDE_PRESETS = {
    *  Giorn. Geol. Appl. 1: 41-52. DOI: 10.1474/GGA.2005-01.0-05.0005. */
   VAIONT_1963: {
     name: 'Vaiont 1963',
-    note: '≈ 270 Mm³ rockslide into the Vaiont reservoir; ≈ 250 m wave overtopped the dam, ≈ 1 917 fatalities — Genevois & Ghirotti 2005, GGA 1: 41. Type case for reservoir-triggered landslides.',
+    note: '≈ 270 Mm³ rockslide into the Vaiont reservoir; ≈ 250 m wave overtopped the dam, ≈ 1 917 fatalities — Genevois & Ghirotti 2005, GGA 1: 41. Type case for reservoir-triggered landslides; uses the confined-basin formula because open-ocean Watts spreading does not apply to a 3 km² reservoir.',
     input: {
       volumeM3: 2.7e8,
       slopeAngleDeg: 35,
-      meanOceanDepth: m(140),
+      // meanOceanDepth = 250 m: maximum reservoir depth at the dam,
+      //   used as the source-amplitude cap (a wave can't be taller
+      //   than the basin it sloshes in).
+      // confinedBasinArea = 3 × 10⁶ m²: reservoir surface area
+      //   (Müller 1964 Rock Mech. Eng. Geol. 2: 148, Fig. 3). Triggers
+      //   the basin-fill formula η = V/A × 3 = 270 m, capped to 250 m
+      //   — matches the observed wave height at the dam.
+      meanOceanDepth: m(250),
+      confinedBasinArea: 3e6 as SquareMeters,
       regime: 'subaerial',
     } satisfies LandslideScenarioInput,
   },

@@ -126,6 +126,39 @@ export interface VolcanoTsunamiInput {
    *  For compact volcanic flank collapses (Anak Krakatau ~1 km block),
    *  V^(1/3) is already a good approximation; the field is opt-in. */
   slideFootprintArea?: SquareMeters;
+  /** Optional: planform area of the CONFINED BASIN (reservoir, fjord)
+   *  the slide enters (m²). When set, the source amplitude is
+   *  computed as the basin-fill formula
+   *
+   *      η_source = min(V / A_basin × confinementDynamicFactor,
+   *                     sourceWaterDepth)
+   *
+   *  instead of the open-ocean Watts cube-root form. Confined-basin
+   *  slides cannot dissipate energy by 2D radial spreading — the
+   *  displaced volume raises the basin water level uniformly to first
+   *  order, and the dynamic (impulsive-entry) amplification multiplies
+   *  that static rise by ~2-4. Cap is the basin depth (the wave
+   *  cannot exceed the water column it lives in).
+   *
+   *  Calibration anchors (with `confinementDynamicFactor` defaulting
+   *  to 3, calibrated below):
+   *    - Vaiont 1963 (V = 2.7 × 10⁸ m³, A_res ≈ 3 × 10⁶ m², depth ≈
+   *      250 m at the dam): η_static = 90 m, dynamic ×3 = 270 m,
+   *      capped at 250 m — matches the observed 250 m wave height
+   *      that overtopped the dam (Genevois & Ghirotti 2005, Giorn.
+   *      Geol. Appl. 1: 41).
+   *    - Lituya Bay 1958 still acknowledged as out-of-model: even
+   *      the basin-fill formula under-predicts the 524 m run-up
+   *      because the steep fjord walls produce splash-up effects
+   *      Watts-class models cannot capture (Walder et al. 2003,
+   *      Pure Appl. Geophys. 160). */
+  confinedBasinArea?: SquareMeters;
+  /** Optional dynamic-amplification factor applied on top of the
+   *  static V/A basin rise when `confinedBasinArea` is set. Defaults
+   *  to 3.0 (calibrated against Vaiont). Values 2-4 are physically
+   *  defensible for impulsive slide entries; higher values capture
+   *  resonant sloshing modes specific to certain basin geometries. */
+  confinementDynamicFactor?: number;
   /** Regime selects the per-style prefactor. Defaults to 'subaerial'
    *  for back-compat with the volcano-collapse callers. */
   regime?: LandslideTsunamiRegime;
@@ -172,16 +205,37 @@ export function volcanoTsunami(input: VolcanoTsunamiInput): VolcanoTsunamiResult
     input.regime === 'submarine'
       ? VOLCANO_TSUNAMI_PREFACTOR_SUBMARINE
       : VOLCANO_TSUNAMI_PREFACTOR_SUBAERIAL;
-  // Watts-style cube-root displacement, then saturate at 40 % of the
+  // Source amplitude: two-branch logic.
+  //
+  // (a) Confined basin (Vaiont reservoir, fjord rockfalls). When the
+  // caller passes `confinedBasinArea` we use the basin-fill formula
+  //
+  //     η_source = min(V / A_basin × confinementDynamicFactor,
+  //                    sourceWaterDepth)
+  //
+  // The slide volume raises the basin level uniformly (V/A static
+  // rise) and the impulsive entry amplifies that by a calibrated
+  // factor (default 3, matching Vaiont 1963). The cap is the basin
+  // depth — wave cannot exceed the water column it lives in, but is
+  // NOT subject to the McCowan 0.4·h breaking cap because confined-
+  // basin sloshing modes can transiently exceed solitary-wave limits.
+  //
+  // (b) Open-ocean (every existing caller). The Watts (2000)
+  // cube-root form K · V^(1/3) · sin(θ) saturated at 40 % of the
   // SOURCE water column to honour the McCowan 1894 wave-breaking
-  // ceiling applied at the generation site. The cap uses the source
-  // depth (e.g. post-collapse caldera depth ~250 m for Krakatau 1883)
-  // rather than the shelf depth used for wave propagation, so that a
-  // large caldera collapse on a shallow surrounding shelf is not
-  // artificially clipped to the shelf height.
-  const wattsAmplitude = K * Math.cbrt(V) * Math.sin(theta);
-  const breakingCap = (sourceWaterDepth as number) * 0.4;
-  const eta0 = Math.min(wattsAmplitude, breakingCap);
+  // ceiling applied at the generation site.
+  const basinArea = input.confinedBasinArea as number | undefined;
+  const confinementFactor = input.confinementDynamicFactor ?? 3.0;
+  let eta0: number;
+  if (basinArea !== undefined && Number.isFinite(basinArea) && basinArea > 0) {
+    const staticRise = V / basinArea;
+    const dynamicAmp = staticRise * confinementFactor;
+    eta0 = Math.min(dynamicAmp, sourceWaterDepth);
+  } else {
+    const wattsAmplitude = K * Math.cbrt(V) * Math.sin(theta);
+    const breakingCap = (sourceWaterDepth as number) * 0.4;
+    eta0 = Math.min(wattsAmplitude, breakingCap);
+  }
   const sourceAmplitude = m(eta0);
   // Cavity radius from collapse geometry (V^(1/3) ≈ characteristic
   // linear scale of the slide footprint), NOT from 2·η₀ as a previous

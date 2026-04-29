@@ -40,6 +40,18 @@ describe('simulateLandslide', () => {
     expect(r.tsunami.amplitudeAt1000km as number).toBeLessThan(3);
   });
 
+  it('Vaiont preset matches the Genevois 2005 ~250 m dam-overtopping wave height', () => {
+    // Confined-basin formula η = V/A × 3 = 2.7e8/3e6 × 3 = 270 m,
+    // capped at the 250 m reservoir depth = 250 m. Open-ocean Watts
+    // (used by the previous version) gave only 56 m for this event
+    // because radial spreading does not apply in a 3 km² reservoir.
+    const r = simulateLandslide(LANDSLIDE_PRESETS.VAIONT_1963.input);
+    expect(r.tsunami).not.toBeNull();
+    if (r.tsunami === null) return;
+    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(150);
+    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(300);
+  });
+
   it('Lituya preset produces a tsunami in the 30-60 m band (saturation cap)', () => {
     // Lituya 1958 is a documented limitation: the fjord geometry
     // amplifies the wave to 524 m run-up, but an open-ocean Watts
