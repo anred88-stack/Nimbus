@@ -66,6 +66,12 @@
     "preset": "Preset",
     "customPreset": "Parametri personalizzati ★",
     "customParams": "Parametri personalizzati",
+    "validation": {
+      "errorLabel": "Errore",
+      "warningLabel": "Avviso",
+      "errorAria": "Errore di validazione su {{field}}: {{message}}",
+      "warningAria": "Avviso di validazione su {{field}}: {{message}}"
+    },
     "impact": {
       "diameter": "Diametro impattore (km)",
       "velocity": "Velocità d'impatto (km/s)",

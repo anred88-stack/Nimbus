@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { ASTEROID_TAXONOMY, type AsteroidTaxonomyClass } from '../../physics/constants.js';
 import { radiansToDegrees } from '../../physics/units.js';
 import { useAppStore } from '../../store/index.js';
+import { useFieldIssues } from '../../store/useScenarioValidation.js';
+import { FieldFeedback } from './FieldFeedback.js';
 import styles from './SimulatorPanel.module.css';
 
 const TAXONOMY_CLASSES: AsteroidTaxonomyClass[] = [
@@ -26,6 +28,16 @@ export function ImpactCustomInputs(): JSX.Element {
   const { t } = useTranslation();
   const input = useAppStore((s) => s.impact.input);
   const setImpactInput = useAppStore((s) => s.setImpactInput);
+
+  // Validator-driven feedback for the six numeric impact parameters.
+  // Field paths follow the validator (`impactorDiameter`, etc.). The
+  // azimuth field is wrapped to [0, 360) by the validator and may
+  // surface NORMALIZED_AZIMUTH if the user types an out-of-range value.
+  const diameterIssues = useFieldIssues('impact', 'impactorDiameter');
+  const velocityIssues = useFieldIssues('impact', 'impactVelocity');
+  const impactorDensityIssues = useFieldIssues('impact', 'impactorDensity');
+  const angleIssues = useFieldIssues('impact', 'impactAngle');
+  const azimuthIssues = useFieldIssues('impact', 'impactAzimuthDeg');
 
   const diameterKm = (input.impactorDiameter as number) / 1_000;
   const velocityKms = (input.impactVelocity as number) / 1_000;
@@ -113,7 +125,17 @@ export function ImpactCustomInputs(): JSX.Element {
           step={0.1}
           value={diameterKm}
           onChange={updateDiameter}
+          aria-invalid={diameterIssues.hasError || undefined}
+          aria-describedby={diameterIssues.topMessage ? 'impact-diameter-feedback' : undefined}
         />
+        <span id="impact-diameter-feedback">
+          <FieldFeedback
+            field="impactorDiameter"
+            message={diameterIssues.topMessage}
+            code={diameterIssues.topCode}
+            isError={diameterIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField}>
@@ -130,7 +152,17 @@ export function ImpactCustomInputs(): JSX.Element {
           step={0.5}
           value={velocityKms}
           onChange={updateVelocity}
+          aria-invalid={velocityIssues.hasError || undefined}
+          aria-describedby={velocityIssues.topMessage ? 'impact-velocity-feedback' : undefined}
         />
+        <span id="impact-velocity-feedback">
+          <FieldFeedback
+            field="impactVelocity"
+            message={velocityIssues.topMessage}
+            code={velocityIssues.topCode}
+            isError={velocityIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField}>
@@ -147,7 +179,19 @@ export function ImpactCustomInputs(): JSX.Element {
           step={100}
           value={input.impactorDensity}
           onChange={updateImpactorDensity}
+          aria-invalid={impactorDensityIssues.hasError || undefined}
+          aria-describedby={
+            impactorDensityIssues.topMessage ? 'impact-impactor-density-feedback' : undefined
+          }
         />
+        <span id="impact-impactor-density-feedback">
+          <FieldFeedback
+            field="impactorDensity"
+            message={impactorDensityIssues.topMessage}
+            code={impactorDensityIssues.topCode}
+            isError={impactorDensityIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField}>
@@ -181,7 +225,17 @@ export function ImpactCustomInputs(): JSX.Element {
           step={5}
           value={angleDeg}
           onChange={updateAngle}
+          aria-invalid={angleIssues.hasError || undefined}
+          aria-describedby={angleIssues.topMessage ? 'impact-angle-feedback' : undefined}
         />
+        <span id="impact-angle-feedback">
+          <FieldFeedback
+            field="impactAngle"
+            message={angleIssues.topMessage}
+            code={angleIssues.topCode}
+            isError={angleIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField} style={{ gridColumn: '1 / -1' }}>
@@ -201,7 +255,17 @@ export function ImpactCustomInputs(): JSX.Element {
             degrees: azimuthDeg.toFixed(0),
             cardinal: cardinalFromDeg(azimuthDeg),
           })}
+          aria-invalid={azimuthIssues.hasError || undefined}
+          aria-describedby={azimuthIssues.topMessage ? 'impact-azimuth-feedback' : undefined}
         />
+        <span id="impact-azimuth-feedback">
+          <FieldFeedback
+            field="impactAzimuthDeg"
+            message={azimuthIssues.topMessage}
+            code={azimuthIssues.topCode}
+            isError={azimuthIssues.hasError}
+          />
+        </span>
       </div>
     </fieldset>
   );

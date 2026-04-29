@@ -66,6 +66,12 @@
     "preset": "Preset",
     "customPreset": "Custom parameters ★",
     "customParams": "Custom parameters",
+    "validation": {
+      "errorLabel": "Error",
+      "warningLabel": "Warning",
+      "errorAria": "Validation error on {{field}}: {{message}}",
+      "warningAria": "Validation warning on {{field}}: {{message}}"
+    },
     "impact": {
       "diameter": "Impactor diameter (km)",
       "velocity": "Impact velocity (km/s)",

@@ -1,6 +1,8 @@
 import type { ChangeEvent, JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/index.js';
+import { useFieldIssues } from '../../store/useScenarioValidation.js';
+import { FieldFeedback } from './FieldFeedback.js';
 import styles from './SimulatorPanel.module.css';
 
 /**
@@ -22,6 +24,14 @@ export function VolcanoCustomInputs(): JSX.Element {
   const { t } = useTranslation();
   const input = useAppStore((s) => s.volcano.input);
   const setVolcanoInput = useAppStore((s) => s.setVolcanoInput);
+
+  // Validator-driven feedback. The mantissa+exponent editor re-creates
+  // the underlying scalar, so issues attach to the underlying field
+  // (`volumeEruptionRate` / `totalEjectaVolume`), not the split widgets.
+  const vdotIssues = useFieldIssues('volcano', 'volumeEruptionRate');
+  const volIssues = useFieldIssues('volcano', 'totalEjectaVolume');
+  const laharIssues = useFieldIssues('volcano', 'laharVolume');
+  const windDirIssues = useFieldIssues('volcano', 'windDirectionDegrees');
 
   const vdot = splitScientific(input.volumeEruptionRate);
   const vol = splitScientific(input.totalEjectaVolume);
@@ -75,6 +85,8 @@ export function VolcanoCustomInputs(): JSX.Element {
           step={0.1}
           value={vdot.mantissa.toFixed(1)}
           onChange={updateVdotMantissa}
+          aria-invalid={vdotIssues.hasError || undefined}
+          aria-describedby={vdotIssues.topMessage ? 'volcano-vdot-feedback' : undefined}
         />
       </div>
 
@@ -94,6 +106,14 @@ export function VolcanoCustomInputs(): JSX.Element {
             </option>
           ))}
         </select>
+        <span id="volcano-vdot-feedback">
+          <FieldFeedback
+            field="volumeEruptionRate"
+            message={vdotIssues.topMessage}
+            code={vdotIssues.topCode}
+            isError={vdotIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField}>
@@ -110,6 +130,8 @@ export function VolcanoCustomInputs(): JSX.Element {
           step={0.1}
           value={vol.mantissa.toFixed(1)}
           onChange={updateVolMantissa}
+          aria-invalid={volIssues.hasError || undefined}
+          aria-describedby={volIssues.topMessage ? 'volcano-vol-feedback' : undefined}
         />
       </div>
 
@@ -129,6 +151,14 @@ export function VolcanoCustomInputs(): JSX.Element {
             </option>
           ))}
         </select>
+        <span id="volcano-vol-feedback">
+          <FieldFeedback
+            field="totalEjectaVolume"
+            message={volIssues.topMessage}
+            code={volIssues.topCode}
+            isError={volIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField} style={{ gridColumn: '1 / -1' }}>
@@ -144,7 +174,17 @@ export function VolcanoCustomInputs(): JSX.Element {
           step={1e6}
           value={input.laharVolume ?? 0}
           onChange={updateLahar}
+          aria-invalid={laharIssues.hasError || undefined}
+          aria-describedby={laharIssues.topMessage ? 'volcano-lahar-feedback' : undefined}
         />
+        <span id="volcano-lahar-feedback">
+          <FieldFeedback
+            field="laharVolume"
+            message={laharIssues.topMessage}
+            code={laharIssues.topCode}
+            isError={laharIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField}>
@@ -178,7 +218,17 @@ export function VolcanoCustomInputs(): JSX.Element {
           step={1}
           value={input.windDirectionDegrees ?? 90}
           onChange={updateWindDirection}
+          aria-invalid={windDirIssues.hasError || undefined}
+          aria-describedby={windDirIssues.topMessage ? 'volcano-wind-dir-feedback' : undefined}
         />
+        <span id="volcano-wind-dir-feedback">
+          <FieldFeedback
+            field="windDirectionDegrees"
+            message={windDirIssues.topMessage}
+            code={windDirIssues.topCode}
+            isError={windDirIssues.hasError}
+          />
+        </span>
       </div>
     </fieldset>
   );

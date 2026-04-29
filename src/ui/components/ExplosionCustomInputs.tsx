@@ -2,6 +2,8 @@ import type { ChangeEvent, JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ExplosionScenarioInput } from '../../physics/events/explosion/index.js';
 import { useAppStore } from '../../store/index.js';
+import { useFieldIssues } from '../../store/useScenarioValidation.js';
+import { FieldFeedback } from './FieldFeedback.js';
 import styles from './SimulatorPanel.module.css';
 
 type GroundType = NonNullable<ExplosionScenarioInput['groundType']>;
@@ -11,6 +13,14 @@ export function ExplosionCustomInputs(): JSX.Element {
   const { t } = useTranslation();
   const input = useAppStore((s) => s.explosion.input);
   const setExplosionInput = useAppStore((s) => s.setExplosionInput);
+
+  // Validator-driven feedback (single source of truth). The wind-direction
+  // slider is bound to [0,360) in the UI, so it never produces an
+  // azimuth-wrap warning; we still subscribe to keep the contract
+  // uniform if the bounds widen later.
+  const yieldIssues = useFieldIssues('explosion', 'yieldMegatons');
+  const hobIssues = useFieldIssues('explosion', 'heightOfBurst');
+  const groundIssues = useFieldIssues('explosion', 'groundType');
 
   const updateYield = (e: ChangeEvent<HTMLInputElement>): void => {
     const v = parseFloat(e.target.value);
@@ -54,7 +64,17 @@ export function ExplosionCustomInputs(): JSX.Element {
           step={0.1}
           value={input.yieldMegatons}
           onChange={updateYield}
+          aria-invalid={yieldIssues.hasError || undefined}
+          aria-describedby={yieldIssues.topMessage ? 'explosion-yield-feedback' : undefined}
         />
+        <span id="explosion-yield-feedback">
+          <FieldFeedback
+            field="yieldMegatons"
+            message={yieldIssues.topMessage}
+            code={yieldIssues.topCode}
+            isError={yieldIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField}>
@@ -66,6 +86,8 @@ export function ExplosionCustomInputs(): JSX.Element {
           className={styles.paramInput}
           value={input.groundType ?? 'FIRM_GROUND'}
           onChange={updateGround}
+          aria-invalid={groundIssues.hasError || undefined}
+          aria-describedby={groundIssues.topMessage ? 'explosion-ground-feedback' : undefined}
         >
           {GROUND_TYPES.map((g) => (
             <option key={g} value={g}>
@@ -73,6 +95,14 @@ export function ExplosionCustomInputs(): JSX.Element {
             </option>
           ))}
         </select>
+        <span id="explosion-ground-feedback">
+          <FieldFeedback
+            field="groundType"
+            message={groundIssues.topMessage}
+            code={groundIssues.topCode}
+            isError={groundIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField} style={{ gridColumn: '1 / -1' }}>
@@ -89,7 +119,17 @@ export function ExplosionCustomInputs(): JSX.Element {
           step={100}
           value={hobValue}
           onChange={updateHob}
+          aria-invalid={hobIssues.hasError || undefined}
+          aria-describedby={hobIssues.topMessage ? 'explosion-hob-feedback' : undefined}
         />
+        <span id="explosion-hob-feedback">
+          <FieldFeedback
+            field="heightOfBurst"
+            message={hobIssues.topMessage}
+            code={hobIssues.topCode}
+            isError={hobIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField}>

@@ -197,6 +197,26 @@
   color: #e5e7eb;
 }
 
+/* Per-field validator feedback. Rendered by `<FieldFeedback />` when
+ * `useFieldIssues` reports an error or warning for a given field path.
+ * Both colour and the data-validation-code attribute on the wrapping
+ * element carry information so screen-readers + tests have the canonical
+ * code, not just the visual hue. */
+.fieldFeedback {
+  font-size: 11px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.fieldFeedback[data-severity='error'] {
+  color: #fca5a5;
+}
+
+.fieldFeedback[data-severity='warning'] {
+  color: #fcd34d;
+}
+
 .status {
   font-size: 12px;
   font-family: var(--font-mono, 'JetBrains Mono', monospace);

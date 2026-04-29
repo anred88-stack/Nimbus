@@ -49,6 +49,26 @@ jobs:
       - name: Unit tests
         run: pnpm test -- --coverage
 
+      - name: Validation gate (strict)
+        # The strict gate (closes H7) runs the V&V replay corpus + the
+        # executable golden dataset and writes docs/VALIDATION_REPORT.md
+        # plus a machine-readable JSON sidecar. It exits 1 if any
+        # fixture or golden case fails — see `scripts/generate-validation-report.ts`
+        # `gate()` for the policy. Keep this AFTER `pnpm test` so the
+        # underlying assertions have already passed individually; this
+        # step is the cumulative regression gate.
+        run: pnpm validation-report -- --mode=strict
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report
+          path: |
+            docs/VALIDATION_REPORT.md
+            docs/VALIDATION_REPORT.json
+          retention-days: 30
+
       - name: Build
         run: pnpm build
 

@@ -2,6 +2,8 @@ import type { ChangeEvent, JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FaultType } from '../../physics/events/earthquake/index.js';
 import { useAppStore } from '../../store/index.js';
+import { useFieldIssues } from '../../store/useScenarioValidation.js';
+import { FieldFeedback } from './FieldFeedback.js';
 import styles from './SimulatorPanel.module.css';
 
 const FAULT_TYPES: FaultType[] = ['strike-slip', 'reverse', 'normal', 'all'];
@@ -10,6 +12,17 @@ export function EarthquakeCustomInputs(): JSX.Element {
   const { t } = useTranslation();
   const input = useAppStore((s) => s.earthquake.input);
   const setEarthquakeInput = useAppStore((s) => s.setEarthquakeInput);
+
+  // Per-field issues come straight from `validateScenario` — no
+  // duplication of the validator's logic in this component. The store
+  // setter rejects S1 invalid input at the boundary (B-010), so what
+  // surfaces here in steady state is `normalized` / `suspicious`
+  // warnings (azimuth wrap, magnitude exceeds Mw 9.5, etc.). Codes are
+  // preserved on the rendered element via `data-validation-code`.
+  const magnitudeIssues = useFieldIssues('earthquake', 'magnitude');
+  const depthIssues = useFieldIssues('earthquake', 'depth');
+  const faultIssues = useFieldIssues('earthquake', 'faultType');
+  const vs30Issues = useFieldIssues('earthquake', 'vs30');
 
   const depthKm = input.depth === undefined ? '' : (input.depth as number) / 1_000;
 
@@ -50,7 +63,17 @@ export function EarthquakeCustomInputs(): JSX.Element {
           step={0.1}
           value={input.magnitude}
           onChange={updateMagnitude}
+          aria-invalid={magnitudeIssues.hasError || undefined}
+          aria-describedby={magnitudeIssues.topMessage ? 'quake-magnitude-feedback' : undefined}
         />
+        <span id="quake-magnitude-feedback">
+          <FieldFeedback
+            field="magnitude"
+            message={magnitudeIssues.topMessage}
+            code={magnitudeIssues.topCode}
+            isError={magnitudeIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField}>
@@ -67,7 +90,17 @@ export function EarthquakeCustomInputs(): JSX.Element {
           step={1}
           value={depthKm}
           onChange={updateDepth}
+          aria-invalid={depthIssues.hasError || undefined}
+          aria-describedby={depthIssues.topMessage ? 'quake-depth-feedback' : undefined}
         />
+        <span id="quake-depth-feedback">
+          <FieldFeedback
+            field="depth"
+            message={depthIssues.topMessage}
+            code={depthIssues.topCode}
+            isError={depthIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField}>
@@ -79,6 +112,8 @@ export function EarthquakeCustomInputs(): JSX.Element {
           className={styles.paramInput}
           value={input.faultType ?? 'all'}
           onChange={updateFault}
+          aria-invalid={faultIssues.hasError || undefined}
+          aria-describedby={faultIssues.topMessage ? 'quake-fault-feedback' : undefined}
         >
           {FAULT_TYPES.map((f) => (
             <option key={f} value={f}>
@@ -86,6 +121,14 @@ export function EarthquakeCustomInputs(): JSX.Element {
             </option>
           ))}
         </select>
+        <span id="quake-fault-feedback">
+          <FieldFeedback
+            field="faultType"
+            message={faultIssues.topMessage}
+            code={faultIssues.topCode}
+            isError={faultIssues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField}>
@@ -102,7 +145,17 @@ export function EarthquakeCustomInputs(): JSX.Element {
           step={10}
           value={input.vs30 ?? 760}
           onChange={updateVs30}
+          aria-invalid={vs30Issues.hasError || undefined}
+          aria-describedby={vs30Issues.topMessage ? 'quake-vs30-feedback' : undefined}
         />
+        <span id="quake-vs30-feedback">
+          <FieldFeedback
+            field="vs30"
+            message={vs30Issues.topMessage}
+            code={vs30Issues.topCode}
+            isError={vs30Issues.hasError}
+          />
+        </span>
       </div>
 
       <div className={styles.paramField} style={{ gridColumn: '1 / -1' }}>

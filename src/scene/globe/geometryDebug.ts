@@ -60,7 +60,10 @@ export function polygonBbox(ring: readonly LatLon[]): GeometryBbox {
   if (ring.length === 0) {
     return { minLat: 0, maxLat: 0, minLon: 0, maxLon: 0, crossesAntimeridian: false };
   }
-  let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+  let minLat = Infinity,
+    maxLat = -Infinity,
+    minLon = Infinity,
+    maxLon = -Infinity;
   for (const v of ring) {
     if (v.latDeg < minLat) minLat = v.latDeg;
     if (v.latDeg > maxLat) maxLat = v.latDeg;
@@ -118,15 +121,81 @@ export interface DamageRingsPayload {
   featureCount: number;
 }
 
+/**
+ * Split a bbox that crosses the antimeridian into the two parts that
+ * GeoJSON consumers (Cesium, leaflet, mapbox-gl, etc.) need to render
+ * it correctly. Per RFC 7946 §3.1.9, a polygon spanning lon=±180° must
+ * be encoded as two polygons rather than one with `lon > 180` or
+ * `lon < -180` vertices.
+ *
+ * Returned parts are NEVER overlapping. Each part has
+ * `crossesAntimeridian = false` (they're already split). When the input
+ * bbox does not cross, returns the bbox itself unchanged in a
+ * single-element array.
+ *
+ * Example:
+ *   { minLon: 178, maxLon: 182, ... } →
+ *     [{ minLon: 178, maxLon: 180, ... }, { minLon: -180, maxLon: -178, ... }]
+ *
+ *   { minLon: -181, maxLon: -178, ... } →
+ *     [{ minLon: 179, maxLon: 180, ... }, { minLon: -180, maxLon: -178, ... }]
+ */
+export function splitBboxAtAntimeridian(bbox: GeometryBbox): GeometryBbox[] {
+  if (!bbox.crossesAntimeridian) return [bbox];
+  // The bbox crosses if minLon < -180 OR maxLon > 180. Wrap to [-180, 180]
+  // and split into [wrappedHigh, 180] ∪ [-180, wrappedLow].
+  const { minLat, maxLat, minLon, maxLon } = bbox;
+  if (maxLon > 180) {
+    // Eastern overflow: original is [minLon, maxLon] with maxLon > 180.
+    // Split into [minLon, 180] and [-180, maxLon - 360].
+    return [
+      { minLat, maxLat, minLon, maxLon: 180, crossesAntimeridian: false },
+      { minLat, maxLat, minLon: -180, maxLon: maxLon - 360, crossesAntimeridian: false },
+    ];
+  }
+  // Western overflow: minLon < -180. Split into [-180, maxLon] and [minLon + 360, 180].
+  return [
+    { minLat, maxLat, minLon: -180, maxLon, crossesAntimeridian: false },
+    { minLat, maxLat, minLon: minLon + 360, maxLon: 180, crossesAntimeridian: false },
+  ];
+}
+
+/**
+ * Detect a near-pole footprint, where the bbox lat-extent has been
+ * clamped to ±90° by `circleBbox`. Renderers must treat these as
+ * cap-shaped (encircling the pole), not rectangular.
+ *
+ * Returns 'north' if maxLat is clamped to 90°, 'south' if minLat is
+ * clamped to -90°, 'none' otherwise. The clamp is detected by the
+ * bbox dimensions: a pole-touching footprint produces a bbox whose
+ * extent in the affected hemisphere is smaller than the radius would
+ * normally produce, OR exactly hits ±90° at the boundary.
+ */
+export function polarClamp(
+  bbox: GeometryBbox,
+  centerLat: number,
+  radiusM: number
+): 'north' | 'south' | 'none' {
+  const dLatDeg = ((radiusM / EARTH_RADIUS_M) * 180) / Math.PI;
+  // Use a small slack to absorb the float drift in dLatDeg.
+  const SLACK = 1e-9;
+  if (centerLat + dLatDeg >= 90 - SLACK && bbox.maxLat >= 90 - SLACK) return 'north';
+  if (centerLat - dLatDeg <= -90 + SLACK && bbox.minLat <= -90 + SLACK) return 'south';
+  return 'none';
+}
+
 /** Build a damage-rings payload from a centre point and a name → radius map.
  *  Excludes rings with zero or non-finite radius. */
 export function buildDamageRingsPayload(
   centerLat: number,
   centerLon: number,
-  radii: Readonly<Record<string, number>>,
+  radii: Readonly<Record<string, number>>
 ): DamageRingsPayload {
   const rings: DamageRing[] = [];
-  let outerMinLat = Infinity, outerMaxLat = -Infinity, outerMinLon = Infinity, outerMaxLon = -Infinity;
+  let outerMinLat = Infinity,
+    outerMaxLat = -Infinity,
+    outerMinLon = Infinity,
+    outerMaxLon = -Infinity;
   let outerCrosses = false;
   for (const [kind, r] of Object.entries(radii)) {
     if (!Number.isFinite(r) || r <= 0) continue;
