@@ -64,29 +64,35 @@ describe('oceanCouplingPartition (Crawford-Mader 1998 / Gisler 2011)', () => {
   });
 
   it('iron-density bodies penetrate proportionally deeper water columns', () => {
-    // Same impactor diameter (50 m), same water depth (1 km): the
-    // iron body has √(ρ_i/ρ_water) ≈ 2.76 vs ≈ 1.71 for stony, so
-    // the characteristic absorption depth is ~60 % larger.
+    // Compare 200 m bodies in 200 m water — both stay below the
+    // deep-water disruption cutoff (d/L = 1, threshold ≈ 4 for iron,
+    // 2.6 for stony) so Crawford-Mader applies for both. Iron has
+    // √(ρ_i/ρ_water) ≈ 2.76 vs ≈ 1.71 for stony, so its
+    // characteristic absorption depth is ~60 % larger and its
+    // seafloor coupling correspondingly higher.
     const stony = oceanCouplingPartition({
-      impactorDiameter: meters(50),
-      waterDepth: meters(1_000),
+      impactorDiameter: meters(200),
+      waterDepth: meters(200),
       impactorDensity: CHONDRITIC_DENSITY,
     });
     const iron = oceanCouplingPartition({
-      impactorDiameter: meters(50),
-      waterDepth: meters(1_000),
+      impactorDiameter: meters(200),
+      waterDepth: meters(200),
       impactorDensity: IRON_METEORITE_DENSITY,
     });
     expect(
       (iron.characteristicDepth as number) / (stony.characteristicDepth as number)
     ).toBeCloseTo(Math.sqrt(IRON_METEORITE_DENSITY / CHONDRITIC_DENSITY), 6);
-    // Both still essentially fully water-coupled at this scale, but
-    // iron is less so than stony — the meaningful guard is the
-    // characteristic-depth scaling.
     expect(iron.seafloorFraction).toBeGreaterThan(stony.seafloorFraction);
   });
 
-  it('seafloorFraction decreases monotonically with water depth', () => {
+  it('seafloorFraction decreases monotonically with water depth (with hard cutoff to 0 in deep water)', () => {
+    // With audit fix #8 the deep-water disruption cutoff sets
+    // f_seafloor = 0 once d_water > 1.5 · L · √(ρ_i/ρ_w). For the
+    // 1 km stony body this kicks in at d_water ≈ 2570 m. The
+    // sequence below transitions through that boundary; both regimes
+    // are strictly monotone (Crawford-Mader exponential, then a
+    // single step to 0, then 0 again).
     let last = 1;
     for (const dWater of [10, 100, 500, 1_000, 2_000, 5_000, 10_000]) {
       const r = oceanCouplingPartition({
@@ -94,14 +100,22 @@ describe('oceanCouplingPartition (Crawford-Mader 1998 / Gisler 2011)', () => {
         waterDepth: meters(dWater),
         impactorDensity: CHONDRITIC_DENSITY,
       });
-      expect(r.seafloorFraction).toBeLessThan(last);
+      expect(r.seafloorFraction).toBeLessThanOrEqual(last);
       last = r.seafloorFraction;
     }
+    // Last few entries are in the disruption regime → exactly 0.
+    expect(last).toBe(0);
   });
 
-  it('seafloorFraction increases monotonically with impactor diameter', () => {
+  it('seafloorFraction increases monotonically with impactor diameter (large enough to clear cutoff)', () => {
+    // Below the disruption threshold (~2.57 km diameter for stony in
+    // 4 km water) the cutoff is active and f_seafloor = 0. Above it
+    // Crawford-Mader's exponential takes over and grows with L. The
+    // sequence below stays in the Crawford-Mader regime throughout
+    // (smallest L = 3 km gives d/L = 1.33 < 2.57) so we get strict
+    // monotonic growth.
     let last = 0;
-    for (const L of [10, 50, 100, 500, 1_000, 5_000, 15_000]) {
+    for (const L of [3_000, 5_000, 8_000, 12_000, 20_000]) {
       const r = oceanCouplingPartition({
         impactorDiameter: meters(L),
         waterDepth: meters(4_000),
@@ -110,6 +124,19 @@ describe('oceanCouplingPartition (Crawford-Mader 1998 / Gisler 2011)', () => {
       expect(r.seafloorFraction).toBeGreaterThan(last);
       last = r.seafloorFraction;
     }
+  });
+
+  it('deep-water disruption cutoff: 1.5 km stony in 5 km basin gives f_seafloor = 0 (Eltanin synthetic)', () => {
+    // d/L = 3.33, threshold 1.5·√(3000/1025) = 2.57 → cutoff active.
+    // Pre-fix Crawford-Mader gave 0.020 → 5.8 km Schultz-Pike crater,
+    // contradicting Gersonde 1997 (Nature 390:357).
+    const r = oceanCouplingPartition({
+      impactorDiameter: meters(1_500),
+      waterDepth: meters(5_000),
+      impactorDensity: CHONDRITIC_DENSITY,
+    });
+    expect(r.seafloorFraction).toBe(0);
+    expect(r.waterFraction).toBe(1);
   });
 
   it('handles defensive edge cases without throwing', () => {

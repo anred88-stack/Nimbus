@@ -65,6 +65,37 @@ import type { KilogramPerCubicMeter, Meters } from '../units.js';
  *  matching the empirical Meteor-Crater regime. */
 export const WATER_COLUMN_COUPLING_BETA = 0.5;
 
+/** Hard cutoff: above this water-depth-to-impactor-diameter ratio
+ *  (density-corrected), the impactor fragments completely in the
+ *  water column and the seafloor crater is fully suppressed. The
+ *  Crawford-Mader exponential alone gives non-zero seafloor energy
+ *  even at d_water ≫ L (because the exponential never quite reaches
+ *  zero) — that residual energy still drives a 5-6 km Schultz-Pike
+ *  crater for the Eltanin canonical case (1.5 km stony in 5 km
+ *  basin), contradicting the Gersonde et al. 1997 (Nature 390:357)
+ *  geological "no crater" finding for the actual 2.5 Ma South
+ *  Pacific event. The hard cutoff models complete projectile
+ *  disruption — no coherent impactor reaches the seafloor, so even
+ *  if energy gets there it is spread over a wide area and no
+ *  cratering takes place.
+ *
+ *  Threshold value 1.5 calibrated against Gersonde 1997 and
+ *  Wuennemann et al. 2010 hydrocode "no crater" boundary:
+ *    - Eltanin 1.5 km stony, 5 km basin: d/L = 3.33, threshold
+ *      1.5·√(3000/1025) = 2.57 → cutoff active, no crater ✓
+ *    - Eltanin 1 km stony, 5 km basin (Gersonde-canonical):
+ *      d/L = 5 → cutoff active, no crater ✓
+ *    - Chicxulub 10 km stony, 100 m carbonate shelf: d/L = 0.01
+ *      → cutoff inactive, Crawford-Mader takes over (f ≈ 0.99) ✓
+ *    - Meteor Crater 50 m iron, 0 m water: d/L = 0 → cutoff
+ *      inactive, full intact crater ✓
+ *    - 4 km stony in 4 km basin: d/L = 1 → cutoff inactive,
+ *      Crawford-Mader gives partial crater (~30 % of nominal)
+ *    - 100 m stony in 4 km basin: d/L = 40 → cutoff active,
+ *      no crater (correct — small bolides in deep ocean don't
+ *      mark the seabed) */
+export const WATER_COLUMN_DISRUPTION_RATIO = 1.5;
+
 export interface OceanCouplingInput {
   /** Impactor diameter (m). */
   impactorDiameter: Meters;
@@ -125,6 +156,26 @@ export function oceanCouplingPartition(input: OceanCouplingInput): OceanCoupling
       seafloorFraction: 1,
       waterFraction: 0,
       characteristicDepth: 0 as Meters,
+    };
+  }
+
+  // Deep-water disruption hard cutoff (audit fix #8). Above
+  // d_water > WATER_COLUMN_DISRUPTION_RATIO · L · √(ρ_i/ρ_w) the
+  // impactor fragments completely in the water column and no
+  // coherent body reaches the seafloor — Wuennemann 2010 + Gersonde
+  // 1997 Eltanin "no crater" calibration. Crawford-Mader's
+  // exponential alone leaves a non-zero residual that produces
+  // 5-6 km cratering for canonical Eltanin (1.5 km stony, 5 km
+  // basin), contradicting the geological record. The hard cutoff
+  // routes 100 % of the post-atmospheric KE into the water-cavity
+  // tsunami source, giving a clean energy-conservation accounting.
+  const disruptionDepth =
+    WATER_COLUMN_DISRUPTION_RATIO * L * Math.sqrt(rhoI / rhoW);
+  if (dWater > disruptionDepth) {
+    return {
+      seafloorFraction: 0,
+      waterFraction: 1,
+      characteristicDepth: dCritical as Meters,
     };
   }
 
