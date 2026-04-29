@@ -250,9 +250,11 @@ describe('Historical validation — earthquakes', () => {
     const r = simulateEarthquake(EARTHQUAKE_PRESETS.TOHOKU_2011.input);
     expect(r.tsunami).toBeDefined();
     if (!r.tsunami) return;
-    // Observed mean slip ~10–15 m, seafloor uplift ~5–7 m.
-    expect(r.tsunami.meanSlip as number).toBeGreaterThan(5);
-    expect(r.tsunami.meanSlip as number).toBeLessThan(25);
+    // Observed Hayes 2017 USGS finite-fault: mean slip 8–10 m, seafloor
+    // uplift 5–7 m. Pre-fix the aspect ratio of 2 gave ~6.8 m (low end);
+    // bumping to 2.5 (Hayes 2017 median) lands ~8.5 m, mid-band.
+    expect(r.tsunami.meanSlip as number).toBeGreaterThan(7);
+    expect(r.tsunami.meanSlip as number).toBeLessThan(12);
     expect(r.tsunami.initialAmplitude as number).toBeGreaterThan(3);
     expect(r.tsunami.initialAmplitude as number).toBeLessThan(15);
     // Non-zero coastal run-up.

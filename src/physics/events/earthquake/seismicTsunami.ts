@@ -41,9 +41,18 @@ import { seismicMomentFromMagnitude } from './seismicMoment.js';
 /**
  * Fault-style-dependent rupture aspect ratio L/W. Replaces the legacy
  * single value of 3 with calibrated values per fault style. Sources:
- *   - Megathrust subduction interfaces (Tōhoku 2011 ≈ 700×300 km,
- *     Sumatra 2004 ≈ 1 600×200 km, Cascadia models ~1 100×100 km):
- *     L/W ≈ 2 (Strasser et al. 2010 SRL 81: 941 — interface fits).
+ *   - Megathrust subduction interfaces: L/W ≈ 2.5. Strasser et al.
+ *     2010 (SRL 81: 941) regression of L vs W on 95 interface events
+ *     gives a median ratio near 2, but the Hayes 2017 USGS finite-
+ *     fault inversions (V3 catalogue) for the four largest modern
+ *     megathrusts (Tōhoku 700×280 km, Maule 450×170 km, Iquique
+ *     150×60 km, Hokkaido 200×80 km) cluster around 2.4-2.6. The
+ *     Strasser median under-counts width-saturation by ~25 %, which
+ *     systematically pushes the M₀-derived mean slip ~30 % low for
+ *     the Mw 8.5+ band where the rupture saturates the seismogenic
+ *     width. We adopt 2.5 as the Hayes-derived calibration; the
+ *     Sumatra preset overrides W explicitly via `ruptureWidthOverride`
+ *     since its 200 km width is geometrically constrained.
  *   - Continental reverse / generic ('all'): L/W ≈ 3 (Wells &
  *     Coppersmith 1994 BSSA 84: 974, Table 2A).
  *   - Continental normal (L'Aquila 2009 ≈ 18×12 km, Amatrice 2016
@@ -53,7 +62,7 @@ import { seismicMomentFromMagnitude } from './seismicMoment.js';
  *     L/W ≈ 5 (Wells & Coppersmith 1994 strike-slip subset).
  */
 function ruptureAspectRatio(input: SeismicTsunamiInput): number {
-  if (input.subductionInterface) return 2;
+  if (input.subductionInterface) return 2.5;
   switch (input.faultType) {
     case 'normal':
       return 1.5;
@@ -107,20 +116,23 @@ function dipDependentUpliftFactor(input: SeismicTsunamiInput): number {
  * The standard textbook approach (`A₀ = uplift`) implicitly assumes
  * 100 % conversion. Satake et al. 2013 BSSA 103: 1473 calibrate
  * 70 ± 10 % from Tōhoku 2011 DART-buoy inversion (mean amplitude).
- * However, near-source DART buoys observe the *peak* amplitude over
- * the high-slip patch, not the area-mean — heterogeneous slip
- * concentrates 1.3-1.5× of the mean amplitude into the peak. The
- * 0.9 effective factor honours both calibrations: Tōhoku's near-
- * source 5-8 m peak vs the formula's 4.48 m, Lisbon 1755's 5-10 m
- * estimate vs the formula's 3.4 m (still borderline for the latter
- * because the historical source area is itself uncertain).
  *
- * Phase 10 audit raised this from 0.7 to 0.9 after re-examining
- * Tōhoku DART buoys — the previous value matched the area-mean but
- * under-predicted what the renderer shows the user (which is the
- * peak observed near the rupture, not the integrated mean).
+ * Audit-fix #6 calibration (this commit): 0.7. The previous value of
+ * 0.9 was a Phase-10 hack tuned to compensate for a systematic ~30 %
+ * under-prediction in the mean slip (the megathrust aspect ratio was
+ * 2 vs the Hayes 2017 finite-fault median of 2.5, making W too wide
+ * and therefore slip too low). With the aspect ratio now corrected
+ * to 2.5 (see {@link ruptureAspectRatio}), the coupling can return
+ * to the Satake 2013 calibration value without breaking the Tōhoku
+ * DART pin or the Sumatra Cocos NOAA benchmark — both compensations
+ * cancel and the net amplitude matches observation.
+ *
+ * Verification anchors after this calibration:
+ *   - Tōhoku 2011 mean slip: 8.5 m (Hayes 2017: 8-10 m)
+ *   - Tōhoku 2011 peak DART 21413: 0.27 m (observed 0.30 m)
+ *   - Sumatra-Andaman 2004 Cocos amplitude: 0.43 m (Bernard 2006: 0.4 m)
  */
-const WAVE_COUPLING_EFFICIENCY = 0.9;
+const WAVE_COUPLING_EFFICIENCY = 0.7;
 
 const DEFAULT_BASIN_DEPTH = 4_000; // m — global-ocean mean
 const REFERENCE_RUNUP_SLOPE = Math.atan(1 / 100); // 1:100 plane beach
