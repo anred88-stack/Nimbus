@@ -1,0 +1,50 @@
+{
+  "scenarioId": "eltanin-2.5ma",
+  "displayName": "Eltanin 2.5 Ma deep-ocean asteroid impact",
+  "geoclawVersion": "5.14.0",
+  "geoclawCommit": "bc3cc8295e190f08c04320c5fd87ff81179345b7",
+  "computedAt": "2026-04-29",
+  "computedBy": "scripts/geoclaw/run_scenario.py",
+  "computedOn": "WSL2 Ubuntu 22.04, gfortran 11, x86_64",
+  "computeSeconds": 4.9,
+  "input": {
+    "type": "impact-deep-ocean",
+    "impactorDiameterM": 1500,
+    "impactorVelocityMPerS": 20000,
+    "impactorDensityKgPerM3": 3000,
+    "centroidLat": -57.3,
+    "centroidLon": -90.5,
+    "basinDepthM": 5000
+  },
+  "geoclawProbes": [
+    {
+      "label": "500 km north",
+      "lat": -52.8,
+      "lon": -90.5,
+      "distanceFromEpicentreM": 500377,
+      "peakAmplitudeM": 16.9391,
+      "peakTimeSeconds": 2065.5
+    },
+    {
+      "label": "1000 km north",
+      "lat": -48.3,
+      "lon": -90.5,
+      "distanceFromEpicentreM": 1000754,
+      "peakAmplitudeM": 8.9152,
+      "peakTimeSeconds": 4297.0
+    }
+  ],
+  "publishedReference": [
+    {
+      "label": "Geological no-crater record",
+      "peakAmplitudeM": 0.0,
+      "source": "Gersonde et al. 1997 Nature 390:357"
+    }
+  ],
+  "_metadata": {
+    "schemaVersion": 1,
+    "tolerance": 4.0,
+    "tolerationRationale": "Per-source-class default for impact-deep-ocean. See scripts/geoclaw/run_scenario.py DEFAULT_TOLERANCE_BY_TYPE for the rationale (Synolakis 2008 inter-model spread + closed-form vs 2D-AMR mismatch + source-model scatter).",
+    "comparisonStrategy": "geoclawComparison.test.ts feeds the fixture input to deriveSource() (Tier-1 closed form) \u2192 simulateSaintVenant1D in radial geometry \u2192 Heidarzadeh-Satake dispersion factor; asserts \u00b1tolerance vs each geoclawProbes peak."
+  }
+}

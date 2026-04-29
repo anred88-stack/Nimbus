@@ -1,0 +1,52 @@
+{
+  "scenarioId": "custom-volcanic-large",
+  "displayName": "Custom \u2014 large volcanic caldera collapse (20 km\u00b3)",
+  "geoclawVersion": "5.14.0",
+  "geoclawCommit": "bc3cc8295e190f08c04320c5fd87ff81179345b7",
+  "computedAt": "2026-04-29",
+  "computedBy": "scripts/geoclaw/run_scenario.py",
+  "computedOn": "WSL2 Ubuntu 22.04, gfortran 11, x86_64",
+  "computeSeconds": 5.1,
+  "input": {
+    "type": "volcanic-collapse",
+    "collapseVolumeM3": 20000000000.0,
+    "collapseAreaM2": 400000000.0,
+    "slopeRad": 0.087,
+    "centroidLat": -25.0,
+    "centroidLon": -135.0,
+    "basinDepthM": 1500
+  },
+  "geoclawProbes": [
+    {
+      "label": "200 km",
+      "lat": -23.2,
+      "lon": -135.0,
+      "distanceFromEpicentreM": 200151,
+      "peakAmplitudeM": 2.2347,
+      "peakTimeSeconds": 1482.1
+    },
+    {
+      "label": "500 km",
+      "lat": -20.5,
+      "lon": -135.0,
+      "distanceFromEpicentreM": 500377,
+      "peakAmplitudeM": 0.9545,
+      "peakTimeSeconds": 3966.0
+    },
+    {
+      "label": "1000 km",
+      "lat": -16.0,
+      "lon": -135.0,
+      "distanceFromEpicentreM": 1000754,
+      "peakAmplitudeM": 0.5089,
+      "peakTimeSeconds": 8064.1
+    }
+  ],
+  "publishedReference": [],
+  "_metadata": {
+    "schemaVersion": 1,
+    "tolerance": 4.0,
+    "tolerationRationale": "Per-source-class default for volcanic-collapse. See scripts/geoclaw/run_scenario.py DEFAULT_TOLERANCE_BY_TYPE for the rationale (Synolakis 2008 inter-model spread + closed-form vs 2D-AMR mismatch + source-model scatter).",
+    "comparisonStrategy": "geoclawComparison.test.ts feeds the fixture input to deriveSource() (Tier-1 closed form) \u2192 simulateSaintVenant1D in radial geometry \u2192 Heidarzadeh-Satake dispersion factor; asserts \u00b1tolerance vs each geoclawProbes peak."
+  }
+}

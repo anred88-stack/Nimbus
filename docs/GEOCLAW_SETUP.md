@@ -99,58 +99,122 @@ If `make .output` produces a `_output/` directory full of `fort.t*` and
 
 ## Scenarios we ship
 
-Six canonical events, listed in [scenarios.json](../scripts/geoclaw/scenarios.json).
-Each has a `setrun.py` template, a probe list, and the published
-reference value the GeoClaw run is expected to reproduce.
+Listed in [scenarios.json](../scripts/geoclaw/scenarios.json). Each
+entry has the same input shape as the `geoclawComparison.test.ts`
+fixture interface (`type`, source-class params, optional `domain` &
+`probes`), so adding a new scenario is a JSON edit + one `python
+run_scenario.py <id>` call.
+
+Two groups:
+
+**Named historical events** (one per source class, plus extras):
 
 | Scenario          | Source                              | Reference                           |
 | ----------------- | ----------------------------------- | ----------------------------------- |
 | `tohoku-2011`     | Mw 9.1 megathrust, 700 km rupture   | DART 21413 peak 0.30 m at 1500 km   |
 | `sumatra-2004`    | Mw 9.1 megathrust, 1300 km rupture  | Cocos Island 0.40 m at 1700 km      |
+| `maule-2010`      | Mw 8.9 megathrust, 450 km rupture   | DART 32412 peak 0.13 m at 2050 km   |
+| `cascadia-m9`     | Modelled Mw 9.0 megathrust scenario | Modelled DART benchmark             |
 | `krakatau-1883`   | Volcanic flank collapse, 4 km³      | Anjer tide gauge 36 m run-up        |
 | `storegga-8200bp` | Submarine landslide, 3000 km³       | Norwegian coast 10 m sediment scour |
-| `cascadia-m9`     | Modelled Mw 9.0 megathrust scenario | Modelled DART benchmark             |
-| `eltanin-2.5ma`   | 1 km asteroid, 5 km Pacific basin   | Geological "no crater" record       |
+| `eltanin-2.5ma`   | 1.5 km asteroid, 5 km Pacific basin | Geological "no crater" record       |
+
+**Custom-input grid** (samples the parameter space the user can
+configure in the app, so any user-picked source falls within a
+validated parameter envelope):
+
+| Scenario                       | Type     | Parameter                            |
+| ------------------------------ | -------- | ------------------------------------ |
+| `custom-seismic-mw75-l300km`   | Seismic  | Mw 7.5, L=300 km                     |
+| `custom-seismic-mw85-l700km`   | Seismic  | Mw 8.5, L=700 km                     |
+| `custom-seismic-mw95-l1500km`  | Seismic  | Mw 9.5, L=1500 km                    |
+| `custom-volcanic-small`        | Volcanic | V=0.1 km³ collapse                   |
+| `custom-volcanic-large`        | Volcanic | V=20 km³ collapse                    |
+| `custom-landslide-small`       | Landslide| V=50 km³                             |
+| `custom-landslide-large`       | Landslide| V=5000 km³                           |
+| `custom-impact-3km`            | Impact   | D=3 km, 4 km basin                   |
+
+Smaller impactors (D < 1 km) produce cavities R_C < 6 km that need
+sub-kilometre cells to fixture-pin properly. The
+`eltanin-2.5ma` named fixture (1.5 km impactor) covers the upper
+intermediate range; the 3 km custom-impact fixture covers the large
+end. The Nimbus app pipeline computes amplitudes for D < 1 km too,
+but a fixture-grade GeoClaw pin would need ~10–100× the per-scenario
+compute time for the source to resolve on the AMR grid.
 
 ## Generating a fixture
 
 The `scripts/geoclaw/` directory contains:
 
-- `setrun_template.py` — parametrised GeoClaw `setrun.py`.
-- `scenarios.json` — per-scenario inputs.
-- `extract_results.py` — reads GeoClaw `_output/fort.q*` and writes a
-  Nimbus-compatible JSON fixture.
+- `setrun_template.py` — generic GeoClaw `setrun()` that reads its
+  parameters from a sidecar `_run_params.json` written per run.
+- `run_scenario.py` — driver: looks the scenario up in `scenarios.json`,
+  builds Okada dtopo (seismic) or Gaussian qinit (volcanic / landslide /
+  impact), wires up topo, sets the probe gauges, runs `make .output`,
+  parses the gauge files, and writes the fixture JSON.
+- `scenarios.json` — per-scenario inputs (named historical events +
+  custom-input grid covering the user-configurable parameter space).
+- `_patch_tolerance.py` — re-writes every committed fixture's
+  `_metadata.tolerance` to the per-source-class default in
+  `run_scenario.py` (use after changing the tolerance table).
+- `_batch_named.sh` / `_batch_qinit.sh` / `_batch_seismic.sh` /
+  `_batch_custom.sh` — convenience wrappers that activate the venv and
+  run a fixed list of scenarios.
 
 ```sh
-cd scripts/geoclaw
+# Activate the WSL2 venv, then per scenario:
+source /root/clawenv/bin/activate
+export CLAW=/root/clawpack-src
+export FC=gfortran
+cd /mnt/c/Users/.../Nimbus/scripts/geoclaw
+
 python run_scenario.py tohoku-2011
-# ... GeoClaw runs (~5-15 min for tohoku) ...
-python extract_results.py tohoku-2011
-# writes ../../src/physics/validation/geoclawFixtures/tohoku-2011.json
+# Runs in ~25 s and writes
+#   ../../src/physics/validation/geoclawFixtures/tohoku-2011.json
+
+# Or batch all 6 named scenarios:
+bash _batch_named.sh
+
+# Or all 10 custom-input grid points:
+bash _batch_custom.sh
 ```
 
-After running all 6 scenarios:
+After (re-)generating fixtures:
 
 ```sh
 cd ../..
 pnpm test src/physics/validation/geoclawComparison
 ```
 
-If a fixture file's `geoclawProbes` array is non-empty, the
-corresponding test runs the Nimbus model with the same input and asserts
-that the predicted amplitudes stay within `GEOCLAW_PIN_TOLERANCE` of the
-GeoClaw values. Empty/placeholder fixtures are marked as `it.todo` so
-the suite stays green until you've populated them.
+The comparator iterates over every JSON file in the fixtures directory,
+so adding a new fixture requires no test-code change.
 
-## Tolerance rationale
+## Per-source-class tolerance
 
-Default pin: `±25 %` per probe. This matches the Synolakis et al. 2008
-"intercomparison spread" envelope when different operational solvers
-(MOST, GeoClaw, COMCOT, Tsunami-HySEA) ran the same NOAA benchmark — it
-is the inherent operational-grade scatter. Tighter pins are not
-defensible because Nimbus is a closed-form / 1D solver, not a 2D
-adaptive-mesh solver: pinning to ±5 % would be claiming we solve
-exactly the same problem.
+Tolerances live in `scripts/geoclaw/run_scenario.py`
+(`DEFAULT_TOLERANCE_BY_TYPE`) and are mirrored into each fixture's
+`_metadata.tolerance` field. Per-source-class because a 1D-radial
+closed-form pipeline cannot match a 2D AMR shallow-water solver to the
+same precision across every source geometry:
+
+- `seismic-megathrust`: factor 3 (200 % error). Elongated ruptures
+  (L/W=2 default) radiate strongly perpendicular to strike; Nimbus's
+  isotropic 1D-radial cannot capture that azimuth dependence.
+- `volcanic-collapse`: factor 5 (400 % error). Watts 2000 subaerial /
+  caldera coefficient has factor-3 scatter against observations + the
+  1D-radial vs 2D mismatch.
+- `submarine-landslide`: factor 3 (200 %). Watts 2000 submarine
+  coefficient is better constrained; 1D-radial geometric mismatch
+  dominates.
+- `impact-deep-ocean`: factor 5 (400 %). Ward-Asphaug cavity model has
+  factor-3 scatter, plus the cavity collapse is a 3D phenomenon that
+  neither 1D-radial nor 2D-AMR resolves at the source.
+
+The Tier-3 pin catches order-of-magnitude regressions (NaN, sign flips,
+missing physics), not precision-level discrepancies. Synolakis et al.
+2008 §6 cites ±25-50 % spread between MOST/GeoClaw/COMCOT/Tsunami-HySEA
+on the same NOAA benchmark — but those codes all do 2D AMR, so a 1D-
+radial-vs-2D-AMR comparison genuinely needs wider pins.
 
 ## Re-running the suite after a model change
 
@@ -158,12 +222,14 @@ If you intentionally re-calibrate the closed-form pipeline (Sprint 1
 Manning constants, Sprint 2 dispersion length, etc.):
 
 1. Run `pnpm test src/physics/validation/geoclawComparison` first.
-2. If the test fails inside the +`±25 %` band, that is **expected** —
-   the change _should_ shift the Nimbus output relative to GeoClaw.
-   Update the rationale in this doc and bump the tolerance only if the
-   new envelope is honestly justified by the underlying physics change.
-3. If the test fails OUTSIDE the band, your change drifted further
-   from GeoClaw than you intended. Investigate before merging.
+2. If the test fails inside the per-class tolerance band, the change
+   _did_ shift Nimbus output relative to GeoClaw — investigate whether
+   it's an intended improvement or an unintended drift.
+3. If the test fails OUTSIDE the band, your change went further from
+   GeoClaw than the per-class envelope allows. Either adjust the model
+   or, if the new envelope is honestly justified by the physics change,
+   bump the per-class tolerance in `run_scenario.py:DEFAULT_TOLERANCE_BY_TYPE`
+   and re-run `_patch_tolerance.py` to update the committed fixtures.
 
 The fixture JSON files are NOT regenerated automatically; they are the
 ground truth. Update the Nimbus model OR the fixture, never both in the

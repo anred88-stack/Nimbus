@@ -1,0 +1,52 @@
+{
+  "scenarioId": "custom-impact-3km",
+  "displayName": "Custom \u2014 3 km asteroid, 4 km basin",
+  "geoclawVersion": "5.14.0",
+  "geoclawCommit": "bc3cc8295e190f08c04320c5fd87ff81179345b7",
+  "computedAt": "2026-04-29",
+  "computedBy": "scripts/geoclaw/run_scenario.py",
+  "computedOn": "WSL2 Ubuntu 22.04, gfortran 11, x86_64",
+  "computeSeconds": 31.0,
+  "input": {
+    "type": "impact-deep-ocean",
+    "impactorDiameterM": 3000,
+    "impactorVelocityMPerS": 20000,
+    "impactorDensityKgPerM3": 3000,
+    "centroidLat": -25.0,
+    "centroidLon": -135.0,
+    "basinDepthM": 4000
+  },
+  "geoclawProbes": [
+    {
+      "label": "1000 km north",
+      "lat": -16.0,
+      "lon": -135.0,
+      "distanceFromEpicentreM": 1000754,
+      "peakAmplitudeM": 32.4639,
+      "peakTimeSeconds": 4793.2
+    },
+    {
+      "label": "2000 km north",
+      "lat": -7.0,
+      "lon": -135.0,
+      "distanceFromEpicentreM": 2001509,
+      "peakAmplitudeM": 17.2348,
+      "peakTimeSeconds": 9769.7
+    },
+    {
+      "label": "3000 km north",
+      "lat": 2.0,
+      "lon": -135.0,
+      "distanceFromEpicentreM": 3002263,
+      "peakAmplitudeM": 12.0004,
+      "peakTimeSeconds": 14795.7
+    }
+  ],
+  "publishedReference": [],
+  "_metadata": {
+    "schemaVersion": 1,
+    "tolerance": 4.0,
+    "tolerationRationale": "Per-source-class default for impact-deep-ocean. See scripts/geoclaw/run_scenario.py DEFAULT_TOLERANCE_BY_TYPE for the rationale (Synolakis 2008 inter-model spread + closed-form vs 2D-AMR mismatch + source-model scatter).",
+    "comparisonStrategy": "geoclawComparison.test.ts feeds the fixture input to deriveSource() (Tier-1 closed form) \u2192 simulateSaintVenant1D in radial geometry \u2192 Heidarzadeh-Satake dispersion factor; asserts \u00b1tolerance vs each geoclawProbes peak."
+  }
+}

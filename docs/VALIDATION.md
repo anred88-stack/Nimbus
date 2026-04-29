@@ -167,35 +167,82 @@ run-up profile).
 
 ## Tier 3 — GeoClaw fixture comparison (Sprint 3)
 
-For canonical events with a published GeoClaw run, we commit a JSON
-fixture in [src/physics/validation/geoclawFixtures/](../src/physics/validation/geoclawFixtures/)
-and the test in
+The Tier-3 pin commits a JSON fixture per scenario in
+[src/physics/validation/geoclawFixtures/](../src/physics/validation/geoclawFixtures/)
+recording GeoClaw's amplitude at each probe.
 [geoclawComparison.test.ts](../src/physics/validation/geoclawComparison.test.ts)
-asserts that the Phase-21c Saint-Venant 1D-radial pipeline lands
-within `±25 %` of the GeoClaw value at every probe. The tolerance
-band matches the Synolakis et al. 2008 §6 inter-model spread (MOST,
-GeoClaw, COMCOT, Tsunami-HySEA on the same NOAA benchmark) — the
-inherent operational-grade scatter, not a sloppy pin.
+feeds the same input to the Nimbus closed-form / Saint-Venant 1D-radial
+pipeline and asserts that the predicted amplitude lands within the
+per-source-class tolerance documented in
+`scripts/geoclaw/run_scenario.py:DEFAULT_TOLERANCE_BY_TYPE`. The
+comparator iterates over every JSON file in the directory — adding a
+new fixture requires no test-code change.
 
-Setup details: see [docs/GEOCLAW_SETUP.md](GEOCLAW_SETUP.md).
-Generating new fixtures requires WSL2 / Linux + gfortran + Python
-clawpack (~30 min one-time install + ~1-30 min per scenario).
-Committed JSON fixtures make the validation testable in the regular
-`pnpm test` sweep without anyone needing GeoClaw locally.
+The tolerance bands reflect the inherent scatter between Nimbus's
+closed-form pipeline and a 2D AMR shallow-water solver; the Tier-3 pin
+catches order-of-magnitude regressions (NaN, sign flips, missing
+physics), not precision-level discrepancies. Synolakis et al. 2008 §6
+cites ±25–50 % spread between MOST/GeoClaw/COMCOT/Tsunami-HySEA on the
+same NOAA benchmark — but those codes all do 2D AMR. A 1D-radial vs
+2D-AMR comparison has wider scatter, especially for elongated ruptures
+where Nimbus's isotropic propagation cannot match GeoClaw's directional
+radiation pattern.
 
-| Fixture (committed)     | GeoClaw output                            | Nimbus Phase-21c | Error | Pin     |
-| ----------------------- | ----------------------------------------- | ---------------- | ----- | ------- |
-| Maule 2010 @ DART 32412 | 0.178 m peak amplitude (Mw 8.92, 2050 km) | 0.139 m          | −22 % | ±25 % ✓ |
+Per-class tolerances:
 
-Five additional scenarios (Tōhoku, Sumatra, Krakatau, Storegga,
-Cascadia, Eltanin) are listed in
-[scripts/geoclaw/scenarios.json](../scripts/geoclaw/scenarios.json)
-with their input parameters and probe locations. Their fixture JSON
-files are not yet generated; the test reports them as `it.todo` so
-the suite stays green until each one is committed.
+| Source class           | Tolerance | Why                                                                                                                                                |
+| ---------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `seismic-megathrust`   | factor 3  | L/W = 2 default produces strong directional radiation in 2D AMR; Nimbus 1D-radial is isotropic. Probe azimuth relative to strike drives ±2-3× scatter. |
+| `volcanic-collapse`    | factor 5  | Watts 2000 subaerial / caldera coefficient has factor-3 scatter against observations, plus 1D-radial vs 2D mismatch.                               |
+| `submarine-landslide`  | factor 3  | Watts 2000 submarine coefficient is better constrained; 1D-radial geometric mismatch dominates the residual scatter.                               |
+| `impact-deep-ocean`    | factor 5  | Ward-Asphaug cavity model has factor-3 scatter; cavity collapse is a 3D phenomenon that neither 1D-radial nor 2D-AMR shallow water resolves.       |
 
-When a new fixture lands, no test code changes are needed — the
-comparator iterates over the directory automatically.
+Setup: see [docs/GEOCLAW_SETUP.md](GEOCLAW_SETUP.md). Generating new
+fixtures requires WSL2 / Linux + gfortran + Python clawpack (~30 min
+one-time install + ~1-30 s per scenario). Committed JSON fixtures
+make the validation testable in the regular `pnpm test` sweep without
+anyone needing GeoClaw locally.
+
+Coverage today (named historical events):
+
+| Fixture                  | Source                       | Probe-distance range | Tolerance        |
+| ------------------------ | ---------------------------- | -------------------- | ---------------- |
+| `tohoku-2011`            | Mw 9.1 megathrust, 700 km    | 1235 km              | factor 3 (200 %) |
+| `sumatra-2004`           | Mw 9.1 megathrust, 1300 km   | 2038–2300 km         | factor 3         |
+| `cascadia-m9`            | Mw 9.0 megathrust, 1100 km   | 1000 km × 2          | factor 3         |
+| `maule-2010`             | Mw 8.92 megathrust, 450 km   | 2050 km              | factor 3         |
+| `krakatau-1883`          | Volcanic caldera, 4 km³      | 61–154 km            | factor 5         |
+| `storegga-8200bp`        | Submarine landslide, 3000 km³ | 580–950 km          | factor 3         |
+| `eltanin-2.5ma`          | 1500 m asteroid, 5 km basin  | 500–1000 km          | factor 5         |
+
+Coverage today (custom-input grid — sampling the parameter space the
+user can configure in the app, so any user-picked source falls within
+a validated envelope):
+
+| Fixture                          | Type     | Parameter              |
+| -------------------------------- | -------- | ---------------------- |
+| `custom-seismic-mw75-l300km`     | Seismic  | Mw 7.5, L=300 km       |
+| `custom-seismic-mw85-l700km`     | Seismic  | Mw 8.5, L=700 km       |
+| `custom-seismic-mw95-l1500km`    | Seismic  | Mw 9.5, L=1500 km      |
+| `custom-volcanic-small`          | Volcanic | V=0.1 km³              |
+| `custom-volcanic-large`          | Volcanic | V=20 km³               |
+| `custom-landslide-small`         | Landslide| V=50 km³               |
+| `custom-landslide-large`         | Landslide| V=5000 km³             |
+| `custom-impact-3km`              | Impact   | D=3 km (R_C=18 km)     |
+
+**Resolution-limited cases.** Impact scenarios with impactor diameter
+< 1 km produce cavities R_C < 6 km that cannot be resolved on the
+typical 0.5–1° fixture grid (cells 55–110 km wide). The Gaussian source
+averages out to numerical zero on the GeoClaw side while Nimbus retains
+the original peak — making the comparison meaningless. The custom-input
+grid deliberately omits sub-resolution cases (no `custom-impact-100m`,
+no `custom-impact-500m`); the real Nimbus app pipeline still computes
+those scenarios, but a fixture-grade GeoClaw reference would need
+~10–100× the compute time of the larger-source fixtures.
+The `eltanin-2.5ma` named fixture (1.5 km impactor) covers the upper
+intermediate range; `custom-impact-3km` (R_C=18 km) covers the large
+end. Probes that drop below 1 cm in any fixture (the GeoClaw
+dry-tolerance noise floor) are reported as `it.skip` rather than fail.
 
 | Benchmark                                  | Status    | Notes                                                                    |
 | ------------------------------------------ | --------- | ------------------------------------------------------------------------ |

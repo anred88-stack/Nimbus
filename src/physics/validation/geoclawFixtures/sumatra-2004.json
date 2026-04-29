@@ -1,0 +1,58 @@
+{
+  "scenarioId": "sumatra-2004",
+  "displayName": "Sumatra-Andaman 2004 megathrust",
+  "geoclawVersion": "5.14.0",
+  "geoclawCommit": "bc3cc8295e190f08c04320c5fd87ff81179345b7",
+  "computedAt": "2026-04-29",
+  "computedBy": "scripts/geoclaw/run_scenario.py",
+  "computedOn": "WSL2 Ubuntu 22.04, gfortran 11, x86_64",
+  "computeSeconds": 29.2,
+  "input": {
+    "type": "seismic-megathrust",
+    "magnitude": 9.1,
+    "ruptureLengthM": 1300000,
+    "ruptureWidthM": 650000,
+    "_widthJustification": "Set to L/2 = 650 km to match Nimbus's L/W=2 subduction-megathrust aspect-ratio assumption (seismicTsunami.ts ruptureAspectRatio()). The historical Sumatra W was ~200 km but Nimbus's app-level model uses the aspect-ratio-derived W; the GeoClaw fixture is comparing against Nimbus's source, not the historical seafloor.",
+    "rakeDeg": 90,
+    "dipDeg": 8,
+    "centroidLat": 6.0,
+    "centroidLon": 94.0,
+    "basinDepthM": 4000
+  },
+  "geoclawProbes": [
+    {
+      "label": "Cocos Island",
+      "lat": -12.1,
+      "lon": 96.9,
+      "distanceFromEpicentreM": 2038011,
+      "peakAmplitudeM": 0.0284,
+      "peakTimeSeconds": 7365.7
+    },
+    {
+      "label": "Hanimaadhoo, Maldives",
+      "lat": 6.8,
+      "lon": 73.2,
+      "distanceFromEpicentreM": 2299983,
+      "peakAmplitudeM": 0.2164,
+      "peakTimeSeconds": 13134.1
+    }
+  ],
+  "publishedReference": [
+    {
+      "label": "Cocos Island deep-water",
+      "peakAmplitudeM": 0.4,
+      "source": "Bernard et al. 2006 Phil. Trans. R. Soc. A 364"
+    },
+    {
+      "label": "Hanimaadhoo",
+      "peakAmplitudeM": 1.6,
+      "source": "Rabinovich et al. 2006 GRL 33"
+    }
+  ],
+  "_metadata": {
+    "schemaVersion": 1,
+    "tolerance": 2.0,
+    "tolerationRationale": "Per-source-class default for seismic-megathrust. See scripts/geoclaw/run_scenario.py DEFAULT_TOLERANCE_BY_TYPE for the rationale (Synolakis 2008 inter-model spread + closed-form vs 2D-AMR mismatch + source-model scatter).",
+    "comparisonStrategy": "geoclawComparison.test.ts feeds the fixture input to deriveSource() (Tier-1 closed form) \u2192 simulateSaintVenant1D in radial geometry \u2192 Heidarzadeh-Satake dispersion factor; asserts \u00b1tolerance vs each geoclawProbes peak."
+  }
+}

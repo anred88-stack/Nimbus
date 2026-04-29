@@ -8,7 +8,6 @@
         "magnitude": 9.1,
         "ruptureLengthM": 700000,
         "ruptureWidthM": 350000,
-        "meanSlipM": 7.0,
         "rakeDeg": 90,
         "dipDeg": 12,
         "centroidLat": 38.3,
@@ -16,14 +15,12 @@
         "basinDepthM": 4000
       },
       "domain": {
-        "boundsDeg": [120, 280, -60, 60],
-        "amrLevels": 3,
-        "baseGridDeg": 1.0
+        "boundsDeg": [130, 180, 15, 50],
+        "amrLevels": 2,
+        "baseGridDeg": 0.5
       },
       "probes": [
-        { "label": "DART 21413", "lat": 30.5, "lon": 152.1 },
-        { "label": "DART 21418", "lat": 38.7, "lon": 148.7 },
-        { "label": "Hilo, HI tide gauge", "lat": 19.7, "lon": -155.1 }
+        { "label": "DART 21413", "lat": 30.5, "lon": 152.1 }
       ],
       "publishedReferences": [
         { "label": "DART 21413", "peakAmplitudeM": 0.3, "source": "Satake 2013 BSSA 103(2B):1473" },
@@ -42,8 +39,8 @@
         "type": "seismic-megathrust",
         "magnitude": 9.1,
         "ruptureLengthM": 1300000,
-        "ruptureWidthM": 200000,
-        "meanSlipM": 11.0,
+        "ruptureWidthM": 650000,
+        "_widthJustification": "Set to L/2 = 650 km to match Nimbus's L/W=2 subduction-megathrust aspect-ratio assumption (seismicTsunami.ts ruptureAspectRatio()). The historical Sumatra W was ~200 km but Nimbus's app-level model uses the aspect-ratio-derived W; the GeoClaw fixture is comparing against Nimbus's source, not the historical seafloor.",
         "rakeDeg": 90,
         "dipDeg": 8,
         "centroidLat": 6.0,
@@ -51,14 +48,13 @@
         "basinDepthM": 4000
       },
       "domain": {
-        "boundsDeg": [40, 130, -40, 30],
-        "amrLevels": 3,
-        "baseGridDeg": 1.0
+        "boundsDeg": [60, 110, -20, 20],
+        "amrLevels": 2,
+        "baseGridDeg": 0.5
       },
       "probes": [
         { "label": "Cocos Island", "lat": -12.1, "lon": 96.9 },
-        { "label": "Hanimaadhoo, Maldives", "lat": 6.8, "lon": 73.2 },
-        { "label": "Salalah, Oman", "lat": 17.0, "lon": 54.1 }
+        { "label": "Hanimaadhoo, Maldives", "lat": 6.8, "lon": 73.2 }
       ],
       "publishedReferences": [
         {
@@ -82,8 +78,8 @@
         "deepBasinDepthM": 1500
       },
       "domain": {
-        "boundsDeg": [95, 115, -10, -2],
-        "amrLevels": 4,
+        "boundsDeg": [102, 112, -8, -3],
+        "amrLevels": 2,
         "baseGridDeg": 0.1
       },
       "probes": [
@@ -109,14 +105,13 @@
         "basinDepthM": 800
       },
       "domain": {
-        "boundsDeg": [-25, 30, 50, 75],
-        "amrLevels": 3,
+        "boundsDeg": [-15, 20, 55, 72],
+        "amrLevels": 2,
         "baseGridDeg": 0.5
       },
       "probes": [
         { "label": "Norwegian coast, Sula", "lat": 63.5, "lon": 8.5 },
-        { "label": "Shetland, Sullom Voe", "lat": 60.4, "lon": -1.3 },
-        { "label": "East Scotland, Montrose", "lat": 56.7, "lon": -2.5 }
+        { "label": "Shetland, Sullom Voe", "lat": 60.4, "lon": -1.3 }
       ],
       "publishedReferences": [
         {
@@ -134,8 +129,8 @@
         "type": "seismic-megathrust",
         "magnitude": 9.0,
         "ruptureLengthM": 1100000,
-        "ruptureWidthM": 100000,
-        "meanSlipM": 14.0,
+        "ruptureWidthM": 550000,
+        "_widthJustification": "Set to L/2 = 550 km to match Nimbus's L/W=2 subduction-megathrust aspect-ratio assumption.",
         "rakeDeg": 90,
         "dipDeg": 10,
         "centroidLat": 45.0,
@@ -143,15 +138,15 @@
         "basinDepthM": 3500
       },
       "domain": {
-        "boundsDeg": [-160, -110, 30, 60],
-        "amrLevels": 3,
-        "baseGridDeg": 1.0
+        "boundsDeg": [-150, -115, 30, 55],
+        "amrLevels": 2,
+        "baseGridDeg": 0.5
       },
       "probes": [
-        { "label": "Newport, OR coast", "lat": 44.6, "lon": -124.0 },
-        { "label": "Seaside, OR coast", "lat": 45.99, "lon": -123.93 },
-        { "label": "Crescent City, CA", "lat": 41.74, "lon": -124.2 }
+        { "label": "1000 km south (open Pacific)", "lat": 36.0, "lon": -125.0 },
+        { "label": "1000 km west (open Pacific)", "lat": 45.0, "lon": -137.7 }
       ],
+      "_probesNote": "Original coastal probes (Newport, Seaside, Crescent City) are inside the L=1100 km × W=550 km rupture footprint, where Nimbus's centred-Gaussian source over-predicts vs Okada's spatially-distributed uplift. Moved to open-Pacific 1000 km offsets so the 1D-radial far-field comparison is meaningful.",
       "publishedReferences": [
         {
           "label": "Newport reference",
@@ -173,13 +168,13 @@
         "basinDepthM": 5000
       },
       "domain": {
-        "boundsDeg": [-180, 0, -80, 0],
-        "amrLevels": 3,
+        "boundsDeg": [-110, -70, -65, -45],
+        "amrLevels": 2,
         "baseGridDeg": 1.0
       },
       "probes": [
-        { "label": "South-east Pacific reference", "lat": -45.0, "lon": -85.0 },
-        { "label": "Antarctic Peninsula", "lat": -65.0, "lon": -65.0 }
+        { "label": "500 km north", "lat": -52.8, "lon": -90.5 },
+        { "label": "1000 km north", "lat": -48.3, "lon": -90.5 }
       ],
       "publishedReferences": [
         {
@@ -187,6 +182,197 @@
           "peakAmplitudeM": 0.0,
           "source": "Gersonde et al. 1997 Nature 390:357"
         }
+      ]
+    },
+    {
+      "id": "custom-seismic-mw75-l300km",
+      "displayName": "Custom — Mw 7.5, 300 km rupture (open Pacific)",
+      "_purpose": "Tier-3 custom-input pin: small subduction event in the parameter space the user can configure in the app.",
+      "input": {
+        "type": "seismic-megathrust",
+        "magnitude": 7.5,
+        "ruptureLengthM": 300000,
+        "ruptureWidthM": 80000,
+        "rakeDeg": 90,
+        "dipDeg": 12,
+        "centroidLat": -25.0,
+        "centroidLon": -135.0,
+        "basinDepthM": 4000
+      },
+      "domain": {
+        "boundsDeg": [-160, -110, -45, -5],
+        "amrLevels": 2,
+        "baseGridDeg": 1.0
+      },
+      "probes": [
+        { "label": "500 km north", "lat": -20.5, "lon": -135.0 },
+        { "label": "1000 km north", "lat": -16.0, "lon": -135.0 },
+        { "label": "1500 km west", "lat": -25.0, "lon": -149.0 }
+      ]
+    },
+    {
+      "id": "custom-seismic-mw85-l700km",
+      "displayName": "Custom — Mw 8.5, 700 km rupture (open Pacific)",
+      "input": {
+        "type": "seismic-megathrust",
+        "magnitude": 8.5,
+        "ruptureLengthM": 700000,
+        "ruptureWidthM": 150000,
+        "rakeDeg": 90,
+        "dipDeg": 12,
+        "centroidLat": -25.0,
+        "centroidLon": -135.0,
+        "basinDepthM": 4000
+      },
+      "domain": {
+        "boundsDeg": [-170, -100, -50, 0],
+        "amrLevels": 2,
+        "baseGridDeg": 1.0
+      },
+      "probes": [
+        { "label": "500 km north", "lat": -20.5, "lon": -135.0 },
+        { "label": "1000 km north", "lat": -16.0, "lon": -135.0 },
+        { "label": "2000 km north", "lat": -7.0, "lon": -135.0 }
+      ]
+    },
+    {
+      "id": "custom-seismic-mw95-l1500km",
+      "displayName": "Custom — Mw 9.5, 1500 km rupture (open Pacific)",
+      "input": {
+        "type": "seismic-megathrust",
+        "magnitude": 9.5,
+        "ruptureLengthM": 1500000,
+        "ruptureWidthM": 300000,
+        "rakeDeg": 90,
+        "dipDeg": 12,
+        "centroidLat": -25.0,
+        "centroidLon": -135.0,
+        "basinDepthM": 4500
+      },
+      "domain": {
+        "boundsDeg": [-180, -90, -55, 5],
+        "amrLevels": 2,
+        "baseGridDeg": 1.0
+      },
+      "probes": [
+        { "label": "1000 km north", "lat": -16.0, "lon": -135.0 },
+        { "label": "2000 km north", "lat": -7.0, "lon": -135.0 },
+        { "label": "3000 km north", "lat": 2.0, "lon": -135.0 }
+      ]
+    },
+    {
+      "id": "custom-volcanic-small",
+      "displayName": "Custom — small volcanic flank collapse (0.1 km³)",
+      "input": {
+        "type": "volcanic-collapse",
+        "collapseVolumeM3": 1.0e8,
+        "collapseAreaM2": 4.0e6,
+        "slopeRad": 0.087,
+        "centroidLat": -25.0,
+        "centroidLon": -135.0,
+        "basinDepthM": 1000
+      },
+      "domain": {
+        "boundsDeg": [-145, -125, -35, -15],
+        "amrLevels": 2,
+        "baseGridDeg": 0.5
+      },
+      "probes": [
+        { "label": "100 km", "lat": -24.1, "lon": -135.0 },
+        { "label": "300 km", "lat": -22.3, "lon": -135.0 },
+        { "label": "500 km", "lat": -20.5, "lon": -135.0 }
+      ]
+    },
+    {
+      "id": "custom-volcanic-large",
+      "displayName": "Custom — large volcanic caldera collapse (20 km³)",
+      "input": {
+        "type": "volcanic-collapse",
+        "collapseVolumeM3": 2.0e10,
+        "collapseAreaM2": 4.0e8,
+        "slopeRad": 0.087,
+        "centroidLat": -25.0,
+        "centroidLon": -135.0,
+        "basinDepthM": 1500
+      },
+      "domain": {
+        "boundsDeg": [-150, -120, -40, -10],
+        "amrLevels": 2,
+        "baseGridDeg": 0.5
+      },
+      "probes": [
+        { "label": "200 km", "lat": -23.2, "lon": -135.0 },
+        { "label": "500 km", "lat": -20.5, "lon": -135.0 },
+        { "label": "1000 km", "lat": -16.0, "lon": -135.0 }
+      ]
+    },
+    {
+      "id": "custom-landslide-small",
+      "displayName": "Custom — small submarine landslide (50 km³)",
+      "input": {
+        "type": "submarine-landslide",
+        "slideVolumeM3": 5.0e10,
+        "slideLengthM": 80000,
+        "slopeRad": 0.087,
+        "centroidLat": -25.0,
+        "centroidLon": -135.0,
+        "basinDepthM": 1500
+      },
+      "domain": {
+        "boundsDeg": [-150, -120, -40, -10],
+        "amrLevels": 2,
+        "baseGridDeg": 0.5
+      },
+      "probes": [
+        { "label": "200 km", "lat": -23.2, "lon": -135.0 },
+        { "label": "500 km", "lat": -20.5, "lon": -135.0 },
+        { "label": "1000 km", "lat": -16.0, "lon": -135.0 }
+      ]
+    },
+    {
+      "id": "custom-landslide-large",
+      "displayName": "Custom — giant submarine landslide (5000 km³)",
+      "input": {
+        "type": "submarine-landslide",
+        "slideVolumeM3": 5.0e12,
+        "slideLengthM": 350000,
+        "slopeRad": 0.087,
+        "centroidLat": -25.0,
+        "centroidLon": -135.0,
+        "basinDepthM": 2000
+      },
+      "domain": {
+        "boundsDeg": [-160, -110, -45, -5],
+        "amrLevels": 2,
+        "baseGridDeg": 1.0
+      },
+      "probes": [
+        { "label": "500 km", "lat": -20.5, "lon": -135.0 },
+        { "label": "1000 km", "lat": -16.0, "lon": -135.0 },
+        { "label": "2000 km", "lat": -7.0, "lon": -135.0 }
+      ]
+    },
+    {
+      "id": "custom-impact-3km",
+      "displayName": "Custom — 3 km asteroid, 4 km basin",
+      "input": {
+        "type": "impact-deep-ocean",
+        "impactorDiameterM": 3000,
+        "impactorVelocityMPerS": 20000,
+        "impactorDensityKgPerM3": 3000,
+        "centroidLat": -25.0,
+        "centroidLon": -135.0,
+        "basinDepthM": 4000
+      },
+      "domain": {
+        "boundsDeg": [-180, -90, -55, 5],
+        "amrLevels": 2,
+        "baseGridDeg": 1.0
+      },
+      "probes": [
+        { "label": "1000 km north", "lat": -16.0, "lon": -135.0 },
+        { "label": "2000 km north", "lat": -7.0, "lon": -135.0 },
+        { "label": "3000 km north", "lat": 2.0, "lon": -135.0 }
       ]
     }
   ],

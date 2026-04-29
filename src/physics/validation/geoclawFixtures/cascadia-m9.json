@@ -1,0 +1,53 @@
+{
+  "scenarioId": "cascadia-m9",
+  "displayName": "Cascadia M9 reference scenario",
+  "geoclawVersion": "5.14.0",
+  "geoclawCommit": "bc3cc8295e190f08c04320c5fd87ff81179345b7",
+  "computedAt": "2026-04-29",
+  "computedBy": "scripts/geoclaw/run_scenario.py",
+  "computedOn": "WSL2 Ubuntu 22.04, gfortran 11, x86_64",
+  "computeSeconds": 18.4,
+  "input": {
+    "type": "seismic-megathrust",
+    "magnitude": 9.0,
+    "ruptureLengthM": 1100000,
+    "ruptureWidthM": 550000,
+    "_widthJustification": "Set to L/2 = 550 km to match Nimbus's L/W=2 subduction-megathrust aspect-ratio assumption.",
+    "rakeDeg": 90,
+    "dipDeg": 10,
+    "centroidLat": 45.0,
+    "centroidLon": -125.0,
+    "basinDepthM": 3500
+  },
+  "geoclawProbes": [
+    {
+      "label": "1000 km south (open Pacific)",
+      "lat": 36.0,
+      "lon": -125.0,
+      "distanceFromEpicentreM": 1000754,
+      "peakAmplitudeM": 0.0751,
+      "peakTimeSeconds": 2633.7
+    },
+    {
+      "label": "1000 km west (open Pacific)",
+      "lat": 45.0,
+      "lon": -137.7,
+      "distanceFromEpicentreM": 997535,
+      "peakAmplitudeM": 0.2657,
+      "peakTimeSeconds": 6807.7
+    }
+  ],
+  "publishedReference": [
+    {
+      "label": "Newport reference",
+      "peakAmplitudeM": 8.0,
+      "source": "Witter et al. 2013 USGS Open-File 2013-1170"
+    }
+  ],
+  "_metadata": {
+    "schemaVersion": 1,
+    "tolerance": 2.0,
+    "tolerationRationale": "Per-source-class default for seismic-megathrust. See scripts/geoclaw/run_scenario.py DEFAULT_TOLERANCE_BY_TYPE for the rationale (Synolakis 2008 inter-model spread + closed-form vs 2D-AMR mismatch + source-model scatter).",
+    "comparisonStrategy": "geoclawComparison.test.ts feeds the fixture input to deriveSource() (Tier-1 closed form) \u2192 simulateSaintVenant1D in radial geometry \u2192 Heidarzadeh-Satake dispersion factor; asserts \u00b1tolerance vs each geoclawProbes peak."
+  }
+}

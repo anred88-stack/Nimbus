@@ -1,0 +1,55 @@
+{
+  "scenarioId": "krakatau-1883",
+  "displayName": "Krakatau 1883 caldera collapse",
+  "geoclawVersion": "5.14.0",
+  "geoclawCommit": "bc3cc8295e190f08c04320c5fd87ff81179345b7",
+  "computedAt": "2026-04-29",
+  "computedBy": "scripts/geoclaw/run_scenario.py",
+  "computedOn": "WSL2 Ubuntu 22.04, gfortran 11, x86_64",
+  "computeSeconds": 3.9,
+  "input": {
+    "type": "volcanic-collapse",
+    "collapseVolumeM3": 4000000000.0,
+    "collapseAreaM2": 80000000.0,
+    "centroidLat": -6.1,
+    "centroidLon": 105.42,
+    "basinDepthM": 50,
+    "deepBasinDepthM": 1500
+  },
+  "geoclawProbes": [
+    {
+      "label": "Anjer, Java tide gauge",
+      "lat": -6.05,
+      "lon": 105.97,
+      "distanceFromEpicentreM": 61067,
+      "peakAmplitudeM": 1.91,
+      "peakTimeSeconds": 2400.0
+    },
+    {
+      "label": "Batavia (Jakarta) tide gauge",
+      "lat": -6.13,
+      "lon": 106.81,
+      "distanceFromEpicentreM": 153718,
+      "peakAmplitudeM": 0.9163,
+      "peakTimeSeconds": 6480.0
+    }
+  ],
+  "publishedReference": [
+    {
+      "label": "Anjer",
+      "peakAmplitudeM": 36.0,
+      "source": "Verbeek 1885; Choi et al. 2003"
+    },
+    {
+      "label": "Batavia tide gauge",
+      "peakAmplitudeM": 2.4,
+      "source": "Symons 1888"
+    }
+  ],
+  "_metadata": {
+    "schemaVersion": 1,
+    "tolerance": 4.0,
+    "tolerationRationale": "Per-source-class default for volcanic-collapse. See scripts/geoclaw/run_scenario.py DEFAULT_TOLERANCE_BY_TYPE for the rationale (Synolakis 2008 inter-model spread + closed-form vs 2D-AMR mismatch + source-model scatter).",
+    "comparisonStrategy": "geoclawComparison.test.ts feeds the fixture input to deriveSource() (Tier-1 closed form) \u2192 simulateSaintVenant1D in radial geometry \u2192 Heidarzadeh-Satake dispersion factor; asserts \u00b1tolerance vs each geoclawProbes peak."
+  }
+}

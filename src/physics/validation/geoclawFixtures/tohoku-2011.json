@@ -1,0 +1,54 @@
+{
+  "scenarioId": "tohoku-2011",
+  "displayName": "T\u014dhoku 2011 megathrust",
+  "geoclawVersion": "5.14.0",
+  "geoclawCommit": "bc3cc8295e190f08c04320c5fd87ff81179345b7",
+  "computedAt": "2026-04-29",
+  "computedBy": "scripts/geoclaw/run_scenario.py",
+  "computedOn": "WSL2 Ubuntu 22.04, gfortran 11, x86_64",
+  "computeSeconds": 22.4,
+  "input": {
+    "type": "seismic-megathrust",
+    "magnitude": 9.1,
+    "ruptureLengthM": 700000,
+    "ruptureWidthM": 350000,
+    "rakeDeg": 90,
+    "dipDeg": 12,
+    "centroidLat": 38.3,
+    "centroidLon": 142.5,
+    "basinDepthM": 4000
+  },
+  "geoclawProbes": [
+    {
+      "label": "DART 21413",
+      "lat": 30.5,
+      "lon": 152.1,
+      "distanceFromEpicentreM": 1234731,
+      "peakAmplitudeM": 0.1806,
+      "peakTimeSeconds": 5545.3
+    }
+  ],
+  "publishedReference": [
+    {
+      "label": "DART 21413",
+      "peakAmplitudeM": 0.3,
+      "source": "Satake 2013 BSSA 103(2B):1473"
+    },
+    {
+      "label": "DART 21418",
+      "peakAmplitudeM": 1.85,
+      "source": "Satake 2013 Fig. 6"
+    },
+    {
+      "label": "Hilo tide gauge",
+      "peakAmplitudeM": 1.6,
+      "source": "Yamazaki & Cheung 2011 GRL 38"
+    }
+  ],
+  "_metadata": {
+    "schemaVersion": 1,
+    "tolerance": 2.0,
+    "tolerationRationale": "Per-source-class default for seismic-megathrust. See scripts/geoclaw/run_scenario.py DEFAULT_TOLERANCE_BY_TYPE for the rationale (Synolakis 2008 inter-model spread + closed-form vs 2D-AMR mismatch + source-model scatter).",
+    "comparisonStrategy": "geoclawComparison.test.ts feeds the fixture input to deriveSource() (Tier-1 closed form) \u2192 simulateSaintVenant1D in radial geometry \u2192 Heidarzadeh-Satake dispersion factor; asserts \u00b1tolerance vs each geoclawProbes peak."
+  }
+}

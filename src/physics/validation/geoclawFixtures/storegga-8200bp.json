@@ -1,0 +1,56 @@
+{
+  "scenarioId": "storegga-8200bp",
+  "displayName": "Storegga ~8200 BP submarine landslide",
+  "geoclawVersion": "5.14.0",
+  "geoclawCommit": "bc3cc8295e190f08c04320c5fd87ff81179345b7",
+  "computedAt": "2026-04-29",
+  "computedBy": "scripts/geoclaw/run_scenario.py",
+  "computedOn": "WSL2 Ubuntu 22.04, gfortran 11, x86_64",
+  "computeSeconds": 10.9,
+  "input": {
+    "type": "submarine-landslide",
+    "slideVolumeM3": 3000000000000.0,
+    "slideLengthM": 290000,
+    "slideThicknessM": 220,
+    "slopeRad": 0.087,
+    "centroidLat": 65.0,
+    "centroidLon": 2.0,
+    "basinDepthM": 800
+  },
+  "geoclawProbes": [
+    {
+      "label": "Norwegian coast, Sula",
+      "lat": 63.5,
+      "lon": 8.5,
+      "distanceFromEpicentreM": 355322,
+      "peakAmplitudeM": 1.0278,
+      "peakTimeSeconds": 3557.8
+    },
+    {
+      "label": "Shetland, Sullom Voe",
+      "lat": 60.4,
+      "lon": -1.3,
+      "distanceFromEpicentreM": 538294,
+      "peakAmplitudeM": 0.8096,
+      "peakTimeSeconds": 5488.4
+    }
+  ],
+  "publishedReference": [
+    {
+      "label": "Sula sediment scour",
+      "peakAmplitudeM": 10.0,
+      "source": "Bondevik et al. 2005 QSR 24"
+    },
+    {
+      "label": "Shetland",
+      "peakAmplitudeM": 20.0,
+      "source": "Smith et al. 2004 QSR 23"
+    }
+  ],
+  "_metadata": {
+    "schemaVersion": 1,
+    "tolerance": 2.0,
+    "tolerationRationale": "Per-source-class default for submarine-landslide. See scripts/geoclaw/run_scenario.py DEFAULT_TOLERANCE_BY_TYPE for the rationale (Synolakis 2008 inter-model spread + closed-form vs 2D-AMR mismatch + source-model scatter).",
+    "comparisonStrategy": "geoclawComparison.test.ts feeds the fixture input to deriveSource() (Tier-1 closed form) \u2192 simulateSaintVenant1D in radial geometry \u2192 Heidarzadeh-Satake dispersion factor; asserts \u00b1tolerance vs each geoclawProbes peak."
+  }
+}

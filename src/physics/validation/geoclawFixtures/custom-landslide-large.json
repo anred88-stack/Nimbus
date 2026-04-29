@@ -1,0 +1,52 @@
+{
+  "scenarioId": "custom-landslide-large",
+  "displayName": "Custom \u2014 giant submarine landslide (5000 km\u00b3)",
+  "geoclawVersion": "5.14.0",
+  "geoclawCommit": "bc3cc8295e190f08c04320c5fd87ff81179345b7",
+  "computedAt": "2026-04-29",
+  "computedBy": "scripts/geoclaw/run_scenario.py",
+  "computedOn": "WSL2 Ubuntu 22.04, gfortran 11, x86_64",
+  "computeSeconds": 5.7,
+  "input": {
+    "type": "submarine-landslide",
+    "slideVolumeM3": 5000000000000.0,
+    "slideLengthM": 350000,
+    "slopeRad": 0.087,
+    "centroidLat": -25.0,
+    "centroidLon": -135.0,
+    "basinDepthM": 2000
+  },
+  "geoclawProbes": [
+    {
+      "label": "500 km",
+      "lat": -20.5,
+      "lon": -135.0,
+      "distanceFromEpicentreM": 500377,
+      "peakAmplitudeM": 1.0511,
+      "peakTimeSeconds": 3138.7
+    },
+    {
+      "label": "1000 km",
+      "lat": -16.0,
+      "lon": -135.0,
+      "distanceFromEpicentreM": 1000754,
+      "peakAmplitudeM": 0.7049,
+      "peakTimeSeconds": 6676.7
+    },
+    {
+      "label": "2000 km",
+      "lat": -7.0,
+      "lon": -135.0,
+      "distanceFromEpicentreM": 2001509,
+      "peakAmplitudeM": 0.4642,
+      "peakTimeSeconds": 13816.4
+    }
+  ],
+  "publishedReference": [],
+  "_metadata": {
+    "schemaVersion": 1,
+    "tolerance": 2.0,
+    "tolerationRationale": "Per-source-class default for submarine-landslide. See scripts/geoclaw/run_scenario.py DEFAULT_TOLERANCE_BY_TYPE for the rationale (Synolakis 2008 inter-model spread + closed-form vs 2D-AMR mismatch + source-model scatter).",
+    "comparisonStrategy": "geoclawComparison.test.ts feeds the fixture input to deriveSource() (Tier-1 closed form) \u2192 simulateSaintVenant1D in radial geometry \u2192 Heidarzadeh-Satake dispersion factor; asserts \u00b1tolerance vs each geoclawProbes peak."
+  }
+}
