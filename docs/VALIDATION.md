@@ -65,6 +65,48 @@ which the validation tolerance includes.
 | Mount St Helens 1980 | 5.0e4        | 25 km      | ±5 km + 50 % H  | Mastin 2009 Table 1 + Carey 1985   |
 | Krakatau 1883        | 5.0e5        | 40 km      | ±10 km + 50 % H | Self & Rampino 1981 reconstruction |
 
+## NOAA tsunami benchmark problems (Phase-20)
+
+The NTHMP / Synolakis et al. 2008 benchmark suite is the standard
+acceptance set used by every operational tsunami forecast code (MOST,
+GeoClaw, COMCOT, Tsunami-HySEA). Pinning Nimbus output against these
+references turns "the formula looks reasonable" into "the formula
+matches the same number a NOAA-accepted solver would produce."
+
+Tolerance bands:
+
+- **±20 %** for analytic / laboratory benchmarks (BP1 Synolakis).
+  Tighter pins are not justified by the model-spread envelope
+  reported in Synolakis et al. 2008 §6.
+- **±25 %** for seismic far-field benchmarks (DART buoys, tide
+  gauges). Reflects the intrinsic single-station scatter from
+  filtering choice + tidal de-trending + bottom-pressure-to-
+  amplitude inversion (each ≈ ±10 %).
+
+| Benchmark                                        | Reference           | Predicted                 | Observed | Error | Source                     |
+| ------------------------------------------------ | ------------------- | ------------------------- | -------- | ----- | -------------------------- |
+| BP1 H/d=0.019 R/H, 1:19.85 plane beach           | Synolakis 1987      | matches Carrier-Greenspan | 4.683    | < 1 % | Synolakis 1987 Table 1     |
+| BP1 H/d=0.045                                    | Synolakis 1987      | matches                   | 5.815    | < 1 % | Synolakis 1987 Table 1     |
+| BP1 H/d=0.075                                    | Synolakis 1987      | matches                   | 6.604    | < 1 % | Synolakis 1987 Table 1     |
+| Sumatra 2004 amplitude at Cocos Island (1700 km) | Bernard et al. 2006 | 0.49 m                    | 0.4 m    | 24 %  | Phil. Trans. R. Soc. A 364 |
+| Tōhoku 2011 mean coseismic slip                  | Satake 2013         | inside [5,25] m           | ~10–20 m | ✓     | BSSA 103(2B): 1473         |
+
+### Tier 2 deferrals
+
+The cylindrical 1D model (Phase-19 / Tier 1) systematically
+over-predicts compact-rupture far-field amplitudes by a factor 3-7×
+because peaked slip distributions (Tōhoku 2011: 8 m peak vs ~4 m
+mean) inject high-frequency dispersion the closed-form
+Heidarzadeh-Satake decay cannot capture. Closing this gap requires
+a Saint-Venant 1D Web Worker (planned as the Tier 2 "Coastal Deep
+Dive" mode); the current pin set marks this case as `it.todo` rather
+than hide the limitation.
+
+| Benchmark deferred to Tier 2               | Why                                                            | Planned solver                                         |
+| ------------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------ |
+| Tōhoku 2011 DART 21413 amplitude (1500 km) | Cylindrical 1D over-predicts compact-rupture far-field by 3-7× | Saint-Venant 1D radiale, schemi GeoClaw HLLC + Manning |
+| BP2 (conical island), BP4 (Hilo Bay)       | 2D focusing/refraction not in scope                            | Saint-Venant 2D — future work                          |
+
 ## Tunguska energy budget
 
 | Quantity            | Window    | Source                                |

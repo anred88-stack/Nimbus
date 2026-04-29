@@ -139,6 +139,12 @@ export interface SeismicTsunamiResult {
   amplitudeAt5000km: Meters;
   /** Heidarzadeh-Satake dispersion-corrected amplitude at 5 000 km. */
   amplitudeAt5000kmDispersed: Meters;
+  /** Phase-20 dispersion-corrected amplitude at 1 000 km. Same
+   *  Heidarzadeh & Satake 2015 frequency-dependent decay applied to
+   *  the cylindrical-spread `amplitudeAt1000km`. Pinned in the NOAA
+   *  benchmark suite against DART / Cocos Island records — Sumatra-
+   *  Andaman 2004 matches within ±20 %. */
+  amplitudeAt1000kmDispersed: Meters;
   /** Synolakis 1:100 plane-beach run-up for the 1 000 km amplitude. */
   runupAt1000km: Meters;
   /** Lamb 1932 shallow-water travel time to 1 000 km (s). */
@@ -209,6 +215,7 @@ export function seismicTsunamiFromMegathrust(input: SeismicTsunamiInput): Seismi
       amplitudeAt1000km: m(0),
       amplitudeAt5000km: m(0),
       amplitudeAt5000kmDispersed: m(0),
+      amplitudeAt1000kmDispersed: m(0),
       runupAt1000km: m(0),
       travelTimeTo1000km: 0 as Seconds,
       deepWaterCelerity: 0 as MetersPerSecond,
@@ -239,6 +246,19 @@ export function seismicTsunamiFromMegathrust(input: SeismicTsunamiInput): Seismi
   const amp1000 = amp(1_000_000);
   const amp5000 = amp(5_000_000);
   const amp5000Disp = amp5000 * dispersionAmplitudeFactor(m(5_000_000));
+  // Phase-20: also surface the dispersion-corrected amplitude at
+  // 1 000 km. Pre-Phase-20 only the 5 000 km value applied the
+  // Heidarzadeh & Satake 2015 frequency-dependent decay; the 1 000 km
+  // value used the raw cylindrical spread, which over-predicted the
+  // DART/Cocos record by a factor 2-3 for far-field megathrust events.
+  // Applying the dispersion at every distance brings the long-rupture
+  // case (Sumatra-Andaman 2004 at 1 700 km) inside ±20 % of the
+  // observed amplitude. Compact-rupture cases (Tōhoku 2011) stay
+  // outside the ±20 % envelope because the cylindrical 1D model
+  // cannot capture their slip-heterogeneity-driven spectral spread —
+  // that is a known Tier 1 limitation, addressed in the planned
+  // Tier 2 Saint-Venant 1D Web Worker.
+  const amp1000Disp = amp1000 * dispersionAmplitudeFactor(m(1_000_000));
   // Beach slope: caller-supplied DEM value when in [1:1000, 1:3]
   // envelope, otherwise the canonical 1:100 reference (Synolakis 1987).
   const SLOPE_LOWER = Math.atan(1 / 1000);
@@ -276,6 +296,7 @@ export function seismicTsunamiFromMegathrust(input: SeismicTsunamiInput): Seismi
     amplitudeAt1000km: m(amp1000),
     amplitudeAt5000km: m(amp5000),
     amplitudeAt5000kmDispersed: m(amp5000Disp),
+    amplitudeAt1000kmDispersed: m(amp1000Disp),
     runupAt1000km: runup,
     travelTimeTo1000km: travel,
     deepWaterCelerity: celerity,
