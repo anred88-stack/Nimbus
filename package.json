@@ -25,6 +25,7 @@
     "test:e2e": "playwright test",
     "simulate": "tsx scripts/simulate-impact.ts",
     "validation-report": "tsx scripts/generate-validation-report.ts",
+    "release:check": "tsx scripts/release-readiness.ts",
     "sensitivity": "tsx scripts/sensitivity.ts",
     "audit:phase10": "tsx scripts/audit_phase10.ts",
     "bundle:size": "tsx scripts/bundle-size-check.ts",

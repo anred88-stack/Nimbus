@@ -4,6 +4,13 @@ Pre-flight for cutting a public release. Every item must be checked
 or have a written reason in the release PR before pushing the
 `v1.0.0` tag.
 
+> **One-time vs per-release.** This file is the **one-time** pre-flight
+> for the first public release (identity, copy, content, scientific
+> sign-off, deploy wiring). For the **per-release** classifier
+> (GO / CONDITIONAL GO / NO-GO) run before every tag, see
+> [`RELEASE_READINESS.md`](RELEASE_READINESS.md) and
+> `pnpm release:check`. Both must be clean before pushing `v1.0.0`.
+
 ## 1. Identity
 
 - [x] Project name resolved — **Nimbus** (display) / **Nuclear & Impact Modeling & Blast Understanding System**
