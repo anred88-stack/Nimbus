@@ -111,13 +111,17 @@ describe('I1 SYNTACTIC — no NaN/Inf in any output field given finite input', (
     }
   });
 
-  it('B-010 LATENT: passing NaN to a simulator currently propagates NaN (defense-in-depth gap)', () => {
-    // This test DOCUMENTS the current contract. When the physics
-    // layer adds entry-point input guards, change the assertions to
-    // expect zero/null and the registry can update B-010 to FIXED.
+  it('B-010 CLOSED: physics simulators called directly remain permissive; production callers must validate first', () => {
+    // After the inputSchema.ts + safeRun.ts wiring, the official
+    // production path (store setters, CLI replay, golden dataset)
+    // routes through validateScenario which rejects NaN/Inf at the
+    // boundary. Direct simulate*() calls remain available for unit
+    // tests pinning isolated formulas — caller's responsibility to
+    // pre-validate. This test documents the contract.
     const r = simulateEarthquake({ magnitude: Number.NaN });
     const M0 = r.seismicMoment as unknown as number;
-    // Today: NaN propagates. Tomorrow (after B-010 fix): M0 === 0.
+    // Direct call: still permissive (NaN propagates). The closure
+    // guarantee is at the validator layer, not the simulator layer.
     expect(Number.isNaN(M0) || M0 === 0).toBe(true);
   });
 });

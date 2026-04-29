@@ -1,0 +1,29 @@
+{
+  "id": "tohoku-2011-reference",
+  "category": "reference",
+  "title": "Tōhoku 2011 megathrust — preset replay reference",
+  "description": "Reference replay of the EARTHQUAKE_PRESETS.TOHOKU_2011 input. Pins the Tier-2 NOAA validation envelope (Mw 9.1, mean slip 8-12 m, MMI VII reach > 50 km) — see B-006 in BUG_REGISTRY.md.",
+  "linkedBug": null,
+  "linkedGoldenCase": "G-TOH-DART",
+  "scenarioType": "earthquake",
+  "rawInput": {
+    "magnitude": 9.1,
+    "depth": 29000,
+    "faultType": "reverse",
+    "subductionInterface": true,
+    "strikeAzimuthDeg": 200
+  },
+  "expectedValidation": {
+    "status": "accepted",
+    "errorCount": 0,
+    "warningCount": 0
+  },
+  "expectedOutputs": {
+    "ruptureLength.km": { "value": 702, "absTolerance": 50, "comment": "Strasser 2010 megathrust scaling at Mw 9.1" },
+    "tsunami.meanSlip.m": { "value": 8.5, "absTolerance": 2.5, "comment": "Hayes 2017 USGS finite-fault" },
+    "shaking.mmi7Radius.km": { "min": 50, "max": 600, "comment": "Mw 9 events trigger basin-scale shaking" },
+    "shaking.liquefactionRadius.km": { "min": 50, "max": 1500, "comment": "Tōhoku Kantō plain liquefaction" },
+    "tsunami.exists": true,
+    "tsunami.amplitudeAt1000kmDispersed.m": { "min": 0.5, "max": 3.0, "comment": "Heidarzadeh-Satake dispersion at 1000 km — post-B-006 calibration gives ~1.6 m" }
+  }
+}

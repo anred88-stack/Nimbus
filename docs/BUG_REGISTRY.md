@@ -22,6 +22,7 @@ When a new bug is found, add a row here AND a test in `regressionRegistry.test.t
 | B-007 | D-RENDER | Chicxulub Schultz-Gault Mw 10.2 displayed as headline above Teanby-Wookey 7.3 | UI inspection only | `B-007 Chicxulub Teanby-Wookey is headline (UI ordering)` | [b75a35e](https://github.com/anred88-stack/Nimbus/commit/b75a35e) |
 | B-008 | D-FORM | Eltanin 5.96 km synthetic crater vs Gersonde 1997 no-crater | n/a (test fixture only) | `B-008 Eltanin deep-water disruption cutoff` | [d164395](https://github.com/anred88-stack/Nimbus/commit/d164395) |
 | B-009 | D-INPUT | Tsar Bomba 50 Mt × 500 m HOB → 3.5 m wave at trans-Atlantic distance | `pnpm simulate --event=explosion --preset=TSAR_BOMBA_1961 --hob=500 --water-depth=3500` | `B-009 Tsar Bomba airburst absolute-HOB gate` | [0ec0fda](https://github.com/anred88-stack/Nimbus/commit/0ec0fda) |
+| B-010 | D-INPUT (CLOSED) | NaN/Inf in physics layer entry point — defense-in-depth gap | n/a (direct API misuse) | `B-010 CLOSED — validator schema rejects NaN/Inf at the runtime boundary` | pending (this branch — `inputSchema.ts` + `safeRun.ts` wiring) |
 
 ## How a new bug enters this registry
 

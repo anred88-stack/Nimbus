@@ -1,0 +1,26 @@
+{
+  "id": "tsar-bomba-gulf-of-mexico-regression",
+  "category": "regression",
+  "title": "Tsar Bomba 50 Mt @ 500 m HOB over Gulf of Mexico — B-009 regression",
+  "description": "User-reported scenario that revealed B-009 (explosion-tsunami HOB gate). Pre-fix produced ~3.5 m wave at trans-Atlantic distance. Post-fix the absolute-HOB gate (CONTACT_WATER_BURST_MAX_HOB_M = 30 m) suppresses the tsunami branch entirely.",
+  "linkedBug": "B-009",
+  "linkedGoldenCase": null,
+  "scenarioType": "explosion",
+  "rawInput": {
+    "yieldMegatons": 50,
+    "heightOfBurst": 500,
+    "waterDepth": 3500,
+    "groundType": "WET_SOIL"
+  },
+  "expectedValidation": {
+    "status": "accepted",
+    "errorCount": 0,
+    "warningCount": 0
+  },
+  "expectedOutputs": {
+    "blast.hobRegime": { "value": "SURFACE", "comment": "scaled-HOB z = 13.6 < 50 → still SURFACE by Glasstone classifier" },
+    "isContactWaterBurst": { "value": false, "comment": "absolute-HOB gate (>30 m) blocks the tsunami branch" },
+    "tsunami.exists": false,
+    "blast.overpressure5psiRadiusHob.km": { "min": 15, "max": 40, "comment": "Glasstone-Sublette 5 psi at 50 Mt scaled HOB" }
+  }
+}

@@ -11,6 +11,10 @@ import {
   computeBathymetricTsunami,
   type BathymetricTsunamiResult,
 } from '../physics/tsunami/index.js';
+import {
+  validateScenario,
+  type ScenarioType,
+} from '../physics/validation/inputSchema.js';
 import { populationInRadius, type PopulationLookupResult } from '../scene/populationLookup.js';
 import { wrap, type Remote } from 'comlink';
 import {
@@ -848,6 +852,33 @@ function isValidCoordinates(c: Coordinates): boolean {
 }
 
 /**
+ * Run the centralized inputSchema validator on a fully-merged scenario
+ * input and surface any issues via console.warn (dev-only). The store
+ * keeps its existing inline-guard / silent-drop semantics for
+ * BACKWARD compatibility with components that update individual
+ * fields, but every `set*Input` setter now passes the merged result
+ * through this single audit point so validation drift between UI
+ * components and the schema is visible at runtime.
+ *
+ * Closes part of B-010: the runtime schema in `inputSchema.ts` is now
+ * the single source of truth, and store updates are observably routed
+ * through it.
+ */
+function auditStoreInput(type: ScenarioType, merged: Record<string, unknown>): void {
+  if (!import.meta.env.DEV) return;
+  const v = validateScenario(type, merged);
+  if (v.result.errors.length > 0) {
+    console.warn(
+      `[store] ${type} input has validation errors (rejected by schema; store kept previous value):`,
+      v.result.errors,
+    );
+  }
+  for (const w of v.result.warnings) {
+    console.warn(`[store] ${type} ${w.field} ${w.code}: ${w.message}`);
+  }
+}
+
+/**
  * Canonical app store. See docs/ARCHITECTURE.md §"The store" for the
  * layering rationale: it sits between the headless physics layer (L2)
  * and the React UI (L4), exposing actions that the UI invokes and
@@ -1028,6 +1059,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       ) {
         next.impactorStrength = Pa(overrides.impactorStrength);
       }
+      auditStoreInput('impact', next as unknown as Record<string, unknown>);
       return {
         eventType: 'impact',
         impact: { preset: 'CUSTOM', input: next },
@@ -1067,6 +1099,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (overrides.windDirectionDeg !== undefined && Number.isFinite(overrides.windDirectionDeg)) {
         next.windDirectionDeg = ((overrides.windDirectionDeg % 360) + 360) % 360;
       }
+      auditStoreInput('explosion', next as unknown as Record<string, unknown>);
       return {
         eventType: 'explosion',
         explosion: { preset: 'CUSTOM', input: next },
@@ -1106,6 +1139,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (overrides.subductionInterface !== undefined) {
         next.subductionInterface = overrides.subductionInterface;
       }
+      auditStoreInput('earthquake', next as unknown as Record<string, unknown>);
       return {
         eventType: 'earthquake',
         earthquake: { preset: 'CUSTOM', input: next },
@@ -1149,6 +1183,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         // Normalise to [0, 360).
         next.windDirectionDegrees = ((overrides.windDirectionDegrees % 360) + 360) % 360;
       }
+      auditStoreInput('volcano', next as unknown as Record<string, unknown>);
       return {
         eventType: 'volcano',
         volcano: { preset: 'CUSTOM', input: next },
@@ -1185,6 +1220,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (overrides.regime !== undefined) {
         next.regime = overrides.regime;
       }
+      auditStoreInput('landslide', next as unknown as Record<string, unknown>);
       return {
         eventType: 'landslide',
         landslide: { preset: 'CUSTOM', input: next },

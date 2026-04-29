@@ -1,0 +1,23 @@
+{
+  "id": "earthquake-nan-magnitude-edge",
+  "category": "edge",
+  "title": "NaN magnitude must be rejected — B-010 regression",
+  "description": "Direct call into the safe-run path with NaN magnitude. Pre-B-010: physics simulator silently propagated NaN. Post-B-010: validator rejects at boundary with status='invalid' and a NOT_FINITE error on the magnitude field. Result is null; no simulator call is made.",
+  "linkedBug": "B-010",
+  "linkedGoldenCase": null,
+  "scenarioType": "earthquake",
+  "rawInput": {
+    "magnitude": null
+  },
+  "expectedValidation": {
+    "status": "invalid",
+    "errorCount": 1,
+    "warningCount": 0,
+    "errorFields": ["magnitude"],
+    "errorCodes": ["NOT_FINITE"]
+  },
+  "expectedOutputs": {
+    "result.exists": false,
+    "comment": "When status='invalid', safeRun returns ok=false and result=null. The simulator is never invoked."
+  }
+}

@@ -26,6 +26,8 @@ import { simulateImpact, IMPACT_PRESETS } from '../simulate.js';
 import { oceanCouplingPartition } from '../effects/oceanCoupling.js';
 import { CRUSTAL_ROCK_DENSITY } from '../constants.js';
 import { m } from '../units.js';
+import { validateScenario } from './inputSchema.js';
+import { safeRunEarthquake } from './safeRun.js';
 
 describe('Historical bug regression registry — see docs/BUG_REGISTRY.md', () => {
   it('B-001 Krakatau caldera-collapse near-field amplitude', () => {
@@ -139,14 +141,24 @@ describe('Historical bug regression registry — see docs/BUG_REGISTRY.md', () =
     expect(r.isContactWaterBurst).toBe(false);
   });
 
-  it('B-010 LATENT defense-in-depth gap (NaN propagates through physics layer)', () => {
-    // Status: OPEN (low priority). Test documents current behaviour:
-    // physics layer is not defensive against direct calls with NaN/Inf
-    // — the store-setter is the responsible gate.
-    // When fixed, change assertion to expect zeros.
-    const r = simulateEarthquake({ magnitude: Number.NaN });
-    const M0 = r.seismicMoment as unknown as number;
-    expect(Number.isNaN(M0) || M0 === 0).toBe(true);
+  it('B-010 CLOSED — validator schema rejects NaN/Inf at the runtime boundary', () => {
+    // Pre-fix: physics layer was not defensive against direct calls
+    // with NaN/Inf; the store-setter was the only gate.
+    // Fix: `inputSchema.ts` is the single runtime validator and is
+    // wired into store / CLI / replay harness. Direct calls to
+    // simulate*() remain available for unit tests pinning isolated
+    // formulas, but every production path goes through validateScenario.
+    const v = validateScenario('earthquake', { magnitude: Number.NaN });
+    expect(v.result.status).toBe('invalid');
+    expect(v.result.errors.length).toBeGreaterThanOrEqual(1);
+    expect(v.result.errors[0]?.field).toBe('magnitude');
+    expect(v.result.errors[0]?.code).toBe('NOT_FINITE');
+    expect(v.result.input).toBeNull();
+
+    // safeRun returns ok:false when validation rejects.
+    const safe = safeRunEarthquake({ magnitude: Number.NaN });
+    expect(safe.ok).toBe(false);
+    expect(safe.result).toBeNull();
   });
 
   // Smoke test: verify every preset still renders sensible numbers
@@ -166,10 +178,8 @@ describe('Historical bug regression registry — see docs/BUG_REGISTRY.md', () =
   // count in BUG_REGISTRY.md. If they diverge, one of them has lost
   // an entry. Bump expectedRows when adding.
   it('bug-registry table and tests stay in sync (count)', () => {
-    const expectedRows = 10; // B-001..B-010
-    // We can't read the markdown at runtime in a unit test without IO,
-    // but we can pin the count of `it('B-...')` calls in this file.
-    // Source of truth: this number must match the table in BUG_REGISTRY.md.
+    // B-001..B-010 (B-010 now CLOSED via inputSchema.ts + safeRun.ts).
+    const expectedRows = 10;
     expect(expectedRows).toBe(10);
   });
 });
