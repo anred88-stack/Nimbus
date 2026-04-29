@@ -399,7 +399,39 @@ export function simulateImpact(input: ImpactScenarioInput): ImpactScenarioResult
 
   const craterScale = gf > 0 && !fragmentsTooHigh ? Math.pow(gf * fSeafloor, 1 / 3.4) : 0;
 
-  const Dtc = m((transientCraterDiameter(input) as number) * craterScale);
+  // Iron strewn-field branch. Small iron meteorites (D < 20 m) that
+  // begin atmospheric breakup but recover to a low-altitude burst
+  // (the model's INTACT-via-bottoming-out branch) actually fragment
+  // into many ground-impacting pieces because of pre-existing
+  // fractures from cosmic-ray exposure (Krinov 1966 "Giant
+  // Meteorites" §III.4; Bronshten 1976 ~ "Physics of Meteoritic
+  // Phenomena"). The Chyba/Collins single-strength criterion does not
+  // capture this — it predicts a coherent body landing as one big
+  // impactor. Empirically the largest crater in such a strewn field
+  // is ~15 % of the equivalent single-impactor crater, with the
+  // remaining mass distributed across dozens-to-hundreds of smaller
+  // craters whose size distribution follows a Hartmann 1969 power law.
+  //
+  // Calibration anchor: Sikhote-Alin 1947 (D = 3 m, ρ = 7800, v = 14.5
+  // km/s) → 122 craters over 1.6 km², largest 26 m diameter (Krinov
+  // 1966). Single-impactor model gives ~178 m → factor 0.146 ≈ 0.15.
+  // Meteor Crater (D = 50 m) does NOT trigger this branch because the
+  // pancake-penetration term keeps the bulk together → single 1.2 km
+  // crater is correct.
+  //
+  // Custom user inputs benefit automatically: any iron-density (>6000
+  // kg/m³) bolide with original diameter < 20 m that fragments will
+  // produce the strewn-field largest-crater estimate, not the
+  // unphysical single-impactor one.
+  const STREWN_FIELD_PRIMARY_CRATER_FACTOR = 0.15;
+  const isIronStrewnField =
+    (input.impactorDensity as number) >= 6000 &&
+    (entry.breakupAltitude as number) > 0 &&
+    diameterM < 20 &&
+    !fragmentsTooHigh;
+  const strewnFieldFactor = isIronStrewnField ? STREWN_FIELD_PRIMARY_CRATER_FACTOR : 1;
+
+  const Dtc = m((transientCraterDiameter(input) as number) * craterScale * strewnFieldFactor);
   const Dfr = m(finalCraterDiameter(Dtc));
   const depth = m(craterDepth(Dfr));
   const morphology: 'simple' | 'complex' =

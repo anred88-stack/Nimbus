@@ -78,6 +78,17 @@ describe('Historical validation — cosmic impacts', () => {
     expect(Math.abs((r.crater.finalDiameter as number) - observed) / observed).toBeLessThan(0.15);
   });
 
+  it('Sikhote-Alin 1947: iron strewn field, largest crater 15-50 m (observed 26 m)', () => {
+    const r = simulateImpact(IMPACT_PRESETS.SIKHOTE_ALIN_1947.input);
+    // Iron meteorite (D=3 m) fragments due to pre-existing fractures
+    // (Krinov 1966); the 122-crater strewn field over 1.6 km² has its
+    // largest pit at 26 m. The pre-fix model treated the 3 m iron as
+    // INTACT and predicted ~178 m — physically wrong for any 1-20 m
+    // iron, which always produces a strewn field.
+    expect(r.crater.finalDiameter as number).toBeGreaterThan(15);
+    expect(r.crater.finalDiameter as number).toBeLessThan(50);
+  });
+
   it('Impact→liquefaction cross-bridge: Chicxulub Mw feeds Youd-Idriss into a continental ring', () => {
     const r = simulateImpact(IMPACT_PRESETS.CHICXULUB.input);
     // Teanby-Wookey Mw for Chicxulub is ~7.3; Youd-Idriss should then
