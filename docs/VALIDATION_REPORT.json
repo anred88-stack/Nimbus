@@ -1,0 +1,64 @@
+{
+  "generatedAt": "2026-04-29T14:16:05.094Z",
+  "mode": "strict",
+  "gate": {
+    "decision": "pass",
+    "exitCode": 0,
+    "blocking": [],
+    "warnings": []
+  },
+  "replay": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "byCategory": {
+      "edge": 1,
+      "reference": 1,
+      "regression": 1
+    },
+    "byStatus": {
+      "invalid": 1,
+      "accepted": 2
+    },
+    "topErrorCodes": [
+      {
+        "code": "NOT_FINITE",
+        "count": 1
+      }
+    ],
+    "topWarningCodes": []
+  },
+  "golden": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0,
+    "byCategory": {
+      "reference": 6,
+      "regression": 2,
+      "edge": 2,
+      "physical-sanity": 1,
+      "custom-user": 1
+    },
+    "byStatus": {
+      "accepted": 9,
+      "invalid": 2,
+      "suspicious": 1
+    },
+    "topErrorCodes": [
+      {
+        "code": "NOT_FINITE",
+        "count": 1
+      },
+      {
+        "code": "ZERO_FORBIDDEN",
+        "count": 1
+      }
+    ],
+    "topWarningCodes": [
+      {
+        "code": "PHYS_SUSPICIOUS_HIGH",
+        "count": 1
+      }
+    ]
+  }
+}

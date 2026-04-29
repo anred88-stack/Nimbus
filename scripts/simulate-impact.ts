@@ -24,6 +24,10 @@ import {
   type ImpactScenarioInput,
 } from '../src/physics/simulate.js';
 import { deg, degreesToRadians, kgPerM3, m as meters, mps } from '../src/physics/units.js';
+import {
+  validateScenario,
+  type ScenarioType,
+} from '../src/physics/validation/inputSchema.js';
 
 const USAGE = `
 Usage: pnpm simulate [options]
@@ -342,6 +346,27 @@ const EXPLOSION_CITATIONS = [
   'Nordyke (1977) — nuclear-crater yield scaling',
 ];
 
+/**
+ * Run the centralized runtime validator over the structured input the
+ * CLI just built. We unwrap the input to a plain object (branded types
+ * are nominal numbers, so JSON round-trip is lossless) and pass it
+ * through `validateScenario`. The returned validation block is
+ * embedded in the snapshot so consumers can see why the CLI
+ * accepted / refused the inputs — same contract as the replay
+ * harness and golden dataset.
+ *
+ * Closes L5 / Consolidation Audit "CLI bypass" by making the CLI
+ * structurally equivalent to UI/store/replay paths.
+ */
+function validateCliInput(
+  type: ScenarioType,
+  input: unknown,
+): { ok: boolean; validation: ReturnType<typeof validateScenario>['result'] } {
+  const plain = JSON.parse(JSON.stringify(input)) as Record<string, unknown>;
+  const v = validateScenario(type, plain);
+  return { ok: v.result.status !== 'invalid', validation: v.result };
+}
+
 function main(): void {
   const args = parseCli(process.argv.slice(2));
 
@@ -359,6 +384,12 @@ function main(): void {
 
   if (event === 'impact') {
     const input = buildImpactInput(args);
+    const v = validateCliInput('impact', input);
+    snapshot.validation = v.validation;
+    if (!v.ok) {
+      process.stderr.write(`Validation failed:\n${JSON.stringify(v.validation, null, 2)}\n`);
+      process.exit(2);
+    }
     const result = simulateImpact(input);
     snapshot.preset = args.preset ?? 'CHICXULUB';
     snapshot.citations = result.tsunami
@@ -367,16 +398,34 @@ function main(): void {
     snapshot.result = result;
   } else if (event === 'explosion') {
     const input = buildExplosionInput(args);
+    const v = validateCliInput('explosion', input);
+    snapshot.validation = v.validation;
+    if (!v.ok) {
+      process.stderr.write(`Validation failed:\n${JSON.stringify(v.validation, null, 2)}\n`);
+      process.exit(2);
+    }
     snapshot.preset = args.preset ?? 'HIROSHIMA_1945';
     snapshot.citations = EXPLOSION_CITATIONS;
     snapshot.result = simulateExplosion(input);
   } else if (event === 'earthquake') {
     const input = buildEarthquakeInput(args);
+    const v = validateCliInput('earthquake', input);
+    snapshot.validation = v.validation;
+    if (!v.ok) {
+      process.stderr.write(`Validation failed:\n${JSON.stringify(v.validation, null, 2)}\n`);
+      process.exit(2);
+    }
     snapshot.preset = args.preset ?? 'TOHOKU_2011';
     snapshot.citations = EARTHQUAKE_CITATIONS;
     snapshot.result = simulateEarthquake(input);
   } else {
     const input = buildVolcanoInput(args);
+    const v = validateCliInput('volcano', input);
+    snapshot.validation = v.validation;
+    if (!v.ok) {
+      process.stderr.write(`Validation failed:\n${JSON.stringify(v.validation, null, 2)}\n`);
+      process.exit(2);
+    }
     snapshot.preset = args.preset ?? 'KRAKATAU_1883';
     snapshot.citations = VOLCANO_CITATIONS;
     snapshot.result = simulateVolcano(input);

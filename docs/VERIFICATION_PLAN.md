@@ -46,12 +46,23 @@ Centralized: `src/physics/validation/tolerances.ts` (created in this PR).
 2. A permanent test in `regressionRegistry.test.ts` exercising the same code path
 3. A short "Why this fails" comment
 
-## Test files in this PR
+## Test files
 
+Verification (runtime-pure, formula-level):
 - `customInput.invariants.test.ts` — I1–I4 for all 5 event types via store setters + simulate*()
 - `monotonicity.property.test.ts` — I4 monotonicity invariants, multi-quantity, randomized inputs
 - `geometry.crs.test.ts` — I5/I6 lat-lon, antimeridian, bbox
 - `regressionRegistry.test.ts` — historical bugs as named tests, indexed by `BUG_REGISTRY.md`
+
+Validation (real-world scenarios end-to-end through `safeRun*`):
+- `replay.test.ts` + `replayFixtures/*.json` — drop-in fixture corpus
+- `goldenDataset.test.ts` + `goldenDataset.ts` — executable canonical cases
+- `crossEntrypoint.equivalence.test.ts` — schema vs safeRun vs replay-harness on shared input matrix
+- `validationCodes.stability.test.ts` — pin canonical error/warning code set
+- `replayFixtureIntegrity.test.ts` — JSON structure / naming / orphan checks
+- `goldenDataset.consistency.test.ts` — uniqueness / coverage / linkedBug invariants
+
+Shared:
 - `tolerances.ts` — centralized tolerance constants
 
 ## What this plan deliberately does NOT cover (out of scope this PR)

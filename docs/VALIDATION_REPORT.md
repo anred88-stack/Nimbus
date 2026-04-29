@@ -1,9 +1,33 @@
 # Nimbus validation report
 
-_Generated: 2026-04-29T13:57:45.162Z_
+_Generated: 2026-04-29T14:16:05.094Z_
 
 This report is produced by `pnpm validation-report`. Do not edit by
 hand. Re-run after every change to the V&V suite to refresh.
+
+A machine-readable summary (same data, no Markdown) is also emitted
+to `docs/VALIDATION_REPORT.json` for CI consumption.
+
+## Release gate
+
+| Mode | Decision | Exit code |
+|------|----------|-----------|
+| **strict** | PASS | 0 |
+
+
+
+
+**Policy:**
+
+- `strict` (default for CI): any replay or golden failure blocks the
+  release. Suspicious-but-valid scenarios (S3) are reported but do
+  NOT block — they're explicit accept-with-flag.
+- `advisory`: only structural failures of the harness block; replay
+  and golden assertions are downgraded to warnings. Use when
+  iterating on a branch.
+
+Switch via `pnpm validation-report --mode=advisory` or
+`VALIDATION_MODE=advisory`.
 
 ## Verification vs validation
 
@@ -22,11 +46,28 @@ hand. Re-run after every change to the V&V suite to refresh.
 |-------|--------|--------|
 | 3 | 3 | 0 |
 
+**By category:**
+
 | Category | Count |
 |----------|-------|
 | edge | 1 |
 | reference | 1 |
 | regression | 1 |
+
+**By validation status:**
+
+| Status | Count |
+|--------|-------|
+| accepted | 2 |
+| normalized | 0 |
+| suspicious | 0 |
+| invalid | 1 |
+
+**Top error codes:**
+
+| Code | Count |
+|------|-------|
+| NOT_FINITE | 1 |
 
 ### Replay failures
 
@@ -37,15 +78,39 @@ All passed.
 
 | Total | Passed | Failed |
 |-------|--------|--------|
-| 10 | 10 | 0 |
+| 12 | 12 | 0 |
+
+**By category:**
 
 | Category | Count |
 |----------|-------|
 | custom-user | 1 |
 | edge | 2 |
 | physical-sanity | 1 |
-| reference | 4 |
+| reference | 6 |
 | regression | 2 |
+
+**By validation status:**
+
+| Status | Count |
+|--------|-------|
+| accepted | 9 |
+| normalized | 0 |
+| suspicious | 1 |
+| invalid | 2 |
+
+**Top error codes:**
+
+| Code | Count |
+|------|-------|
+| NOT_FINITE | 1 |
+| ZERO_FORBIDDEN | 1 |
+
+**Top warning codes:**
+
+| Code | Count |
+|------|-------|
+| PHYS_SUSPICIOUS_HIGH | 1 |
 
 ### Golden case failures
 
@@ -61,7 +126,7 @@ All passed.
 
 ## Scenarios covered
 
-- **Reference / scaling** (peer-reviewed observation envelope): 4 golden cases
+- **Reference / scaling** (peer-reviewed observation envelope): 6 golden cases
 - **Regression** (linked to BUG_REGISTRY rows): 2 golden cases + 1 replay fixtures
 - **Custom-user** (user-input archetype): 1 golden cases
 - **Edge** (validator stress): 2 golden cases + 1 replay fixtures

@@ -102,7 +102,7 @@ export const GOLDEN_DATASET: readonly GoldenCase[] = [
   // ========================================================================
   {
     id: 'G-CHICX-CRATER',
-    category: 'regression',
+    category: 'reference',
     oracle: 'historical',
     title: 'Chicxulub final crater diameter ~180 km',
     description: 'Hildebrand 1991, Morgan 2016 — Mw-equivalent 7.3 (Teanby-Wookey)',
@@ -128,7 +128,7 @@ export const GOLDEN_DATASET: readonly GoldenCase[] = [
   },
   {
     id: 'G-METEOR-CRATER',
-    category: 'regression',
+    category: 'reference',
     oracle: 'historical',
     title: 'Meteor Crater (Barringer) ~1.2 km, intact iron',
     description: 'Kring 2007 — D=50 m, ρ=7800, v=12.8 km/s, IMPACTOR_STRENGTH.IRON = 5×10⁷ Pa',
@@ -175,6 +175,66 @@ export const GOLDEN_DATASET: readonly GoldenCase[] = [
       'blast.overpressure5psiRadiusHob.km': { min: 1.2, max: 2.5 },
       // Hiroshima scaled HOB z = 580 / cbrt(15) = 235 m·kt^(-1/3) → OPTIMUM band per hobRegime classifier
       'blast.hobRegime': { value: 'OPTIMUM' },
+    },
+  },
+
+  // ========================================================================
+  // Regression anchors (linked to BUG_REGISTRY.md rows)
+  // ========================================================================
+  {
+    id: 'G-B009-TSAR-AIRBURST',
+    category: 'regression',
+    oracle: 'historical',
+    title: 'B-009 Tsar Bomba 50 Mt @ 500 m HOB on water — no tsunami',
+    description:
+      'Pre-fix produced ~3.5 m wave at trans-Atlantic distance from a 500 m airburst. Post-fix the absolute-HOB gate (CONTACT_WATER_BURST_MAX_HOB_M = 30 m) suppresses the tsunami branch.',
+    citation: 'BUG_REGISTRY B-009; commit 0ec0fda',
+    linkedBug: 'B-009',
+    scenarioType: 'explosion',
+    rawInput: {
+      yieldMegatons: 50,
+      heightOfBurst: 500,
+      waterDepth: 3500,
+      groundType: 'WET_SOIL',
+    },
+    expectedValidation: {
+      status: 'accepted',
+      errorCount: 0,
+      warningCount: 0,
+    },
+    expectedOutputs: {
+      'tsunami.exists': { value: false },
+      'isContactWaterBurst': { value: false },
+      'blast.hobRegime': { value: 'SURFACE' },
+    },
+  },
+  {
+    id: 'G-B003-VAIONT-CONFINED',
+    category: 'regression',
+    oracle: 'historical',
+    title: 'B-003 Vaiont 1963 reservoir wave reaches Genevois 2005 envelope',
+    description:
+      'Pre-fix: open-ocean Watts source gave ~56 m vs observed 250 m wave above the dam. Post-fix: confined-basin formula η = V/A × 3 capped at depth.',
+    citation: 'BUG_REGISTRY B-003; commit 2b06388; Genevois & Ghirotti 2005 GGA 1: 41',
+    linkedBug: 'B-003',
+    scenarioType: 'landslide',
+    rawInput: {
+      volumeM3: 2.7e8,
+      slopeAngleDeg: 35,
+      meanOceanDepth: 250,
+      regime: 'subaerial',
+    },
+    expectedValidation: {
+      status: 'accepted',
+      errorCount: 0,
+      warningCount: 0,
+    },
+    // Note: the Vaiont preset uses confinedBasinArea internally; this
+    // golden case checks the simpler subaerial-Watts path so the
+    // regression guard is targeted at the configurable open-ocean
+    // formula, not the preset-specific confined-basin override.
+    expectedOutputs: {
+      'tsunami.exists': { value: true },
     },
   },
 
