@@ -91,21 +91,43 @@ Tolerance bands:
 | Sumatra 2004 amplitude at Cocos Island (1700 km) | Bernard et al. 2006 | 0.49 m                    | 0.4 m    | 24 %  | Phil. Trans. R. Soc. A 364 |
 | Tōhoku 2011 mean coseismic slip                  | Satake 2013         | inside [5,25] m           | ~10–20 m | ✓     | BSSA 103(2B): 1473         |
 
-### Tier 2 deferrals
+### Tier 2 work-in-progress
 
 The cylindrical 1D model (Phase-19 / Tier 1) systematically
 over-predicts compact-rupture far-field amplitudes by a factor 3-7×
 because peaked slip distributions (Tōhoku 2011: 8 m peak vs ~4 m
 mean) inject high-frequency dispersion the closed-form
 Heidarzadeh-Satake decay cannot capture. Closing this gap requires
-a Saint-Venant 1D Web Worker (planned as the Tier 2 "Coastal Deep
-Dive" mode); the current pin set marks this case as `it.todo` rather
-than hide the limitation.
+a real Saint-Venant solver — the Tier 2 "Coastal Deep Dive" pipeline.
 
-| Benchmark deferred to Tier 2               | Why                                                            | Planned solver                                         |
-| ------------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------ |
-| Tōhoku 2011 DART 21413 amplitude (1500 km) | Cylindrical 1D over-predicts compact-rupture far-field by 3-7× | Saint-Venant 1D radiale, schemi GeoClaw HLLC + Manning |
-| BP2 (conical island), BP4 (Hilo Bay)       | 2D focusing/refraction not in scope                            | Saint-Venant 2D — future work                          |
+**Phase-21a — DONE.** Saint-Venant 1D HLL first-order solver lives at
+[src/physics/tsunami/saintVenant1D.ts](../src/physics/tsunami/saintVenant1D.ts).
+Validated against the Stoker dam-break (mass conservation to FP
+precision, Ritter front speed within ±15 %, monotone TVD profile).
+**Cannot pin Tōhoku DART yet** because HLL first-order has too much
+numerical dissipation for long-distance wave propagation: a Gaussian
+source seeded at the rupture loses ~95 % of its peak amplitude over
+the first 200 km of transit, far faster than physical (or GeoClaw's
+second-order MUSCL HLLC reconstruction). The solver is the foundation
+for Phase-21b; the Tōhoku pin will land then.
+
+**Phase-21b — TODO.** MUSCL second-order TVD reconstruction (slope
+limiter on the cell-interface states). Reduces HLL numerical
+dissipation by an order of magnitude and is what GeoClaw / COMCOT /
+MOST all use. After this lands, Tōhoku DART 21413 amplitude can be
+pinned to ±25 % in the Saint-Venant pipeline.
+
+**Phase-21c — TODO.** Web Worker integration via Comlink + lazy
+loading, so the solver runs off-main-thread when the user clicks
+"Coastal Deep Dive" in the report panel. Default UX unchanged.
+
+**Phase-21d — TODO.** UI: Deep Dive mode with wave-height vs distance
+chart + run-up profile.
+
+| Benchmark                                  | Status    | Blocker / Planned solver                                                 |
+| ------------------------------------------ | --------- | ------------------------------------------------------------------------ |
+| Tōhoku 2011 DART 21413 amplitude (1500 km) | Phase-21b | Needs MUSCL second-order reconstruction; HLL first-order too dissipative |
+| BP2 (conical island), BP4 (Hilo Bay)       | Future 2D | Need a 2D focusing/refraction-aware solver; not in scope popular-science |
 
 ## Tunguska energy budget
 
