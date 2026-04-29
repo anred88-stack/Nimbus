@@ -665,16 +665,16 @@ export function SimulatorPanel(): JSX.Element {
                   {formatKilometres(result.data.crater.depth)}
                 </CitationTooltip>
               </dd>
-              <dt className={styles.resultLabel}>{t('simulator.magnitude')}</dt>
-              <dd className={styles.resultValue}>
-                <CitationTooltip citation={t('citations.seismicMagnitude')}>
-                  Mw {result.data.seismic.magnitude.toFixed(1)}
-                </CitationTooltip>
-              </dd>
               <dt className={styles.resultLabel}>{t('simulator.magnitudeTW')}</dt>
               <dd className={styles.resultValue}>
                 <CitationTooltip citation={t('citations.seismicMagnitudeTW')}>
                   Mw {result.data.seismic.magnitudeTeanbyWookey.toFixed(1)}
+                </CitationTooltip>
+              </dd>
+              <dt className={styles.resultLabel}>{t('simulator.magnitude')}</dt>
+              <dd className={styles.resultValue}>
+                <CitationTooltip citation={t('citations.seismicMagnitude')}>
+                  Mw {result.data.seismic.magnitude.toFixed(1)}
                 </CitationTooltip>
               </dd>
               <dt className={styles.resultLabel}>{t('simulator.impactLiquefaction')}</dt>
