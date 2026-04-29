@@ -65,17 +65,28 @@ describe('simulateVolcano', () => {
     expect(r.tsunami.sourceAmplitude as number).toBeLessThan(100);
   });
 
-  it('Krakatau 1883 caldera-collapse tsunami source ≤ 40 m (depth-saturation cap)', () => {
+  it('Krakatau 1883 caldera-collapse tsunami matches Self 1992 source / Anjer-runup envelope', () => {
     const r = simulateVolcano(VOLCANO_PRESETS.KRAKATAU_1883.input);
     expect(r.tsunami).toBeDefined();
     if (!r.tsunami) return;
     // Raw Watts 0.4·(2.5e10)^(1/3)·sin(45°) ≈ 827 m would be unphysical
-    // in 50 m of water. The 40 % wave-breaking cap clamps to 20 m, in
-    // the right order of magnitude vs Self 1992 / Maeno & Imamura 2011
-    // (coastal runup 30-40 m on Sunda Strait, source ~10-30 m before
-    // shoaling).
-    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(5);
-    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(40);
+    // even in the 250 m post-collapse caldera. The 40 % wave-breaking
+    // cap on the source-water depth clamps the source to ≈ 100 m, which
+    // matches the Pelinovsky et al. 2005 (Phil. Trans. R. Soc. A 363:
+    // 2143) inversion of the Sunda Strait tide-gauge records (source
+    // amplitude 30-100 m before shoaling) and reproduces the Self 1992
+    // / Maeno & Imamura 2011 30-40 m runup at Anjer (~50 km from the
+    // volcano) once Green's-law shoaling × 4-6 is applied at the coast.
+    expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(50);
+    expect(r.tsunami.sourceAmplitude as number).toBeLessThan(150);
+    // Far-field: with cavity radius from collapse geometry (V^(1/3) ≈
+    // 2.9 km, the actual caldera footprint per Pelinovsky 2005), the
+    // 1/r decay produces deep-water amplitudes at 100 km that are
+    // tens of cm — pre-fix this was sub-millimetre because the cavity
+    // was back-derived from η₀ as 2·η₀ ≈ 40 m, three orders of
+    // magnitude smaller than the actual collapse footprint.
+    expect(r.tsunami.amplitudeAt100km as number).toBeGreaterThan(0.5);
+    expect(r.tsunami.amplitudeAt100km as number).toBeLessThan(10);
   });
 
   it('Mt St Helens preset has no flankCollapse → no tsunami', () => {

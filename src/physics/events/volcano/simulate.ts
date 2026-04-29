@@ -50,10 +50,17 @@ export interface VolcanoScenarioInput {
     volumeM3: number;
     /** Slope of the failure plane (°). Defaults to 30°. */
     slopeAngleDeg?: number;
-    /** Mean basin depth used for tsunami travel time (m). Defaults
-     *  to 1 000 m, appropriate for the shelf around most volcanic
+    /** Mean basin depth used for tsunami travel time AND for the
+     *  breaking cap unless `sourceWaterDepth` is set (m). Defaults to
+     *  1 000 m, appropriate for the shelf around most volcanic
      *  islands. */
     meanOceanDepth?: Meters;
+    /** Optional: depth of the water column at the source itself,
+     *  controlling the breaking cap on η_source. Use this when the
+     *  collapse opens a depression deeper than the surrounding shelf
+     *  (e.g. Krakatau 1883's post-collapse caldera at ~250 m vs the
+     *  Sunda Strait shelf at ~50 m). Defaults to `meanOceanDepth`. */
+    sourceWaterDepth?: Meters;
   };
 }
 
@@ -186,6 +193,9 @@ export function simulateVolcano(input: VolcanoScenarioInput): VolcanoScenarioRes
       ...(input.flankCollapse.meanOceanDepth !== undefined && {
         meanOceanDepth: input.flankCollapse.meanOceanDepth,
       }),
+      ...(input.flankCollapse.sourceWaterDepth !== undefined && {
+        sourceWaterDepth: input.flankCollapse.sourceWaterDepth,
+      }),
     });
     if (tsunami !== null) result.tsunami = tsunami;
   }
@@ -209,7 +219,19 @@ export const VOLCANO_PRESETS = {
     input: {
       volumeEruptionRate: 2e5,
       totalEjectaVolume: 2e10,
-      flankCollapse: { volumeM3: 2.5e10, slopeAngleDeg: 45, meanOceanDepth: m(50) },
+      // meanOceanDepth = 50 m: shelf the wave propagates across to
+      //   reach Anjer / Java / Sumatra coasts (controls travel time).
+      // sourceWaterDepth = 250 m: the collapsed-caldera depression
+      //   into which the wave forms (Self 1992; Pelinovsky et al. 2005,
+      //   Phil. Trans. R. Soc. A 363:2143). Without this split the
+      //   shelf-depth breaking cap pins the source at 20 m for a
+      //   25 km³ collapse.
+      flankCollapse: {
+        volumeM3: 2.5e10,
+        slopeAngleDeg: 45,
+        meanOceanDepth: m(50),
+        sourceWaterDepth: m(250),
+      },
     } satisfies VolcanoScenarioInput,
   },
   /** 18 May 1980 Mount St. Helens, Washington — VEI 5, ≈ 1.2 km³.

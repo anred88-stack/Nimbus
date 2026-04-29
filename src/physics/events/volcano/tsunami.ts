@@ -96,10 +96,23 @@ export interface VolcanoTsunamiInput {
   /** Slope angle of the failure plane (rad). 20–25° for sub-aerial
    *  flank slides; 40–60° for caldera-wall collapse. */
   slopeAngleRad: number;
-  /** Mean basin depth used for travel-time (m). Defaults to 1 000 m
-   *  — most volcanic islands sit on a shelf much shallower than the
-   *  global ocean mean. */
+  /** Mean basin depth used for travel-time AND for the breaking cap
+   *  unless `sourceWaterDepth` is set (m). Defaults to 1 000 m — most
+   *  volcanic islands sit on a shelf much shallower than the global
+   *  ocean mean. */
   meanOceanDepth?: Meters;
+  /** Optional: depth of the water column AT THE SOURCE where the
+   *  collapse occurs (m). When set, this controls the McCowan-style
+   *  breaking cap on the source amplitude — distinct from the depth
+   *  the wave PROPAGATES through (`meanOceanDepth`).
+   *
+   *  For Krakatau 1883 this is the post-collapse caldera depth (~250 m),
+   *  NOT the surrounding shelf shallows (~50 m). Without this split,
+   *  the cap on a 50 m shelf saturates a 25 km³ caldera collapse to a
+   *  20 m source amplitude — physically wrong for a depression that
+   *  sinks hundreds of metres. Defaults to `meanOceanDepth` for
+   *  back-compat with callers that don't make the distinction. */
+  sourceWaterDepth?: Meters;
   /** Regime selects the per-style prefactor. Defaults to 'subaerial'
    *  for back-compat with the volcano-collapse callers. */
   regime?: LandslideTsunamiRegime;
@@ -140,24 +153,37 @@ export function volcanoTsunami(input: VolcanoTsunamiInput): VolcanoTsunamiResult
   // No water → no Watts source. Catches the dry-runout flank failure
   // case where a caller plumbs meanOceanDepth = 0 to flag "no basin".
   if ((meanOceanDepth as number) <= 0) return null;
+  const sourceWaterDepth = input.sourceWaterDepth ?? meanOceanDepth;
+  if ((sourceWaterDepth as number) <= 0) return null;
   const K =
     input.regime === 'submarine'
       ? VOLCANO_TSUNAMI_PREFACTOR_SUBMARINE
       : VOLCANO_TSUNAMI_PREFACTOR_SUBAERIAL;
   // Watts-style cube-root displacement, then saturate at 40 % of the
-  // water column to honour the McCowan 1894 wave-breaking ceiling
-  // applied at the source. For Krakatau-class caldera collapses the
-  // raw V^(1/3) overshoots the column by an order of magnitude; the
-  // cap keeps the source amplitude inside the physically sensible
-  // band where linear shallow-water theory applies.
+  // SOURCE water column to honour the McCowan 1894 wave-breaking
+  // ceiling applied at the generation site. The cap uses the source
+  // depth (e.g. post-collapse caldera depth ~250 m for Krakatau 1883)
+  // rather than the shelf depth used for wave propagation, so that a
+  // large caldera collapse on a shallow surrounding shelf is not
+  // artificially clipped to the shelf height.
   const wattsAmplitude = K * Math.cbrt(V) * Math.sin(theta);
-  const breakingCap = (meanOceanDepth as number) * 0.4;
+  const breakingCap = (sourceWaterDepth as number) * 0.4;
   const eta0 = Math.min(wattsAmplitude, breakingCap);
   const sourceAmplitude = m(eta0);
-  // Back-derive an equivalent cavity radius so impactAmplitudeAtDistance
-  // (which expects a cavity-radius pair) handles the 1/r decay. The
-  // Ward-Asphaug rule is η_source = R_cavity / 2 → R_cavity = 2·η₀.
-  const cavityRadius = m(2 * eta0);
+  // Cavity radius from collapse geometry (V^(1/3) ≈ characteristic
+  // linear scale of the slide footprint), NOT from 2·η₀ as a previous
+  // implementation did. The Ward-Asphaug back-derivation R_cavity =
+  // 2·η₀ is correct for impact craters where the cavity is set by the
+  // wave amplitude, but for slope failures the cavity is set by the
+  // displaced volume — and 2·η₀ produces tens-of-metres cavities for
+  // kilometres-of-collapse events, which then under-predicts far-field
+  // amplitudes by 10²-10³× via the impactAmplitudeAtDistance 1/r decay.
+  // For Krakatau 1883 (V = 2.5 × 10¹⁰ m³) the geometric cavity is
+  // 2.9 km, which is consistent with the ~5 km caldera footprint
+  // (Pelinovsky et al. 2005). For Anak Krakatau 2018 (V = 2.7 × 10⁸)
+  // it is 0.65 km, consistent with the ~1 km observed slide footprint
+  // (Grilli et al. 2019, Fig. 2).
+  const cavityRadius = m(Math.cbrt(V));
   const amp100 = impactAmplitudeAtDistance({
     sourceAmplitude,
     cavityRadius,
