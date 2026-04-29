@@ -8,6 +8,7 @@ export {
   type ActiveMonteCarlo,
   type ActiveResult,
   type ActiveVolcanoPreset,
+  type DeepDiveResult,
   type AnyPresetId,
   type AppStore,
   type Coordinates,

@@ -23,6 +23,7 @@ import {
   useAppStore,
   type ActiveMonteCarlo,
   type AnyPresetId,
+  type DeepDiveResult,
   type EventType,
 } from '../../store/index.js';
 import { cx } from '../utils/cx.js';
@@ -332,6 +333,10 @@ export function SimulatorPanel(): JSX.Element {
   const evaluateMonteCarlo = useAppStore((s) => s.evaluateMonteCarlo);
   const monteCarlo = useAppStore((s) => s.monteCarlo);
   const monteCarloStatus = useAppStore((s) => s.monteCarloStatus);
+  const evaluateDeepDive = useAppStore((s) => s.evaluateDeepDive);
+  const deepDive = useAppStore((s) => s.deepDive);
+  const deepDiveStatus = useAppStore((s) => s.deepDiveStatus);
+  const deepDiveError = useAppStore((s) => s.deepDiveError);
   const simulationStatus = useAppStore((s) => s.status);
   const populationExposure = useAppStore((s) => s.populationExposure);
   const populationStatus = useAppStore((s) => s.populationStatus);
@@ -590,6 +595,46 @@ export function SimulatorPanel(): JSX.Element {
                 ? t('simulator.runMonteCarlo')
                 : t('simulator.rerunMonteCarlo')}
           </button>
+        )}
+
+        {/* Phase-21d — Coastal Deep Dive: Tier-2 Saint-Venant 1D-radial
+            solver. Available only when the active scenario has a tsunami
+            source amplitude > 0 (impact / earthquake / explosion). */}
+        {(() => {
+          const hasTsunamiSource =
+            (result?.type === 'impact' &&
+              result.data.tsunami !== undefined &&
+              (result.data.tsunami.sourceAmplitude as number) > 0) ||
+            (result?.type === 'earthquake' &&
+              result.data.tsunami !== undefined &&
+              (result.data.tsunami.initialAmplitude as number) > 0) ||
+            (result?.type === 'explosion' &&
+              result.data.tsunami !== undefined &&
+              (result.data.tsunami.sourceAmplitude as number) > 0);
+          if (!hasTsunamiSource) return null;
+          return (
+            <button
+              type="button"
+              className={styles.secondary}
+              onClick={() => {
+                void evaluateDeepDive();
+              }}
+              disabled={deepDiveStatus === 'running'}
+              data-state={
+                deepDiveStatus === 'running' ? 'running' : deepDive === null ? 'idle' : 'ready'
+              }
+              title="Tier 2 Saint-Venant 1D-radial solver"
+            >
+              {deepDiveStatus === 'running'
+                ? 'Running Coastal Deep Dive…'
+                : deepDive === null
+                  ? 'Coastal Deep Dive (Tier 2)'
+                  : 'Re-run Coastal Deep Dive'}
+            </button>
+          );
+        })()}
+        {deepDiveStatus === 'error' && deepDiveError !== null && (
+          <p className={styles.presetNote} role="alert">{`Deep Dive error: ${deepDiveError}`}</p>
         )}
 
         {result?.type === 'impact' && (
@@ -1421,6 +1466,8 @@ export function SimulatorPanel(): JSX.Element {
         )}
 
         {monteCarlo !== null && <MonteCarloPanel mc={monteCarlo} />}
+
+        {deepDive !== null && <DeepDivePanel dd={deepDive} />}
       </div>
     </aside>
   );
@@ -1503,6 +1550,78 @@ function MonteCarloPanel({ mc }: { mc: ActiveMonteCarlo }): JSX.Element {
         </tbody>
       </table>
       <p className={styles.mcFooter}>{t('simulator.monteCarloFooter')}</p>
+    </section>
+  );
+}
+
+/**
+ * Phase-21d Tier 2 Coastal Deep Dive output. Renders the Saint-Venant
+ * 1D-radial probe table (range, peak amplitude) and a thin SVG
+ * sparkline showing the 1/√r decay envelope. Lives next to the
+ * Monte-Carlo panel because both are "advanced diagnostics" the
+ * popular-science user opts into rather than reading by default.
+ */
+function DeepDivePanel({ dd }: { dd: DeepDiveResult }): JSX.Element {
+  // Compact sparkline: log-x range vs amplitude, normalised to peak
+  // source amplitude. Pure SVG, no chart library — keeps the bundle
+  // delta at zero.
+  const W = 220;
+  const H = 50;
+  const PADX = 8;
+  const xMin = Math.log10(Math.max(dd.rangesM[0] ?? 1, 1));
+  const xMax = Math.log10(Math.max(dd.rangesM[dd.rangesM.length - 1] ?? 1, 1));
+  const yMax = Math.max(dd.sourceAmplitudeM, ...dd.peakAmplitudesM, 1e-3);
+  const points = dd.rangesM
+    .map((r, i) => {
+      const x =
+        PADX + ((Math.log10(Math.max(r, 1)) - xMin) / Math.max(xMax - xMin, 1e-6)) * (W - 2 * PADX);
+      const a = dd.peakAmplitudesM[i] ?? 0;
+      const y = H - 6 - (a / yMax) * (H - 12);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+  return (
+    <section className={styles.result} aria-label="Coastal Deep Dive (Tier 2)">
+      <h3 className={styles.resultLabel} style={{ marginTop: 0 }}>
+        Coastal Deep Dive — Saint-Venant 1D-radial
+      </h3>
+      <table className={styles.mcTable}>
+        <thead>
+          <tr>
+            <th>Range</th>
+            <th>Peak |η|</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dd.rangesM.map((r, i) => (
+            <tr key={r}>
+              <td>{`${(r / 1000).toFixed(0)} km`}</td>
+              <td>{`${(dd.peakAmplitudesM[i] ?? 0).toFixed(3)} m`}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <svg
+        viewBox={`0 0 ${W.toString()} ${H.toString()}`}
+        width={W}
+        height={H}
+        role="img"
+        aria-label="Coastal Deep Dive amplitude vs range"
+        style={{ marginTop: 6 }}
+      >
+        <polyline points={points} fill="none" stroke="#fbbf24" strokeWidth="1.5" />
+        {dd.rangesM.map((r, i) => {
+          const x =
+            PADX +
+            ((Math.log10(Math.max(r, 1)) - xMin) / Math.max(xMax - xMin, 1e-6)) * (W - 2 * PADX);
+          const a = dd.peakAmplitudesM[i] ?? 0;
+          const y = H - 6 - (a / yMax) * (H - 12);
+          return <circle key={r} cx={x} cy={y} r="2" fill="#fbbf24" />;
+        })}
+      </svg>
+      <p className={styles.mcFooter}>
+        {`Source ${dd.sourceAmplitudeM.toFixed(2)} m, basin ${(dd.basinDepthM / 1000).toFixed(1)} km, ${dd.gridCells.toString()} cells × ${(dd.cellWidthM / 1000).toFixed(0)} km · ${dd.computeMs.toFixed(0)} ms`}
+      </p>
     </section>
   );
 }

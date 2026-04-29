@@ -22,6 +22,7 @@ import {
 } from '../physics/montecarlo/index.js';
 import type { MonteCarloWorkerApi } from '../physics/montecarlo/worker.js';
 import type { SimulationApi } from '../physics/worker.js';
+import type { SaintVenant1DInput, SaintVenant1DResult } from '../physics/tsunami/saintVenant1D.js';
 import {
   EARTHQUAKE_PRESETS,
   simulateEarthquake,
@@ -115,6 +116,44 @@ type SimulationProxy = {
     : never;
 };
 let simWorker: SimulationProxy | null = null;
+
+/**
+ * Phase-21d — lazy Saint-Venant 1D Tier 2 worker. Spawned on the
+ * first "Coastal Deep Dive" click; the chunk is dynamic-imported so
+ * the ~30 KB of solver code is NOT in the eager landing-page bundle.
+ * Falls back to the calling thread if Worker is unavailable (jsdom).
+ */
+interface SaintVenantProxy {
+  simulateSaintVenant1D: (input: SaintVenant1DInput) => Promise<SaintVenant1DResult>;
+}
+let svWorker: SaintVenantProxy | null = null;
+async function getSaintVenantWorker(): Promise<SaintVenantProxy> {
+  if (svWorker !== null) return svWorker;
+  if (typeof Worker !== 'undefined') {
+    try {
+      const worker = new Worker(
+        new URL('../physics/tsunami/saintVenantWorker.ts', import.meta.url),
+        { type: 'module' }
+      );
+      const proxy = wrap<{
+        simulateSaintVenant1D: SaintVenantProxy['simulateSaintVenant1D'];
+      }>(worker);
+      svWorker = proxy;
+      return proxy;
+    } catch (err) {
+      console.warn('[store] Saint-Venant worker spawn failed, falling back to sync:', err);
+    }
+  }
+  // Sync fallback: imports the solver dynamically and runs it on the
+  // calling thread. Same deterministic Layer-2 function, still wrapped
+  // in a Promise so callers can `await` uniformly.
+  const mod = await import('../physics/tsunami/saintVenant1D.js');
+  const fallback: SaintVenantProxy = {
+    simulateSaintVenant1D: (input) => Promise.resolve(mod.simulateSaintVenant1D(input)),
+  };
+  svWorker = fallback;
+  return fallback;
+}
 
 /**
  * Phase 12a — monotone evaluation token. Each evaluate() invocation
@@ -245,6 +284,30 @@ export type AnyPresetId =
  * the originating event type so UIs can switch on `type` to choose a
  * render path.
  */
+/** Phase-21d Tier 2 Saint-Venant 1D-radial solver output, sampled at
+ *  a fixed list of probe ranges from the source. Surfaced to the
+ *  report panel as the "Coastal Deep Dive" diagnostic. */
+export interface DeepDiveResult {
+  /** Probe distances from the source (m). Same order as
+   *  {@link peakAmplitudesM}. */
+  rangesM: number[];
+  /** Peak |η| observed at each probe over the simulated duration (m). */
+  peakAmplitudesM: number[];
+  /** Wall-clock cost of the solver call (ms). Surfaced so the user
+   *  knows the Tier-2 latency vs the closed-form default. */
+  computeMs: number;
+  /** Source amplitude actually fed to the solver (m). Echoes the
+   *  value derived from the active scenario so the report panel
+   *  can label the chart axis. */
+  sourceAmplitudeM: number;
+  /** Mean basin depth (m) used for the solver. */
+  basinDepthM: number;
+  /** Number of grid cells × cell width — used as the chart-x range
+   *  upper bound. */
+  gridCells: number;
+  cellWidthM: number;
+}
+
 export type ActiveResult =
   | { type: 'impact'; data: ImpactScenarioResult }
   | { type: 'explosion'; data: ExplosionScenarioResult }
@@ -323,6 +386,18 @@ export interface AppStore {
    *  is in flight, `error` on failure. UI uses this to show a
    *  loading spinner without freezing the rest of the panel. */
   monteCarloStatus: MonteCarloStatus;
+  /** Phase-21d Tier 2 Coastal Deep Dive — Saint-Venant 1D-radial
+   *  solver output for the active scenario. `null` until the user
+   *  triggers it explicitly via `evaluateDeepDive`. */
+  deepDive: DeepDiveResult | null;
+  /** Status of the Saint-Venant solver: `idle` until the user
+   *  triggers Deep Dive; `running` while the worker is integrating;
+   *  `error` on failure. The button shows a small spinner during
+   *  `running`. */
+  deepDiveStatus: 'idle' | 'running' | 'error';
+  /** Last error message from `evaluateDeepDive`, surfaced under the
+   *  button when status === 'error'. */
+  deepDiveError: string | null;
   status: SimulationStatus;
   error: string | null;
   lastEvaluatedAt: number | null;
@@ -396,6 +471,14 @@ export interface AppStore {
    *  inputs. Uses a seed derived from the scenario preset so the
    *  same URL gives the same percentiles. */
   evaluateMonteCarlo: (iterations?: number) => void;
+  /** Phase-21d — run the Tier 2 Saint-Venant 1D-radial solver
+   *  against the active scenario. The seed source amplitude comes
+   *  from the active result (impact / earthquake / explosion
+   *  tsunami block). No-op when the active scenario has no tsunami
+   *  source. */
+  evaluateDeepDive: () => Promise<void>;
+  /** Reset the Deep Dive state to idle. */
+  clearDeepDive: () => void;
   setMode: (mode: ViewMode) => void;
   transitionTo: (mode: ViewMode, options?: { instant?: boolean }) => void;
   reset: () => void;
@@ -440,6 +523,9 @@ type InitialSlice = Pick<
   | 'populationStatus'
   | 'monteCarlo'
   | 'monteCarloStatus'
+  | 'deepDive'
+  | 'deepDiveStatus'
+  | 'deepDiveError'
   | 'status'
   | 'error'
   | 'lastEvaluatedAt'
@@ -482,6 +568,9 @@ function initialState(): InitialSlice {
     populationStatus: 'idle',
     monteCarlo: null,
     monteCarloStatus: 'idle',
+    deepDive: null,
+    deepDiveStatus: 'idle',
+    deepDiveError: null,
     status: 'idle',
     error: null,
     lastEvaluatedAt: null,
@@ -810,6 +899,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
         populationStatus: 'idle',
         monteCarlo: null,
         monteCarloStatus: 'idle',
+        deepDive: null,
+        deepDiveStatus: 'idle',
+        deepDiveError: null,
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
@@ -828,6 +920,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
         populationStatus: 'idle',
         monteCarlo: null,
         monteCarloStatus: 'idle',
+        deepDive: null,
+        deepDiveStatus: 'idle',
+        deepDiveError: null,
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
@@ -846,6 +941,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
         populationStatus: 'idle',
         monteCarlo: null,
         monteCarloStatus: 'idle',
+        deepDive: null,
+        deepDiveStatus: 'idle',
+        deepDiveError: null,
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
@@ -864,6 +962,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
         populationStatus: 'idle',
         monteCarlo: null,
         monteCarloStatus: 'idle',
+        deepDive: null,
+        deepDiveStatus: 'idle',
+        deepDiveError: null,
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
@@ -882,6 +983,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
         populationStatus: 'idle',
         monteCarlo: null,
         monteCarloStatus: 'idle',
+        deepDive: null,
+        deepDiveStatus: 'idle',
+        deepDiveError: null,
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
@@ -934,6 +1038,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
         populationStatus: 'idle',
         monteCarlo: null,
         monteCarloStatus: 'idle',
+        deepDive: null,
+        deepDiveStatus: 'idle',
+        deepDiveError: null,
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
@@ -970,6 +1077,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
         populationStatus: 'idle',
         monteCarlo: null,
         monteCarloStatus: 'idle',
+        deepDive: null,
+        deepDiveStatus: 'idle',
+        deepDiveError: null,
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
@@ -1006,6 +1116,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
         populationStatus: 'idle',
         monteCarlo: null,
         monteCarloStatus: 'idle',
+        deepDive: null,
+        deepDiveStatus: 'idle',
+        deepDiveError: null,
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
@@ -1046,6 +1159,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
         populationStatus: 'idle',
         monteCarlo: null,
         monteCarloStatus: 'idle',
+        deepDive: null,
+        deepDiveStatus: 'idle',
+        deepDiveError: null,
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
@@ -1079,6 +1195,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
         populationStatus: 'idle',
         monteCarlo: null,
         monteCarloStatus: 'idle',
+        deepDive: null,
+        deepDiveStatus: 'idle',
+        deepDiveError: null,
         status: 'idle',
         error: null,
         lastEvaluatedAt: null,
@@ -1540,6 +1659,98 @@ export const useAppStore = create<AppStore>((set, get) => ({
       }
     };
     void run();
+  },
+
+  evaluateDeepDive: async () => {
+    const state = get();
+    const result = state.result;
+    if (result === null) {
+      set({ deepDiveStatus: 'error', deepDiveError: 'No active simulation result' });
+      return;
+    }
+    // Pull the source amplitude + basin depth from the active result.
+    // Supports impact (Ward-Asphaug cavity), earthquake (megathrust
+    // uplift) and explosion (underwater-burst cavity); volcano +
+    // landslide are out of scope for the seismic radial pipeline.
+    let sourceAmplitudeM = 0;
+    let basinDepthM = 4_000;
+    if (result.type === 'impact' && result.data.tsunami !== undefined) {
+      sourceAmplitudeM = result.data.tsunami.sourceAmplitude;
+      basinDepthM = result.data.tsunami.meanOceanDepth;
+    } else if (result.type === 'earthquake' && result.data.tsunami !== undefined) {
+      sourceAmplitudeM = result.data.tsunami.initialAmplitude;
+      basinDepthM = 4_000;
+    } else if (result.type === 'explosion' && result.data.tsunami !== undefined) {
+      sourceAmplitudeM = result.data.tsunami.sourceAmplitude;
+      basinDepthM = result.data.tsunami.meanOceanDepth;
+    } else {
+      set({
+        deepDiveStatus: 'error',
+        deepDiveError:
+          'Active scenario has no tsunami source — Deep Dive only runs on tsunami-bearing events',
+      });
+      return;
+    }
+    if (!Number.isFinite(sourceAmplitudeM) || sourceAmplitudeM <= 0) {
+      set({
+        deepDiveStatus: 'error',
+        deepDiveError: 'Source amplitude is zero — nothing to propagate',
+      });
+      return;
+    }
+
+    // Setup. 400 cells × 10 km = 4 000 km domain. Source: Gaussian
+    // centred at the symmetry axis with σ = 35 cells (350 km).
+    // Probes at 100 / 500 / 1 000 / 2 000 / 3 000 km from source.
+    const N = 400;
+    const dx = 10_000;
+    const sigmaCells = 35;
+    const z: number[] = new Array<number>(N).fill(-Math.abs(basinDepthM));
+    const eta0: number[] = new Array<number>(N).fill(0);
+    for (let i = 0; i < N; i++) {
+      const rCells = i + 0.5;
+      eta0[i] = sourceAmplitudeM * Math.exp(-(rCells * rCells) / (2 * sigmaCells * sigmaCells));
+    }
+    const probeRangesKm = [100, 500, 1_000, 2_000, 3_000];
+    const probeIndices = probeRangesKm.map((km) =>
+      Math.min(N - 1, Math.max(0, Math.round((km * 1_000) / dx - 0.5)))
+    );
+
+    set({ deepDiveStatus: 'running', deepDiveError: null });
+    const t0 = performance.now();
+    try {
+      const worker = await getSaintVenantWorker();
+      const r = await worker.simulateSaintVenant1D({
+        bathymetryM: z,
+        cellWidthM: dx,
+        initialDisplacementM: eta0,
+        durationS: 12_000,
+        manningN: 0.025,
+        scheme: 'muscl-rk2',
+        geometry: 'radial',
+        probeCellIndices: probeIndices,
+      });
+      const computeMs = performance.now() - t0;
+      const peakAmplitudesM = r.probes.map((p) => p.peakAbsAmplitudeM);
+      const dd: DeepDiveResult = {
+        rangesM: probeRangesKm.map((km) => km * 1_000),
+        peakAmplitudesM,
+        computeMs,
+        sourceAmplitudeM,
+        basinDepthM,
+        gridCells: N,
+        cellWidthM: dx,
+      };
+      set({ deepDive: dd, deepDiveStatus: 'idle', deepDiveError: null });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[Deep Dive] solver failed:', err);
+      set({ deepDiveStatus: 'error', deepDiveError: msg });
+    }
+  },
+
+  clearDeepDive: () => {
+    set({ deepDive: null, deepDiveStatus: 'idle', deepDiveError: null });
   },
 
   setMode: (mode) => {
