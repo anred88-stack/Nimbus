@@ -304,17 +304,44 @@ export function simulateExplosion(input: ExplosionScenarioInput): ExplosionScena
     },
   };
 
-  // Underwater / contact-water burst tsunami branch. Only fires when
-  // the user (or the auto-derived bathymetry in the store) supplies a
-  // positive water depth AND the burst is right at the surface
-  // (SURFACE regime). Even a low airburst at a few hundred metres
-  // dumps the bulk of its yield into the atmosphere as a thermal /
-  // blast pulse and couples almost nothing into the water column —
-  // Hiroshima at 580 m HOB is the canonical example of "near-surface
-  // but not SURFACE", and produced no wave despite being over the
-  // Inland Sea side of the city.
+  // Underwater / contact-water burst tsunami branch. Fires only for a
+  // TRUE contact-water burst — geometrically at or near the water
+  // surface. Two gates apply:
+  //
+  //   (a) Scaled-HOB regime SURFACE (z = HOB / W^(1/3) < 50 m·kt⁻¹ᐟ³)
+  //       — the existing Glasstone Mach-stem boundary.
+  //
+  //   (b) Absolute HOB ≤ CONTACT_WATER_BURST_MAX_HOB_M (30 m). Without
+  //       this gate a 50 Mt warhead at 500 m HOB qualifies as
+  //       "SURFACE" by scaled-HOB (z = 13.6 < 50) because the cube-
+  //       root scaling makes the relative HOB tiny — but the burst
+  //       point is still 500 m above the water, so the air shock
+  //       arrives as a low-amplitude pressure pulse with essentially
+  //       zero coupling to the water column. The 8 % coupling
+  //       fraction in {@link explosionTsunami} is the Glasstone Table
+  //       6.50 value for SHALLOW UNDERWATER bursts (z < 0); applying
+  //       it to a 500 m airburst over water inflates the source
+  //       amplitude by orders of magnitude, then the bathymetric
+  //       pipeline propagates that inflated source across the basin
+  //       and produces metres of wave at trans-oceanic distances.
+  //       Hiroshima 580 m HOB / Tsar Bomba historical 4 km HOB /
+  //       any Mt-scale airburst over water all correctly drop out
+  //       under this gate, matching observation (no recorded test
+  //       has produced a measurable trans-oceanic wave from an
+  //       airburst, including atmospheric-test-era Mt detonations).
+  //
+  // Underwater bursts (HOB < 0) are out of scope for this branch —
+  // the simulator does not currently model the depth-of-burst
+  // pressure-amplification regime (z/W^(1/3) ≈ -4 m/kt¹ᐟ³ optimum,
+  // Glasstone §6.40); when added they will route through a separate
+  // {@link underwaterBurst} branch with its own coupling profile.
   const waterDepth = (input.waterDepth as number | undefined) ?? 0;
-  if (waterDepth > 0 && regime === 'SURFACE') {
+  const isContactBurst =
+    waterDepth > 0 &&
+    regime === 'SURFACE' &&
+    hobMeters >= 0 &&
+    hobMeters <= CONTACT_WATER_BURST_MAX_HOB_M;
+  if (isContactBurst) {
     const tsunami = explosionTsunami({
       yieldEnergy: yieldJoules,
       waterDepth: m(waterDepth),
@@ -329,6 +356,14 @@ export function simulateExplosion(input: ExplosionScenarioInput): ExplosionScena
 
   return result;
 }
+
+/** Maximum absolute height-of-burst (m) that still counts as a
+ *  contact-water burst for tsunami coupling. Above this the air
+ *  shock dissipates over the water surface as a brief pressure
+ *  pulse with negligible mechanical coupling to the water column.
+ *  No nuclear test in the historical record has produced a
+ *  measurable open-ocean tsunami from an airburst > 30 m HOB. */
+export const CONTACT_WATER_BURST_MAX_HOB_M = 30;
 
 /**
  * Canonical nuclear-explosion presets used for the UI gallery and CLI.

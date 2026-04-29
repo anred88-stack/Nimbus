@@ -123,6 +123,52 @@ describe('simulateExplosion — composition', () => {
     expect(r.tsunami).toBeUndefined();
   });
 
+  it('Tsar Bomba 50 Mt at 500 m HOB over deep water emits NO tsunami (audit fix: HOB > 30 m gate)', () => {
+    // Tsar Bomba scaled HOB at 500 m absolute = 500/cbrt(50000) = 13.6
+    // m·kt⁻¹ᐟ³, which sits comfortably under the SURFACE regime
+    // boundary (50). Without an absolute-HOB gate the cube-root scaling
+    // mis-classifies a 500 m airburst over water as a contact-water
+    // burst, then the 8 % Glasstone underwater-coupling fraction
+    // inflates the source amplitude to ~360 m and the bathymetric
+    // pipeline propagates that nonsense across the basin (the user's
+    // bug report: 3.5 m wave at trans-Atlantic distance from a
+    // Tsar-Bomba airburst in the Gulf of Mexico). No nuclear test in
+    // history has produced a measurable open-ocean wave from an
+    // airburst > 30 m HOB; the gate now enforces this.
+    const r = simulateExplosion({
+      yieldMegatons: 50,
+      groundType: 'WET_SOIL',
+      heightOfBurst: m(500),
+      waterDepth: m(3_500),
+      meanOceanDepth: m(3_500),
+    });
+    expect(r.blast.hobRegime).toBe('SURFACE');
+    expect(r.tsunami).toBeUndefined();
+    expect(r.isContactWaterBurst).toBe(false);
+  });
+
+  it('contact-water burst at HOB = 30 m still fires (boundary case)', () => {
+    const r = simulateExplosion({
+      yieldMegatons: 1,
+      groundType: 'WET_SOIL',
+      heightOfBurst: m(30),
+      waterDepth: m(50),
+    });
+    expect(r.tsunami).toBeDefined();
+    expect(r.isContactWaterBurst).toBe(true);
+  });
+
+  it('contact-water burst at HOB = 31 m does NOT fire (just above gate)', () => {
+    const r = simulateExplosion({
+      yieldMegatons: 1,
+      groundType: 'WET_SOIL',
+      heightOfBurst: m(31),
+      waterDepth: m(50),
+    });
+    expect(r.tsunami).toBeUndefined();
+    expect(r.isContactWaterBurst).toBe(false);
+  });
+
   it('flags a SURFACE burst on water as a contact-water burst', () => {
     const r = simulateExplosion({
       yieldMegatons: 1,
