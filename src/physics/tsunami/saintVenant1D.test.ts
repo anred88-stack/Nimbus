@@ -308,6 +308,124 @@ describe('saintVenant1D — Phase-21b MUSCL + SSP-RK2 propagation correctness', 
   });
 });
 
+describe('saintVenant1D — Phase-21c 1D-radial geometry', () => {
+  // The 'radial' geometry adds the source terms -h·u/r and -h·u²/r
+  // that turn 1D Cartesian propagation into 2D-cylindrical spreading.
+  // The Lamb 1932 long-wave radial solution predicts amplitude
+  // decay ~1/√r along characteristics. These tests pin the
+  // characteristic invariants of that solution.
+
+  it('amplitude decays roughly as 1/√r (Lamb 1932 long-wave radial limit)', () => {
+    // Gaussian source at the symmetry axis, peak 2 m, half-width
+    // 50 km on a flat 4 km basin. Sample peak amplitude at four
+    // ranges; the dimensionless A·√r should be approximately
+    // constant (within the model envelope) for r past the source
+    // half-width where the long-wave approximation holds.
+    const N = 300;
+    const dx = 5_000;
+    const z = new Array<number>(N).fill(-4_000);
+    const eta0: number[] = [];
+    const sigmaCells = 10;
+    for (let i = 0; i < N; i++) {
+      const rCells = i + 0.5;
+      eta0.push(2 * Math.exp(-(rCells * rCells) / (2 * sigmaCells * sigmaCells)));
+    }
+    const sourceHalfWidthCells = sigmaCells;
+    const probesCells = [40, 80, 120, 160].filter((c) => c > sourceHalfWidthCells);
+    const r = simulateSaintVenant1D({
+      bathymetryM: z,
+      cellWidthM: dx,
+      initialDisplacementM: eta0,
+      durationS: 4_000,
+      manningN: 0,
+      scheme: 'muscl-rk2',
+      geometry: 'radial',
+      probeCellIndices: probesCells,
+    });
+    // For each probe past the source: invariant A·√r within ±35 %.
+    // The exact 1/√r is asymptotic; the source has finite width,
+    // numerical viscosity adds a slight extra decay, so we widen
+    // the band to ±35 %.
+    const invariants: number[] = [];
+    for (let i = 0; i < r.probes.length; i++) {
+      const probe = r.probes[i];
+      const cellIdx = probesCells[i];
+      if (probe === undefined || cellIdx === undefined) continue;
+      const rDist = (cellIdx + 0.5) * dx;
+      invariants.push(probe.peakAbsAmplitudeM * Math.sqrt(rDist));
+    }
+    expect(invariants.length).toBeGreaterThanOrEqual(3);
+    const meanInv = invariants.reduce((s, v) => s + v, 0) / invariants.length;
+    for (const inv of invariants) {
+      expect(Math.abs(inv - meanInv) / meanInv).toBeLessThan(0.35);
+    }
+  });
+
+  it('radial decays faster than cartesian for the same source (energy spread)', () => {
+    // Same Gaussian source, run cartesian and radial side by side.
+    // At the same probe distance, the cartesian peak should be
+    // larger because no geometric spread takes mass laterally.
+    const N = 200;
+    const dx = 5_000;
+    const z = new Array<number>(N).fill(-4_000);
+    const eta0: number[] = [];
+    for (let i = 0; i < N; i++) {
+      const r = i + 0.5;
+      eta0.push(2 * Math.exp(-(r * r) / (2 * 10 * 10)));
+    }
+    const probeIdx = 100; // 502.5 km from axis
+    const cart = simulateSaintVenant1D({
+      bathymetryM: z,
+      cellWidthM: dx,
+      initialDisplacementM: eta0,
+      durationS: 3_000,
+      manningN: 0,
+      scheme: 'muscl-rk2',
+      geometry: 'cartesian',
+      probeCellIndices: [probeIdx],
+    });
+    const rad = simulateSaintVenant1D({
+      bathymetryM: z,
+      cellWidthM: dx,
+      initialDisplacementM: eta0,
+      durationS: 3_000,
+      manningN: 0,
+      scheme: 'muscl-rk2',
+      geometry: 'radial',
+      probeCellIndices: [probeIdx],
+    });
+    const cartPeak = cart.probes[0]?.peakAbsAmplitudeM ?? 0;
+    const radPeak = rad.probes[0]?.peakAbsAmplitudeM ?? 0;
+    expect(cartPeak).toBeGreaterThan(radPeak);
+    expect(cartPeak).toBeGreaterThan(0);
+    expect(radPeak).toBeGreaterThan(0);
+  });
+
+  it('radial mode preserves the lake-at-rest invariant', () => {
+    // Same sanity check as cartesian: a flat ocean at rest should
+    // stay at rest, including the symmetry-axis boundary.
+    const N = 50;
+    const dx = 10_000;
+    const z = new Array<number>(N).fill(-4_000);
+    const eta0 = new Array<number>(N).fill(0);
+    const r = simulateSaintVenant1D({
+      bathymetryM: z,
+      cellWidthM: dx,
+      initialDisplacementM: eta0,
+      durationS: 5_000,
+      manningN: 0,
+      scheme: 'muscl-rk2',
+      geometry: 'radial',
+    });
+    for (const eta of r.finalDisplacementM) {
+      expect(Math.abs(eta)).toBeLessThan(1e-6);
+    }
+    for (const u of r.finalVelocityMPerS) {
+      expect(Math.abs(u)).toBeLessThan(1e-6);
+    }
+  });
+});
+
 describe('saintVenant1D — boundary / degenerate input handling', () => {
   it('throws on bathymetry shorter than 3 cells', () => {
     expect(() =>

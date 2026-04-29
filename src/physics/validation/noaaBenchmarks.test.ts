@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { seismicTsunamiFromMegathrust } from '../events/earthquake/seismicTsunami.js';
-import { synolakisRunup } from '../events/tsunami/extendedEffects.js';
+import { dispersionAmplitudeFactor, synolakisRunup } from '../events/tsunami/extendedEffects.js';
+import { simulateSaintVenant1D } from '../tsunami/saintVenant1D.js';
 import { m } from '../units.js';
 import {
   NOAA_PIN_TOLERANCE,
   NOAA_SEISMIC_PIN_TOLERANCE,
   SUMATRA_2004_COCOS_REFERENCE,
   SYNOLAKIS_1987_CASES,
+  TOHOKU_2011_DART_REFERENCE,
 } from './noaaBenchmarkFixtures.js';
 
 /**
@@ -74,9 +76,77 @@ describe('Tōhoku 2011 megathrust DART buoy 21413 — Satake et al. 2013', () =>
     expect(r.meanSlip as number).toBeLessThan(25);
   });
 
-  it.todo(
-    'TIER 2 — DART 21413 amplitude at 1 500 km within ±20 % (needs Saint-Venant 1D, Phase-21+)'
-  );
+  it(`TIER 2 (Phase-21c) — Saint-Venant 1D-radial DART 21413 amplitude at 1 500 km within ±${(
+    NOAA_SEISMIC_PIN_TOLERANCE * 100
+  ).toFixed(0)} %`, () => {
+    // Tōhoku 2011 routed through the Phase-21c Saint-Venant 1D-radial
+    // pipeline (Closes the Tier-2 todo opened by Phase-20).
+    //
+    // Setup. Domain: 0..4000 km from the rupture symmetry axis,
+    // 10 km cell width, 4 km mean ocean depth. Source: a Gaussian
+    // sea-surface displacement centred at the axis, peak η₀ =
+    // 4 m × WAVE_COUPLING_EFFICIENCY (0.7, Satake 2013 calibration
+    // — the Hanks-Kanamori uplift to wave coupling efficiency the
+    // closed-form pipeline already uses), half-width 350 km
+    // (Tōhoku-typical rupture half-length).
+    //
+    // Solver: MUSCL second-order TVD reconstruction + SSP-RK2 +
+    // 1D-radial geometry source term, the GeoClaw-equivalent
+    // configuration. Manning friction n = 0.025 (open ocean,
+    // Imamura 1995). Run for 9000 s (2.5 h, the wave at √(g·4000) =
+    // 198 m/s reaches DART 21413 at 1500 km in ≈ 7600 s).
+    //
+    // Post-processing: apply the Heidarzadeh & Satake 2015
+    // frequency-dependent dispersion factor at the buoy distance.
+    // The Saint-Venant solver does NOT model dispersion (it solves
+    // the non-dispersive shallow-water equations); HF spectral
+    // components disperse out of the wave train at observation
+    // distance, which the Heidarzadeh-Satake decay captures
+    // empirically.
+    const N = 400;
+    const dx = 10_000;
+    const peakUpliftM = 4;
+    const couplingEfficiency = 0.7;
+    const sigmaCells = 35;
+    const sourcePeakM = peakUpliftM * couplingEfficiency;
+
+    const z: number[] = [];
+    const eta0: number[] = [];
+    for (let i = 0; i < N; i++) {
+      z.push(-4_000);
+      const rCells = i + 0.5;
+      eta0.push(sourcePeakM * Math.exp(-(rCells * rCells) / (2 * sigmaCells * sigmaCells)));
+    }
+
+    const probeIdx = Math.round(TOHOKU_2011_DART_REFERENCE.distanceM / dx - 0.5);
+    const r = simulateSaintVenant1D({
+      bathymetryM: z,
+      cellWidthM: dx,
+      initialDisplacementM: eta0,
+      durationS: 9_000,
+      manningN: 0.025,
+      scheme: 'muscl-rk2',
+      geometry: 'radial',
+      probeCellIndices: [probeIdx],
+    });
+    const probe = r.probes[0];
+    if (!probe) {
+      expect.fail('expected Tōhoku probe');
+      return;
+    }
+    const solverPeakM = probe.peakAbsAmplitudeM;
+    const dispersedPeakM =
+      solverPeakM * dispersionAmplitudeFactor(m(TOHOKU_2011_DART_REFERENCE.distanceM));
+    const err = relativeError(dispersedPeakM, TOHOKU_2011_DART_REFERENCE.observedAmplitudeM);
+    expect(
+      err,
+      `predicted ${dispersedPeakM.toFixed(3)} m (solver ${solverPeakM.toFixed(3)} m × dispersion ${(
+        dispersedPeakM / solverPeakM
+      ).toFixed(
+        3
+      )}), observed ${TOHOKU_2011_DART_REFERENCE.observedAmplitudeM.toString()} m (${TOHOKU_2011_DART_REFERENCE.source}); error = ${(err * 100).toFixed(1)} %`
+    ).toBeLessThan(NOAA_SEISMIC_PIN_TOLERANCE);
+  });
 });
 
 describe('Sumatra-Andaman 2004 megathrust — Cocos Island reference (Bernard et al. 2006)', () => {

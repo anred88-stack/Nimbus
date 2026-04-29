@@ -117,6 +117,25 @@ export interface SaintVenant1DInput {
    *  diagnosing whether a regression is from the reconstruction
    *  vs the time stepper. */
   scheme?: 'muscl-rk2' | 'hll-euler';
+  /** Geometry of the 1D problem.
+   *
+   *  - `'cartesian'` (default): straight 1D, no geometric source
+   *    terms. Use for dam-break, lake-at-rest, channel propagation
+   *    benchmarks where the wave does not spread laterally.
+   *  - `'radial'`: 1D-cylindrical with the symmetry axis at the LEFT
+   *    boundary (cell centre i has radius (i + ½)·Δx). Adds the
+   *    geometric source terms
+   *
+   *        ∂h/∂t  ⊃  -h·u / r
+   *        ∂(h·u)/∂t  ⊃  -h·u² / r
+   *
+   *    that turn straight 1D propagation into 2D-cylindrical
+   *    spreading. Wave amplitude decays as 1/√r along characteristics,
+   *    matching the Lamb 1932 long-wave radial solution. Use for
+   *    seismic tsunami DART pins (Tōhoku, Sumatra) where the source
+   *    is a finite-size patch and the observer sits 1000+ km away in
+   *    open ocean. */
+  geometry?: 'cartesian' | 'radial';
 }
 
 export interface SaintVenant1DProbeRecord {
@@ -282,6 +301,7 @@ export function simulateSaintVenant1D(input: SaintVenant1DInput): SaintVenant1DR
   let t = 0;
   let step = 0;
   const useMuscl = (input.scheme ?? 'muscl-rk2') === 'muscl-rk2';
+  const useRadial = (input.geometry ?? 'cartesian') === 'radial';
 
   // Scratch buffers reused every step to avoid per-step allocation.
   const fluxMass = new Float64Array(N + 1);
@@ -377,9 +397,24 @@ export function simulateSaintVenant1D(input: SaintVenant1DInput): SaintVenant1DR
       const zL = z[Math.max(i - 1, 0)] ?? 0;
       const zR = z[Math.min(i + 1, N - 1)] ?? 0;
       const dzdx = (zR - zL) / (2 * dx);
-      const sourceMom = -g * (hLocal[i] ?? 0) * dzdx;
+      const hCell = hLocal[i] ?? 0;
+      const sourceMom = -g * hCell * dzdx;
       dhOut[i] = -fluxDivMass / dx;
       dhuOut[i] = -fluxDivMom / dx + sourceMom;
+      // Radial geometry: add the cylindrical-spread source terms
+      //     ∂h/∂t   ⊃ -h·u / r
+      //     ∂(h·u)/∂t ⊃ -h·u² / r
+      // which turn 1D Cartesian propagation into 2D radial spreading.
+      // r is the cell-centre radius from the symmetry axis at the
+      // left boundary: r_i = (i + ½)·Δx. The amplitude then decays
+      // as ~1/√r along characteristics, matching Lamb 1932.
+      if (useRadial) {
+        const r = (i + 0.5) * dx;
+        const huCell = huLocal[i] ?? 0;
+        const u = hCell > DRY_DEPTH_M ? huCell / hCell : 0;
+        dhOut[i] = (dhOut[i] ?? 0) - huCell / r;
+        dhuOut[i] = (dhuOut[i] ?? 0) - (huCell * u) / r;
+      }
     }
   };
 
