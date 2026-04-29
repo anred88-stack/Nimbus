@@ -62,6 +62,27 @@ export interface EarthquakeScenarioInput {
    *  omitted, defaults to 0 (rupture aligned N–S) — fine for the small
    *  point-source events where the stadium degenerates to a circle. */
   strikeAzimuthDeg?: number;
+  /** Optional override for the surface rupture length L (m). Use when
+   *  the empirical Wells-Coppersmith / Strasser-Arango-Bommer fits
+   *  underpredict for an outlier event with documented finite-fault
+   *  inversions.
+   *
+   *  Calibration anchor: Sumatra-Andaman 2004 had ~1300 km observed
+   *  surface rupture (Lay et al. 2005, Science 308:1127) but the
+   *  Strasser median fit at Mw 9.2 gives only 803 km — the empirical
+   *  scaling laws saturate above Mw 9.0 because their datasets are
+   *  weighted by typical-magnitude events; fault-geometry-constrained
+   *  outliers like Sumatra (Sunda Trench is 6000 km long, plenty of
+   *  room) cannot be captured by a single regression. The Sumatra
+   *  preset sets this to 1.3 × 10⁶ m to honour the observation; for
+   *  custom user inputs without an override, the Strasser median
+   *  remains the best available estimate (factor ~2 scatter at
+   *  Mw > 9 per Strasser 2010 §4 "Residuals"). */
+  ruptureLengthOverride?: Meters;
+  /** Optional override for the down-dip rupture width W (m). Symmetric
+   *  to {@link ruptureLengthOverride} for events where the observed W
+   *  diverges from the Strasser/Wells-Coppersmith median. */
+  ruptureWidthOverride?: Meters;
 }
 
 /**
@@ -154,12 +175,14 @@ export function simulateEarthquake(input: EarthquakeScenarioInput): EarthquakeSc
   const faultType = input.faultType ?? 'all';
   const vs30 = input.vs30 ?? 760;
   const seismicMoment = seismicMomentFromMagnitude(input.magnitude);
-  const ruptureLength = input.subductionInterface
-    ? megathrustRuptureLength(input.magnitude)
-    : surfaceRuptureLength({ magnitude: input.magnitude, faultType });
-  const ruptureWidth = input.subductionInterface
-    ? megathrustRuptureWidth(input.magnitude)
-    : surfaceRuptureWidth({ magnitude: input.magnitude, faultType });
+  const ruptureLength = input.ruptureLengthOverride
+    ?? (input.subductionInterface
+      ? megathrustRuptureLength(input.magnitude)
+      : surfaceRuptureLength({ magnitude: input.magnitude, faultType }));
+  const ruptureWidth = input.ruptureWidthOverride
+    ?? (input.subductionInterface
+      ? megathrustRuptureWidth(input.magnitude)
+      : surfaceRuptureWidth({ magnitude: input.magnitude, faultType }));
   // Extended-source threshold: 7.5 sits at the elbow where the W&C
   // surface-rupture length (≈ 50 km) starts to exceed the MMI VII
   // point-source attenuation radius (≈ 35–55 km depending on faultType
@@ -313,15 +336,20 @@ export const EARTHQUAKE_PRESETS = {
    *  Lay et al. 2005 Science 308 (5725): 1127–1133. */
   SUMATRA_2004: {
     name: 'Sumatra–Andaman 2004',
-    note: 'Sunda megathrust rupture; basin-wide tsunami across the Indian Ocean',
+    note: 'Sunda megathrust rupture; basin-wide tsunami across the Indian Ocean. Strasser median scaling under-predicts L by ~40 % at this magnitude — the preset overrides L to the Lay 2005 observation.',
     input: {
       magnitude: 9.2,
       depth: m(30_000),
       faultType: 'reverse',
       subductionInterface: true,
       // Sunda Trench strike ≈ 330° (NW–SE), 1300 km rupture from
-      // northern Sumatra into the Andaman Islands (Lay 2005, Science).
+      // northern Sumatra into the Andaman Islands (Lay 2005, Science
+      // 308:1127). Strasser at Mw 9.2 gives only 803 km — the
+      // saturation issue is documented in `ruptureLength.ts` and
+      // covered by `ruptureLengthOverride` here.
       strikeAzimuthDeg: 330,
+      ruptureLengthOverride: m(1_300_000),
+      ruptureWidthOverride: m(200_000),
     } satisfies EarthquakeScenarioInput,
   },
   /** 1 November 1755 Lisbon — Mw ≈ 8.5–9.0, source debated between

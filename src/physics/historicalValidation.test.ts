@@ -223,6 +223,22 @@ describe('Historical validation — earthquakes', () => {
     expect((r.shaking.liquefactionRadius as number) / 1_000).toBeGreaterThan(50);
   });
 
+  it('Sumatra-Andaman 2004: Mw 9.2 megathrust, 1300 km rupture (Lay 2005 override)', () => {
+    const r = simulateEarthquake(EARTHQUAKE_PRESETS.SUMATRA_2004.input);
+    expect(r.inputs.magnitude).toBeCloseTo(9.2, 2);
+    // The Strasser 2010 median fit gives only ~803 km for Mw 9.2 — too
+    // short for the actual 1300 km Sunda-Trench rupture. The preset
+    // overrides via `ruptureLengthOverride: 1.3 × 10⁶ m` so the report
+    // matches Lay et al. 2005 Science 308:1127.
+    const ruptureKm = (r.ruptureLength as number) / 1_000;
+    expect(ruptureKm).toBeGreaterThan(1_200);
+    expect(ruptureKm).toBeLessThan(1_400);
+    // Width override matches Hayes 2017 USGS finite-fault.
+    const widthKm = (r.ruptureWidth as number) / 1_000;
+    expect(widthKm).toBeGreaterThan(150);
+    expect(widthKm).toBeLessThan(250);
+  });
+
   it('Kokoxili 2001: Mw 7.8 strike-slip, rupture 100–450 km (observed 400 km)', () => {
     const r = simulateEarthquake(EARTHQUAKE_PRESETS.KUNLUN_2001.input);
     const ruptureKm = (r.ruptureLength as number) / 1_000;
