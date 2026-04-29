@@ -444,6 +444,175 @@ interface VolcanoRawInput {
   windSpeed?: unknown;
   windDirectionDegrees?: unknown;
   flankCollapse?: unknown;
+  lateralBlast?: unknown;
+}
+
+// ---------- Nested validators (composable) ----------
+
+/**
+ * Validate the flankCollapse nested object on a volcano input.
+ * Pushes errors with `flankCollapse.<name>` paths and warnings with
+ * the same prefix so downstream consumers can render per-field
+ * diagnostics. Returns the structurally-validated nested payload, or
+ * null when the input is non-object / has at least one error.
+ */
+type FlankCollapsePayload = NonNullable<VolcanoScenarioInput['flankCollapse']>;
+
+function validateFlankCollapse(
+  raw: unknown,
+  errors: ValidationIssue[],
+  warnings: ValidationIssue[],
+): FlankCollapsePayload | null {
+  if (typeof raw !== 'object' || raw === null) {
+    errors.push({
+      field: 'flankCollapse',
+      code: 'OUT_OF_DOMAIN',
+      message: 'flankCollapse must be an object when provided',
+      rawValue: raw,
+    });
+    return null;
+  }
+  const r = raw as Record<string, unknown>;
+  const startErrors = errors.length;
+
+  if (!isFiniteNumber(r.volumeM3)) {
+    errors.push({
+      field: 'flankCollapse.volumeM3',
+      code: 'NOT_FINITE',
+      message: 'flankCollapse.volumeM3 must be a finite number',
+      rawValue: r.volumeM3,
+    });
+  } else if (r.volumeM3 <= 0) {
+    errors.push({
+      field: 'flankCollapse.volumeM3',
+      code: 'ZERO_FORBIDDEN',
+      message: 'flankCollapse.volumeM3 must be > 0',
+      rawValue: r.volumeM3,
+    });
+  } else if (r.volumeM3 > 1e13) {
+    warnings.push({
+      field: 'flankCollapse.volumeM3',
+      code: 'PHYS_SUSPICIOUS_HIGH',
+      message: `flankCollapse.volumeM3 ${r.volumeM3.toString()} exceeds the largest known volcanic-flank collapse (Storegga 3×10¹² is submarine-landslide; volcanic flank collapses cap near 10¹²)`,
+      rawValue: r.volumeM3,
+    });
+  }
+
+  if (r.slopeAngleDeg !== undefined) {
+    if (!isFiniteNumber(r.slopeAngleDeg)) {
+      errors.push({
+        field: 'flankCollapse.slopeAngleDeg',
+        code: 'NOT_FINITE',
+        message: 'flankCollapse.slopeAngleDeg must be finite',
+        rawValue: r.slopeAngleDeg,
+      });
+    } else if (r.slopeAngleDeg <= 0 || r.slopeAngleDeg >= 90) {
+      errors.push({
+        field: 'flankCollapse.slopeAngleDeg',
+        code: 'OUT_OF_DOMAIN',
+        message: 'flankCollapse.slopeAngleDeg must be in (0, 90)',
+        rawValue: r.slopeAngleDeg,
+      });
+    }
+  }
+
+  for (const depthField of ['meanOceanDepth', 'sourceWaterDepth'] as const) {
+    const v = r[depthField];
+    if (v === undefined) continue;
+    if (!isFiniteNumber(v)) {
+      errors.push({
+        field: `flankCollapse.${depthField}`,
+        code: 'NOT_FINITE',
+        message: `flankCollapse.${depthField} must be finite`,
+        rawValue: v,
+      });
+    } else if (v < 0) {
+      errors.push({
+        field: `flankCollapse.${depthField}`,
+        code: 'NEGATIVE_FORBIDDEN',
+        message: `flankCollapse.${depthField} (m) must be >= 0`,
+        rawValue: v,
+      });
+    } else if (v > 11_000) {
+      warnings.push({
+        field: `flankCollapse.${depthField}`,
+        code: 'PHYS_SUSPICIOUS_HIGH',
+        message: `flankCollapse.${depthField} ${(v / 1_000).toString()} km exceeds the Mariana Trench (~11 km)`,
+        rawValue: v,
+      });
+    }
+  }
+
+  if (errors.length !== startErrors) return null;
+
+  // Structurally valid — build the typed nested payload.
+  const out: FlankCollapsePayload = {
+    volumeM3: r.volumeM3 as number,
+  };
+  if (r.slopeAngleDeg !== undefined) out.slopeAngleDeg = r.slopeAngleDeg as number;
+  if (r.meanOceanDepth !== undefined) out.meanOceanDepth = m(r.meanOceanDepth as number);
+  if (r.sourceWaterDepth !== undefined) out.sourceWaterDepth = m(r.sourceWaterDepth as number);
+  return out;
+}
+
+/**
+ * Validate the lateralBlast nested object on a volcano input.
+ * `directionDeg` is mandatory; `sectorAngleDeg` is optional with a
+ * default of 180° (handled by the simulator). Azimuth is normalized
+ * with a NORMALIZED_AZIMUTH warning.
+ */
+type LateralBlastPayload = NonNullable<VolcanoScenarioInput['lateralBlast']>;
+
+function validateLateralBlast(
+  raw: unknown,
+  errors: ValidationIssue[],
+  warnings: ValidationIssue[],
+): LateralBlastPayload | null {
+  if (typeof raw !== 'object' || raw === null) {
+    errors.push({
+      field: 'lateralBlast',
+      code: 'OUT_OF_DOMAIN',
+      message: 'lateralBlast must be an object when provided',
+      rawValue: raw,
+    });
+    return null;
+  }
+  const r = raw as Record<string, unknown>;
+  const startErrors = errors.length;
+
+  if (!isFiniteNumber(r.directionDeg)) {
+    errors.push({
+      field: 'lateralBlast.directionDeg',
+      code: 'NOT_FINITE',
+      message: 'lateralBlast.directionDeg must be finite',
+      rawValue: r.directionDeg,
+    });
+  }
+
+  if (r.sectorAngleDeg !== undefined) {
+    if (!isFiniteNumber(r.sectorAngleDeg)) {
+      errors.push({
+        field: 'lateralBlast.sectorAngleDeg',
+        code: 'NOT_FINITE',
+        message: 'lateralBlast.sectorAngleDeg must be finite',
+        rawValue: r.sectorAngleDeg,
+      });
+    } else if (r.sectorAngleDeg <= 0 || r.sectorAngleDeg > 360) {
+      errors.push({
+        field: 'lateralBlast.sectorAngleDeg',
+        code: 'OUT_OF_DOMAIN',
+        message: 'lateralBlast.sectorAngleDeg must be in (0, 360]',
+        rawValue: r.sectorAngleDeg,
+      });
+    }
+  }
+
+  if (errors.length !== startErrors) return null;
+
+  const direction = normalizeAzimuthDeg(r.directionDeg as number, 'lateralBlast.directionDeg', warnings);
+  const out: LateralBlastPayload = { directionDeg: direction };
+  if (r.sectorAngleDeg !== undefined) out.sectorAngleDeg = r.sectorAngleDeg as number;
+  return out;
 }
 
 export function validateVolcanoInput(
@@ -536,6 +705,18 @@ export function validateVolcanoInput(
       'windDirectionDegrees',
       warnings,
     );
+  }
+
+  // Nested validation — closes L7 in CONSOLIDATION_AUDIT.md.
+  if (raw.flankCollapse !== undefined) {
+    const fc = validateFlankCollapse(raw.flankCollapse, errors, warnings);
+    if (errors.length > 0) return invalid(errors, warnings);
+    if (fc !== null) out.flankCollapse = fc;
+  }
+  if (raw.lateralBlast !== undefined) {
+    const lb = validateLateralBlast(raw.lateralBlast, errors, warnings);
+    if (errors.length > 0) return invalid(errors, warnings);
+    if (lb !== null) out.lateralBlast = lb;
   }
 
   return withWarnings(out, warnings);

@@ -853,29 +853,35 @@ function isValidCoordinates(c: Coordinates): boolean {
 
 /**
  * Run the centralized inputSchema validator on a fully-merged scenario
- * input and surface any issues via console.warn (dev-only). The store
- * keeps its existing inline-guard / silent-drop semantics for
- * BACKWARD compatibility with components that update individual
- * fields, but every `set*Input` setter now passes the merged result
- * through this single audit point so validation drift between UI
- * components and the schema is visible at runtime.
+ * input and return either the validated payload (status != 'invalid')
+ * or null when the input is rejected at the schema boundary.
  *
- * Closes part of B-010: the runtime schema in `inputSchema.ts` is now
- * the single source of truth, and store updates are observably routed
- * through it.
+ * Replaces the previous `auditStoreInput` which only logged. Now the
+ * validator is the single classification authority: setters apply the
+ * classified payload OR no-op if invalid. No more inline silent drops
+ * competing with the schema (closes the consolidation gap from
+ * `CONSOLIDATION_AUDIT.md` L1).
  */
-function auditStoreInput(type: ScenarioType, merged: Record<string, unknown>): void {
-  if (!import.meta.env.DEV) return;
-  const v = validateScenario(type, merged);
-  if (v.result.errors.length > 0) {
-    console.warn(
-      `[store] ${type} input has validation errors (rejected by schema; store kept previous value):`,
-      v.result.errors,
-    );
+function classifyStoreInput<T>(
+  type: ScenarioType,
+  merged: T,
+): { ok: true; classified: T } | { ok: false } {
+  const v = validateScenario(type, merged as unknown as Record<string, unknown>);
+  if (v.result.status === 'invalid') {
+    if (import.meta.env.DEV) {
+      console.warn(
+        `[store] ${type} input rejected at schema (state unchanged):`,
+        v.result.errors,
+      );
+    }
+    return { ok: false };
   }
-  for (const w of v.result.warnings) {
-    console.warn(`[store] ${type} ${w.field} ${w.code}: ${w.message}`);
+  if (import.meta.env.DEV) {
+    for (const w of v.result.warnings) {
+      console.warn(`[store] ${type} ${w.field} ${w.code}: ${w.message}`);
+    }
   }
+  return { ok: true, classified: v.result.input as T };
 }
 
 /**
@@ -1029,37 +1035,23 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setImpactInput: (overrides) => {
     set((state) => {
-      const next: ImpactScenarioInput = { ...state.impact.input };
-      if (overrides.impactorDiameter !== undefined) {
-        next.impactorDiameter = m(overrides.impactorDiameter);
-      }
-      if (overrides.impactVelocity !== undefined) {
-        next.impactVelocity = mps(overrides.impactVelocity);
-      }
-      if (overrides.impactorDensity !== undefined) {
-        next.impactorDensity = kgPerM3(overrides.impactorDensity);
-      }
-      if (overrides.targetDensity !== undefined) {
-        next.targetDensity = kgPerM3(overrides.targetDensity);
-      }
-      if (overrides.impactAngle !== undefined) {
-        next.impactAngle = degreesToRadians(deg(overrides.impactAngle));
-      }
-      if (overrides.surfaceGravity !== undefined) {
-        next.surfaceGravity = overrides.surfaceGravity;
-      }
-      if (overrides.impactAzimuthDeg !== undefined && Number.isFinite(overrides.impactAzimuthDeg)) {
-        // Normalise to [0, 360).
-        next.impactAzimuthDeg = ((overrides.impactAzimuthDeg % 360) + 360) % 360;
-      }
-      if (
-        overrides.impactorStrength !== undefined &&
-        Number.isFinite(overrides.impactorStrength) &&
-        overrides.impactorStrength > 0
-      ) {
-        next.impactorStrength = Pa(overrides.impactorStrength);
-      }
-      auditStoreInput('impact', next as unknown as Record<string, unknown>);
+      // Stage 1: type-wrap the raw overrides into branded units. NO
+      // inline `> 0` / `>= 0` checks — the validator owns that.
+      const merged: ImpactScenarioInput = { ...state.impact.input };
+      if (overrides.impactorDiameter !== undefined) merged.impactorDiameter = m(overrides.impactorDiameter);
+      if (overrides.impactVelocity !== undefined) merged.impactVelocity = mps(overrides.impactVelocity);
+      if (overrides.impactorDensity !== undefined) merged.impactorDensity = kgPerM3(overrides.impactorDensity);
+      if (overrides.targetDensity !== undefined) merged.targetDensity = kgPerM3(overrides.targetDensity);
+      if (overrides.impactAngle !== undefined) merged.impactAngle = degreesToRadians(deg(overrides.impactAngle));
+      if (overrides.surfaceGravity !== undefined) merged.surfaceGravity = overrides.surfaceGravity;
+      if (overrides.impactAzimuthDeg !== undefined) merged.impactAzimuthDeg = overrides.impactAzimuthDeg;
+      if (overrides.impactorStrength !== undefined) merged.impactorStrength = Pa(overrides.impactorStrength);
+
+      // Stage 2: classify via the schema. If invalid, no-op the set call.
+      const classification = classifyStoreInput('impact', merged);
+      if (!classification.ok) return state;
+      const next = classification.classified;
+
       return {
         eventType: 'impact',
         impact: { preset: 'CUSTOM', input: next },
@@ -1083,23 +1075,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setExplosionInput: (overrides) => {
     set((state) => {
-      const next: ExplosionScenarioInput = { ...state.explosion.input };
-      if (overrides.yieldMegatons !== undefined && overrides.yieldMegatons > 0) {
-        next.yieldMegatons = overrides.yieldMegatons;
-      }
-      if (overrides.groundType !== undefined) {
-        next.groundType = overrides.groundType;
-      }
-      if (overrides.heightOfBurst !== undefined && overrides.heightOfBurst >= 0) {
-        next.heightOfBurst = m(overrides.heightOfBurst);
-      }
-      if (overrides.windSpeed !== undefined && overrides.windSpeed >= 0) {
-        next.windSpeed = mps(overrides.windSpeed);
-      }
-      if (overrides.windDirectionDeg !== undefined && Number.isFinite(overrides.windDirectionDeg)) {
-        next.windDirectionDeg = ((overrides.windDirectionDeg % 360) + 360) % 360;
-      }
-      auditStoreInput('explosion', next as unknown as Record<string, unknown>);
+      const merged: ExplosionScenarioInput = { ...state.explosion.input };
+      if (overrides.yieldMegatons !== undefined) merged.yieldMegatons = overrides.yieldMegatons;
+      if (overrides.groundType !== undefined) merged.groundType = overrides.groundType;
+      if (overrides.heightOfBurst !== undefined) merged.heightOfBurst = m(overrides.heightOfBurst);
+      if (overrides.windSpeed !== undefined) merged.windSpeed = mps(overrides.windSpeed);
+      if (overrides.windDirectionDeg !== undefined) merged.windDirectionDeg = overrides.windDirectionDeg;
+
+      const classification = classifyStoreInput('explosion', merged);
+      if (!classification.ok) return state;
+      const next = classification.classified;
+
       return {
         eventType: 'explosion',
         explosion: { preset: 'CUSTOM', input: next },
@@ -1123,23 +1109,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setEarthquakeInput: (overrides) => {
     set((state) => {
-      const next: EarthquakeScenarioInput = { ...state.earthquake.input };
-      if (overrides.magnitude !== undefined && overrides.magnitude > 0) {
-        next.magnitude = overrides.magnitude;
-      }
-      if (overrides.depth !== undefined && overrides.depth >= 0) {
-        next.depth = m(overrides.depth);
-      }
-      if (overrides.faultType !== undefined) {
-        next.faultType = overrides.faultType;
-      }
-      if (overrides.vs30 !== undefined && overrides.vs30 > 0) {
-        next.vs30 = overrides.vs30;
-      }
-      if (overrides.subductionInterface !== undefined) {
-        next.subductionInterface = overrides.subductionInterface;
-      }
-      auditStoreInput('earthquake', next as unknown as Record<string, unknown>);
+      const merged: EarthquakeScenarioInput = { ...state.earthquake.input };
+      if (overrides.magnitude !== undefined) merged.magnitude = overrides.magnitude;
+      if (overrides.depth !== undefined) merged.depth = m(overrides.depth);
+      if (overrides.faultType !== undefined) merged.faultType = overrides.faultType;
+      if (overrides.vs30 !== undefined) merged.vs30 = overrides.vs30;
+      if (overrides.subductionInterface !== undefined) merged.subductionInterface = overrides.subductionInterface;
+
+      const classification = classifyStoreInput('earthquake', merged);
+      if (!classification.ok) return state;
+      const next = classification.classified;
+
       return {
         eventType: 'earthquake',
         earthquake: { preset: 'CUSTOM', input: next },
@@ -1163,27 +1143,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setVolcanoInput: (overrides) => {
     set((state) => {
-      const next: VolcanoScenarioInput = { ...state.volcano.input };
-      if (overrides.volumeEruptionRate !== undefined && overrides.volumeEruptionRate > 0) {
-        next.volumeEruptionRate = overrides.volumeEruptionRate;
-      }
-      if (overrides.totalEjectaVolume !== undefined && overrides.totalEjectaVolume > 0) {
-        next.totalEjectaVolume = overrides.totalEjectaVolume;
-      }
-      if (overrides.laharVolume !== undefined && overrides.laharVolume >= 0) {
-        next.laharVolume = overrides.laharVolume;
-      }
-      if (overrides.windSpeed !== undefined && overrides.windSpeed >= 0) {
-        next.windSpeed = overrides.windSpeed;
-      }
-      if (
-        overrides.windDirectionDegrees !== undefined &&
-        Number.isFinite(overrides.windDirectionDegrees)
-      ) {
-        // Normalise to [0, 360).
-        next.windDirectionDegrees = ((overrides.windDirectionDegrees % 360) + 360) % 360;
-      }
-      auditStoreInput('volcano', next as unknown as Record<string, unknown>);
+      const merged: VolcanoScenarioInput = { ...state.volcano.input };
+      if (overrides.volumeEruptionRate !== undefined) merged.volumeEruptionRate = overrides.volumeEruptionRate;
+      if (overrides.totalEjectaVolume !== undefined) merged.totalEjectaVolume = overrides.totalEjectaVolume;
+      if (overrides.laharVolume !== undefined) merged.laharVolume = overrides.laharVolume;
+      if (overrides.windSpeed !== undefined) merged.windSpeed = overrides.windSpeed;
+      if (overrides.windDirectionDegrees !== undefined) merged.windDirectionDegrees = overrides.windDirectionDegrees;
+
+      const classification = classifyStoreInput('volcano', merged);
+      if (!classification.ok) return state;
+      const next = classification.classified;
+
       return {
         eventType: 'volcano',
         volcano: { preset: 'CUSTOM', input: next },
@@ -1207,20 +1177,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setLandslideInput: (overrides) => {
     set((state) => {
-      const next: LandslideScenarioInput = { ...state.landslide.input };
-      if (overrides.volumeM3 !== undefined && overrides.volumeM3 > 0) {
-        next.volumeM3 = overrides.volumeM3;
-      }
-      if (overrides.slopeAngleDeg !== undefined && overrides.slopeAngleDeg > 0) {
-        next.slopeAngleDeg = overrides.slopeAngleDeg;
-      }
-      if (overrides.meanOceanDepth !== undefined && overrides.meanOceanDepth > 0) {
-        next.meanOceanDepth = m(overrides.meanOceanDepth);
-      }
-      if (overrides.regime !== undefined) {
-        next.regime = overrides.regime;
-      }
-      auditStoreInput('landslide', next as unknown as Record<string, unknown>);
+      const merged: LandslideScenarioInput = { ...state.landslide.input };
+      if (overrides.volumeM3 !== undefined) merged.volumeM3 = overrides.volumeM3;
+      if (overrides.slopeAngleDeg !== undefined) merged.slopeAngleDeg = overrides.slopeAngleDeg;
+      if (overrides.meanOceanDepth !== undefined) merged.meanOceanDepth = m(overrides.meanOceanDepth);
+      if (overrides.regime !== undefined) merged.regime = overrides.regime;
+
+      const classification = classifyStoreInput('landslide', merged);
+      if (!classification.ok) return state;
+      const next = classification.classified;
+
       return {
         eventType: 'landslide',
         landslide: { preset: 'CUSTOM', input: next },
