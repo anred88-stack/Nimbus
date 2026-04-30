@@ -260,7 +260,7 @@ export function volcanoTsunami(input: VolcanoTsunamiInput): VolcanoTsunamiResult
   const cavityRadius = m(
     footprintArea !== undefined && Number.isFinite(footprintArea) && footprintArea > 0
       ? Math.sqrt(footprintArea / Math.PI)
-      : Math.cbrt(V),
+      : Math.cbrt(V)
   );
   const amp100 = impactAmplitudeAtDistance({
     sourceAmplitude,

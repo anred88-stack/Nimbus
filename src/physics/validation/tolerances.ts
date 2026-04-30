@@ -26,7 +26,7 @@
 // ----- Pure-math oracles -----
 
 /** Synolakis 1987 BP1 analytic R/H envelope. NTHMP-accepted, ±10 % */
-export const TOL_PURE_ANALYTIC = 0.20;
+export const TOL_PURE_ANALYTIC = 0.2;
 
 /** Hanks-Kanamori M0 = 10^(1.5·Mw + 9.05) — log identity, machine eps */
 export const TOL_LOG_IDENTITY = 1e-12;

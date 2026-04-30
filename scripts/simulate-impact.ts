@@ -24,10 +24,7 @@ import {
   type ImpactScenarioInput,
 } from '../src/physics/simulate.js';
 import { deg, degreesToRadians, kgPerM3, m as meters, mps } from '../src/physics/units.js';
-import {
-  validateScenario,
-  type ScenarioType,
-} from '../src/physics/validation/inputSchema.js';
+import { validateScenario, type ScenarioType } from '../src/physics/validation/inputSchema.js';
 
 const USAGE = `
 Usage: pnpm simulate [options]
@@ -360,7 +357,7 @@ const EXPLOSION_CITATIONS = [
  */
 function validateCliInput(
   type: ScenarioType,
-  input: unknown,
+  input: unknown
 ): { ok: boolean; validation: ReturnType<typeof validateScenario>['result'] } {
   const plain = JSON.parse(JSON.stringify(input)) as Record<string, unknown>;
   const v = validateScenario(type, plain);

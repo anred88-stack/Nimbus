@@ -87,32 +87,37 @@ describe('Replay-fixture integrity — every JSON in replayFixtures/ is well-for
       });
 
       it('id matches the file name (naming convention <id>.json)', () => {
-        expect(file, `id "${String(raw.id)}" does not match file name "${file}"`).toBe(`${String(raw.id)}.json`);
+        expect(file, `id "${String(raw.id)}" does not match file name "${file}"`).toBe(
+          `${String(raw.id)}.json`
+        );
       });
 
       it('category is one of the known set', () => {
         expect(VALID_CATEGORIES, `${file}: unknown category "${String(raw.category)}"`).toContain(
-          raw.category as FixtureCategory,
+          raw.category as FixtureCategory
         );
       });
 
       it('scenarioType is a known event type', () => {
-        expect(VALID_SCENARIO_TYPES, `${file}: unknown scenarioType "${String(raw.scenarioType)}"`).toContain(
-          raw.scenarioType as ScenarioType,
-        );
+        expect(
+          VALID_SCENARIO_TYPES,
+          `${file}: unknown scenarioType "${String(raw.scenarioType)}"`
+        ).toContain(raw.scenarioType as ScenarioType);
       });
 
       it('rawInput is an object', () => {
         expect(
           typeof raw.rawInput === 'object' && raw.rawInput !== null,
-          `${file}: rawInput must be a non-null object`,
+          `${file}: rawInput must be a non-null object`
         ).toBe(true);
       });
 
       it('expectedValidation has a known status, finite errorCount, finite warningCount', () => {
         const ev = raw.expectedValidation as Record<string, unknown>;
         expect(ev, `${file}: expectedValidation must be an object`).toBeDefined();
-        expect(VALID_STATUSES, `${file}: expectedValidation.status invalid`).toContain(ev.status as typeof VALID_STATUSES[number]);
+        expect(VALID_STATUSES, `${file}: expectedValidation.status invalid`).toContain(
+          ev.status as (typeof VALID_STATUSES)[number]
+        );
         expect(typeof ev.errorCount === 'number' && Number.isFinite(ev.errorCount)).toBe(true);
         expect(typeof ev.warningCount === 'number' && Number.isFinite(ev.warningCount)).toBe(true);
       });
@@ -120,7 +125,7 @@ describe('Replay-fixture integrity — every JSON in replayFixtures/ is well-for
       it('expectedOutputs is an object (may be empty for invalid scenarios)', () => {
         expect(
           typeof raw.expectedOutputs === 'object' && raw.expectedOutputs !== null,
-          `${file}: expectedOutputs must be a non-null object`,
+          `${file}: expectedOutputs must be a non-null object`
         ).toBe(true);
       });
 
@@ -130,11 +135,12 @@ describe('Replay-fixture integrity — every JSON in replayFixtures/ is well-for
         // a golden anchor. This catches "drive-by" fixtures that nobody
         // remembers why they exist.
         const hasBug = typeof raw.linkedBug === 'string' && raw.linkedBug.length > 0;
-        const hasGolden = typeof raw.linkedGoldenCase === 'string' && raw.linkedGoldenCase.length > 0;
+        const hasGolden =
+          typeof raw.linkedGoldenCase === 'string' && raw.linkedGoldenCase.length > 0;
         const isReference = raw.category === 'reference' || raw.category === 'physical-sanity';
         expect(
           hasBug || hasGolden || isReference,
-          `${file}: orphan fixture — declare linkedBug, linkedGoldenCase, or set category to 'reference'/'physical-sanity'`,
+          `${file}: orphan fixture — declare linkedBug, linkedGoldenCase, or set category to 'reference'/'physical-sanity'`
         ).toBe(true);
       });
     });

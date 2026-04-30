@@ -169,8 +169,7 @@ export function oceanCouplingPartition(input: OceanCouplingInput): OceanCoupling
   // basin), contradicting the geological record. The hard cutoff
   // routes 100 % of the post-atmospheric KE into the water-cavity
   // tsunami source, giving a clean energy-conservation accounting.
-  const disruptionDepth =
-    WATER_COLUMN_DISRUPTION_RATIO * L * Math.sqrt(rhoI / rhoW);
+  const disruptionDepth = WATER_COLUMN_DISRUPTION_RATIO * L * Math.sqrt(rhoI / rhoW);
   if (dWater > disruptionDepth) {
     return {
       seafloorFraction: 0,

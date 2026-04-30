@@ -71,7 +71,8 @@ function aggregateReports(reports: ReplayReport[]): AggregateBucket {
       failures.push({
         id: r.fixtureId,
         violations: r.violations.map(
-          (v) => `${v.field}: ${v.reason} (expected ${JSON.stringify(v.expected)}, got ${JSON.stringify(v.actual)})`,
+          (v) =>
+            `${v.field}: ${v.reason} (expected ${JSON.stringify(v.expected)}, got ${JSON.stringify(v.actual)})`
         ),
       });
     }
@@ -107,7 +108,7 @@ function reportTable(b: AggregateBucket): string {
     '| Status | Count |',
     '|--------|-------|',
     ...['accepted', 'normalized', 'suspicious', 'invalid'].map(
-      (s) => `| ${s} | ${(b.byStatus[s] ?? 0).toString()} |`,
+      (s) => `| ${s} | ${(b.byStatus[s] ?? 0).toString()} |`
     ),
   ];
   if (b.topErrorCodes.length > 0) {
@@ -185,7 +186,7 @@ function gate(replay: AggregateBucket, golden: AggregateBucket, mode: GateMode):
     if (replayInvalid + goldenInvalid > 0) {
       // Invalid is still reported as warning in advisory.
       warnings.push(
-        `unexpected-invalid statuses: replay ${replayInvalid.toString()}, golden ${goldenInvalid.toString()}`,
+        `unexpected-invalid statuses: replay ${replayInvalid.toString()}, golden ${goldenInvalid.toString()}`
       );
     }
   }
@@ -349,10 +350,10 @@ ${bullet([
   console.log(`Wrote ${out}`);
   console.log(`Wrote ${jsonOut}`);
   console.log(
-    `Replay: ${replayAgg.passed.toString()}/${replayAgg.total.toString()} passed; Golden: ${goldenAgg.passed.toString()}/${goldenAgg.total.toString()} passed.`,
+    `Replay: ${replayAgg.passed.toString()}/${replayAgg.total.toString()} passed; Golden: ${goldenAgg.passed.toString()}/${goldenAgg.total.toString()} passed.`
   );
   console.log(
-    `Gate: ${decision.blocking.length === 0 ? 'PASS' : 'BLOCK'} (mode=${decision.mode}, exit=${decision.exitCode.toString()})`,
+    `Gate: ${decision.blocking.length === 0 ? 'PASS' : 'BLOCK'} (mode=${decision.mode}, exit=${decision.exitCode.toString()})`
   );
   if (decision.exitCode !== 0) process.exitCode = decision.exitCode;
 }

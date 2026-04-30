@@ -204,7 +204,7 @@ export const GOLDEN_DATASET: readonly GoldenCase[] = [
     },
     expectedOutputs: {
       'tsunami.exists': { value: false },
-      'isContactWaterBurst': { value: false },
+      isContactWaterBurst: { value: false },
       'blast.hobRegime': { value: 'SURFACE' },
     },
   },
@@ -291,7 +291,8 @@ export const GOLDEN_DATASET: readonly GoldenCase[] = [
     category: 'physical-sanity',
     oracle: 'property',
     title: 'Mw 11 → suspicious (largest recorded is Mw 9.5)',
-    description: 'Above the historical maximum; should be ACCEPTED with PHYS_SUSPICIOUS_HIGH warning.',
+    description:
+      'Above the historical maximum; should be ACCEPTED with PHYS_SUSPICIOUS_HIGH warning.',
     citation: 'Stein & Okal 2005 — Mw 9.5 Valdivia 1960 is the historical max',
     scenarioType: 'earthquake',
     rawInput: { magnitude: 11 },

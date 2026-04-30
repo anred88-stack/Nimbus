@@ -33,10 +33,7 @@ import type { EarthquakeScenarioInput } from '../events/earthquake/simulate.js';
 import type { FaultType } from '../events/earthquake/ruptureLength.js';
 import type { ExplosionScenarioInput } from '../events/explosion/simulate.js';
 import type { VolcanoScenarioInput } from '../events/volcano/simulate.js';
-import type {
-  LandslideScenarioInput,
-  LandslideRegime,
-} from '../events/landslide/simulate.js';
+import type { LandslideScenarioInput, LandslideRegime } from '../events/landslide/simulate.js';
 import type { ImpactScenarioInput } from '../simulate.js';
 import { m, mps, deg, kgPerM3, degreesToRadians, Pa } from '../units.js';
 
@@ -89,7 +86,7 @@ function ok<T>(input: T): ValidationResult<T> {
 function withWarnings<T>(input: T, warnings: ValidationIssue[]): ValidationResult<T> {
   if (warnings.length === 0) return ok(input);
   const hasPhys = warnings.some(
-    (w) => w.code === 'PHYS_SUSPICIOUS_HIGH' || w.code === 'PHYS_SUSPICIOUS_LOW',
+    (w) => w.code === 'PHYS_SUSPICIOUS_HIGH' || w.code === 'PHYS_SUSPICIOUS_LOW'
   );
   return {
     status: hasPhys ? 'suspicious' : 'normalized',
@@ -99,16 +96,15 @@ function withWarnings<T>(input: T, warnings: ValidationIssue[]): ValidationResul
   };
 }
 
-function invalid<T>(errors: ValidationIssue[], warnings: ValidationIssue[] = []): ValidationResult<T> {
+function invalid<T>(
+  errors: ValidationIssue[],
+  warnings: ValidationIssue[] = []
+): ValidationResult<T> {
   return { status: 'invalid', input: null, errors, warnings };
 }
 
 /** Wrap an azimuth into [0, 360) and emit a warning if it had to move. */
-function normalizeAzimuthDeg(
-  raw: number,
-  field: string,
-  warnings: ValidationIssue[],
-): number {
+function normalizeAzimuthDeg(raw: number, field: string, warnings: ValidationIssue[]): number {
   if (raw >= 0 && raw < 360) return raw;
   const wrapped = ((raw % 360) + 360) % 360;
   warnings.push({
@@ -142,7 +138,7 @@ const VALID_FAULT_TYPES: readonly FaultType[] = [
 ] as const;
 
 export function validateEarthquakeInput(
-  raw: EarthquakeRawInput,
+  raw: EarthquakeRawInput
 ): ValidationResult<EarthquakeScenarioInput> {
   const errors: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
@@ -206,7 +202,10 @@ export function validateEarthquakeInput(
   }
 
   if (raw.faultType !== undefined) {
-    if (typeof raw.faultType !== 'string' || !VALID_FAULT_TYPES.includes(raw.faultType as FaultType)) {
+    if (
+      typeof raw.faultType !== 'string' ||
+      !VALID_FAULT_TYPES.includes(raw.faultType as FaultType)
+    ) {
       errors.push({
         field: 'faultType',
         code: 'OUT_OF_DOMAIN',
@@ -253,11 +252,7 @@ export function validateEarthquakeInput(
       });
       return invalid(errors);
     }
-    out.strikeAzimuthDeg = normalizeAzimuthDeg(
-      raw.strikeAzimuthDeg,
-      'strikeAzimuthDeg',
-      warnings,
-    );
+    out.strikeAzimuthDeg = normalizeAzimuthDeg(raw.strikeAzimuthDeg, 'strikeAzimuthDeg', warnings);
   }
 
   if (raw.ruptureLengthOverride !== undefined) {
@@ -304,7 +299,7 @@ const VALID_GROUND_TYPES = ['DRY_SOIL', 'WET_SOIL', 'FIRM_GROUND', 'HARD_ROCK'] 
 type GroundType = (typeof VALID_GROUND_TYPES)[number];
 
 export function validateExplosionInput(
-  raw: ExplosionRawInput,
+  raw: ExplosionRawInput
 ): ValidationResult<ExplosionScenarioInput> {
   const errors: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
@@ -461,7 +456,7 @@ type FlankCollapsePayload = NonNullable<VolcanoScenarioInput['flankCollapse']>;
 function validateFlankCollapse(
   raw: unknown,
   errors: ValidationIssue[],
-  warnings: ValidationIssue[],
+  warnings: ValidationIssue[]
 ): FlankCollapsePayload | null {
   if (typeof raw !== 'object' || raw === null) {
     errors.push({
@@ -566,7 +561,7 @@ type LateralBlastPayload = NonNullable<VolcanoScenarioInput['lateralBlast']>;
 function validateLateralBlast(
   raw: unknown,
   errors: ValidationIssue[],
-  warnings: ValidationIssue[],
+  warnings: ValidationIssue[]
 ): LateralBlastPayload | null {
   if (typeof raw !== 'object' || raw === null) {
     errors.push({
@@ -609,15 +604,17 @@ function validateLateralBlast(
 
   if (errors.length !== startErrors) return null;
 
-  const direction = normalizeAzimuthDeg(r.directionDeg as number, 'lateralBlast.directionDeg', warnings);
+  const direction = normalizeAzimuthDeg(
+    r.directionDeg as number,
+    'lateralBlast.directionDeg',
+    warnings
+  );
   const out: LateralBlastPayload = { directionDeg: direction };
   if (r.sectorAngleDeg !== undefined) out.sectorAngleDeg = r.sectorAngleDeg as number;
   return out;
 }
 
-export function validateVolcanoInput(
-  raw: VolcanoRawInput,
-): ValidationResult<VolcanoScenarioInput> {
+export function validateVolcanoInput(raw: VolcanoRawInput): ValidationResult<VolcanoScenarioInput> {
   const errors: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
 
@@ -703,7 +700,7 @@ export function validateVolcanoInput(
     out.windDirectionDegrees = normalizeAzimuthDeg(
       raw.windDirectionDegrees,
       'windDirectionDegrees',
-      warnings,
+      warnings
     );
   }
 
@@ -737,7 +734,7 @@ interface LandslideRawInput {
 const VALID_LANDSLIDE_REGIMES: readonly LandslideRegime[] = ['submarine', 'subaerial'] as const;
 
 export function validateLandslideInput(
-  raw: LandslideRawInput,
+  raw: LandslideRawInput
 ): ValidationResult<LandslideScenarioInput> {
   const errors: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
@@ -1021,11 +1018,7 @@ export function validateImpactInput(raw: ImpactRawInput): ValidationResult<Impac
       });
       return invalid(errors);
     }
-    out.impactAzimuthDeg = normalizeAzimuthDeg(
-      raw.impactAzimuthDeg,
-      'impactAzimuthDeg',
-      warnings,
-    );
+    out.impactAzimuthDeg = normalizeAzimuthDeg(raw.impactAzimuthDeg, 'impactAzimuthDeg', warnings);
   }
 
   if (raw.waterDepth !== undefined) {
@@ -1056,7 +1049,8 @@ export function validateImpactInput(raw: ImpactRawInput): ValidationResult<Impac
 
   // suppress unused-import warnings for unit constructors when they're
   // not consumed in a particular branch (depends on optional fields).
-  void mps; void kgPerM3;
+  void mps;
+  void kgPerM3;
 
   return withWarnings(out, warnings);
 }
@@ -1075,7 +1069,7 @@ export type ValidatedScenario =
 /** Dispatch validation by scenario type. Used by replay harness and CLI. */
 export function validateScenario(
   type: ScenarioType,
-  raw: Record<string, unknown>,
+  raw: Record<string, unknown>
 ): ValidatedScenario {
   switch (type) {
     case 'earthquake':

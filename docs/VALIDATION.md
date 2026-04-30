@@ -190,12 +190,12 @@ radiation pattern.
 
 Per-class tolerances:
 
-| Source class           | Tolerance | Why                                                                                                                                                |
-| ---------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `seismic-megathrust`   | factor 3  | L/W = 2 default produces strong directional radiation in 2D AMR; Nimbus 1D-radial is isotropic. Probe azimuth relative to strike drives ±2-3× scatter. |
-| `volcanic-collapse`    | factor 5  | Watts 2000 subaerial / caldera coefficient has factor-3 scatter against observations, plus 1D-radial vs 2D mismatch.                               |
-| `submarine-landslide`  | factor 3  | Watts 2000 submarine coefficient is better constrained; 1D-radial geometric mismatch dominates the residual scatter.                               |
-| `impact-deep-ocean`    | factor 5  | Ward-Asphaug cavity model has factor-3 scatter; cavity collapse is a 3D phenomenon that neither 1D-radial nor 2D-AMR shallow water resolves.       |
+| Source class          | Tolerance | Why                                                                                                                                                    |
+| --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `seismic-megathrust`  | factor 3  | L/W = 2 default produces strong directional radiation in 2D AMR; Nimbus 1D-radial is isotropic. Probe azimuth relative to strike drives ±2-3× scatter. |
+| `volcanic-collapse`   | factor 5  | Watts 2000 subaerial / caldera coefficient has factor-3 scatter against observations, plus 1D-radial vs 2D mismatch.                                   |
+| `submarine-landslide` | factor 3  | Watts 2000 submarine coefficient is better constrained; 1D-radial geometric mismatch dominates the residual scatter.                                   |
+| `impact-deep-ocean`   | factor 5  | Ward-Asphaug cavity model has factor-3 scatter; cavity collapse is a 3D phenomenon that neither 1D-radial nor 2D-AMR shallow water resolves.           |
 
 Setup: see [docs/GEOCLAW_SETUP.md](GEOCLAW_SETUP.md). Generating new
 fixtures requires WSL2 / Linux + gfortran + Python clawpack (~30 min
@@ -205,30 +205,30 @@ anyone needing GeoClaw locally.
 
 Coverage today (named historical events):
 
-| Fixture                  | Source                       | Probe-distance range | Tolerance        |
-| ------------------------ | ---------------------------- | -------------------- | ---------------- |
-| `tohoku-2011`            | Mw 9.1 megathrust, 700 km    | 1235 km              | factor 3 (200 %) |
-| `sumatra-2004`           | Mw 9.1 megathrust, 1300 km   | 2038–2300 km         | factor 3         |
-| `cascadia-m9`            | Mw 9.0 megathrust, 1100 km   | 1000 km × 2          | factor 3         |
-| `maule-2010`             | Mw 8.92 megathrust, 450 km   | 2050 km              | factor 3         |
-| `krakatau-1883`          | Volcanic caldera, 4 km³      | 61–154 km            | factor 5         |
-| `storegga-8200bp`        | Submarine landslide, 3000 km³ | 580–950 km          | factor 3         |
-| `eltanin-2.5ma`          | 1500 m asteroid, 5 km basin  | 500–1000 km          | factor 5         |
+| Fixture           | Source                        | Probe-distance range | Tolerance        |
+| ----------------- | ----------------------------- | -------------------- | ---------------- |
+| `tohoku-2011`     | Mw 9.1 megathrust, 700 km     | 1235 km              | factor 3 (200 %) |
+| `sumatra-2004`    | Mw 9.1 megathrust, 1300 km    | 2038–2300 km         | factor 3         |
+| `cascadia-m9`     | Mw 9.0 megathrust, 1100 km    | 1000 km × 2          | factor 3         |
+| `maule-2010`      | Mw 8.92 megathrust, 450 km    | 2050 km              | factor 3         |
+| `krakatau-1883`   | Volcanic caldera, 4 km³       | 61–154 km            | factor 5         |
+| `storegga-8200bp` | Submarine landslide, 3000 km³ | 580–950 km           | factor 3         |
+| `eltanin-2.5ma`   | 1500 m asteroid, 5 km basin   | 500–1000 km          | factor 5         |
 
 Coverage today (custom-input grid — sampling the parameter space the
 user can configure in the app, so any user-picked source falls within
 a validated envelope):
 
-| Fixture                          | Type     | Parameter              |
-| -------------------------------- | -------- | ---------------------- |
-| `custom-seismic-mw75-l300km`     | Seismic  | Mw 7.5, L=300 km       |
-| `custom-seismic-mw85-l700km`     | Seismic  | Mw 8.5, L=700 km       |
-| `custom-seismic-mw95-l1500km`    | Seismic  | Mw 9.5, L=1500 km      |
-| `custom-volcanic-small`          | Volcanic | V=0.1 km³              |
-| `custom-volcanic-large`          | Volcanic | V=20 km³               |
-| `custom-landslide-small`         | Landslide| V=50 km³               |
-| `custom-landslide-large`         | Landslide| V=5000 km³             |
-| `custom-impact-3km`              | Impact   | D=3 km (R_C=18 km)     |
+| Fixture                       | Type      | Parameter          |
+| ----------------------------- | --------- | ------------------ |
+| `custom-seismic-mw75-l300km`  | Seismic   | Mw 7.5, L=300 km   |
+| `custom-seismic-mw85-l700km`  | Seismic   | Mw 8.5, L=700 km   |
+| `custom-seismic-mw95-l1500km` | Seismic   | Mw 9.5, L=1500 km  |
+| `custom-volcanic-small`       | Volcanic  | V=0.1 km³          |
+| `custom-volcanic-large`       | Volcanic  | V=20 km³           |
+| `custom-landslide-small`      | Landslide | V=50 km³           |
+| `custom-landslide-large`      | Landslide | V=5000 km³         |
+| `custom-impact-3km`           | Impact    | D=3 km (R_C=18 km) |
 
 **Resolution-limited cases.** Impact scenarios with impactor diameter
 < 1 km produce cavities R_C < 6 km that cannot be resolved on the

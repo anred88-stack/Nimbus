@@ -195,7 +195,7 @@ describe('Store-setter ↔ schema-validator consistency', () => {
       // The setter changes state IFF the validator did NOT reject it.
       expect(
         !stateChanged,
-        `setter changed state but validator rejected. validator: ${JSON.stringify(v.result.errors)}`,
+        `setter changed state but validator rejected. validator: ${JSON.stringify(v.result.errors)}`
       ).toBe(validatorRejected);
 
       if (c.expectStateChanged) {

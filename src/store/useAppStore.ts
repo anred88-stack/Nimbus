@@ -11,10 +11,7 @@ import {
   computeBathymetricTsunami,
   type BathymetricTsunamiResult,
 } from '../physics/tsunami/index.js';
-import {
-  validateScenario,
-  type ScenarioType,
-} from '../physics/validation/inputSchema.js';
+import { validateScenario, type ScenarioType } from '../physics/validation/inputSchema.js';
 import { populationInRadius, type PopulationLookupResult } from '../scene/populationLookup.js';
 import { wrap, type Remote } from 'comlink';
 import {
@@ -864,15 +861,12 @@ function isValidCoordinates(c: Coordinates): boolean {
  */
 function classifyStoreInput<T>(
   type: ScenarioType,
-  merged: T,
+  merged: T
 ): { ok: true; classified: T } | { ok: false } {
   const v = validateScenario(type, merged as unknown as Record<string, unknown>);
   if (v.result.status === 'invalid') {
     if (import.meta.env.DEV) {
-      console.warn(
-        `[store] ${type} input rejected at schema (state unchanged):`,
-        v.result.errors,
-      );
+      console.warn(`[store] ${type} input rejected at schema (state unchanged):`, v.result.errors);
     }
     return { ok: false };
   }
@@ -1038,14 +1032,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
       // Stage 1: type-wrap the raw overrides into branded units. NO
       // inline `> 0` / `>= 0` checks — the validator owns that.
       const merged: ImpactScenarioInput = { ...state.impact.input };
-      if (overrides.impactorDiameter !== undefined) merged.impactorDiameter = m(overrides.impactorDiameter);
-      if (overrides.impactVelocity !== undefined) merged.impactVelocity = mps(overrides.impactVelocity);
-      if (overrides.impactorDensity !== undefined) merged.impactorDensity = kgPerM3(overrides.impactorDensity);
-      if (overrides.targetDensity !== undefined) merged.targetDensity = kgPerM3(overrides.targetDensity);
-      if (overrides.impactAngle !== undefined) merged.impactAngle = degreesToRadians(deg(overrides.impactAngle));
+      if (overrides.impactorDiameter !== undefined)
+        merged.impactorDiameter = m(overrides.impactorDiameter);
+      if (overrides.impactVelocity !== undefined)
+        merged.impactVelocity = mps(overrides.impactVelocity);
+      if (overrides.impactorDensity !== undefined)
+        merged.impactorDensity = kgPerM3(overrides.impactorDensity);
+      if (overrides.targetDensity !== undefined)
+        merged.targetDensity = kgPerM3(overrides.targetDensity);
+      if (overrides.impactAngle !== undefined)
+        merged.impactAngle = degreesToRadians(deg(overrides.impactAngle));
       if (overrides.surfaceGravity !== undefined) merged.surfaceGravity = overrides.surfaceGravity;
-      if (overrides.impactAzimuthDeg !== undefined) merged.impactAzimuthDeg = overrides.impactAzimuthDeg;
-      if (overrides.impactorStrength !== undefined) merged.impactorStrength = Pa(overrides.impactorStrength);
+      if (overrides.impactAzimuthDeg !== undefined)
+        merged.impactAzimuthDeg = overrides.impactAzimuthDeg;
+      if (overrides.impactorStrength !== undefined)
+        merged.impactorStrength = Pa(overrides.impactorStrength);
 
       // Stage 2: classify via the schema. If invalid, no-op the set call.
       const classification = classifyStoreInput('impact', merged);
@@ -1080,7 +1081,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (overrides.groundType !== undefined) merged.groundType = overrides.groundType;
       if (overrides.heightOfBurst !== undefined) merged.heightOfBurst = m(overrides.heightOfBurst);
       if (overrides.windSpeed !== undefined) merged.windSpeed = mps(overrides.windSpeed);
-      if (overrides.windDirectionDeg !== undefined) merged.windDirectionDeg = overrides.windDirectionDeg;
+      if (overrides.windDirectionDeg !== undefined)
+        merged.windDirectionDeg = overrides.windDirectionDeg;
 
       const classification = classifyStoreInput('explosion', merged);
       if (!classification.ok) return state;
@@ -1114,7 +1116,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (overrides.depth !== undefined) merged.depth = m(overrides.depth);
       if (overrides.faultType !== undefined) merged.faultType = overrides.faultType;
       if (overrides.vs30 !== undefined) merged.vs30 = overrides.vs30;
-      if (overrides.subductionInterface !== undefined) merged.subductionInterface = overrides.subductionInterface;
+      if (overrides.subductionInterface !== undefined)
+        merged.subductionInterface = overrides.subductionInterface;
 
       const classification = classifyStoreInput('earthquake', merged);
       if (!classification.ok) return state;
@@ -1144,11 +1147,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setVolcanoInput: (overrides) => {
     set((state) => {
       const merged: VolcanoScenarioInput = { ...state.volcano.input };
-      if (overrides.volumeEruptionRate !== undefined) merged.volumeEruptionRate = overrides.volumeEruptionRate;
-      if (overrides.totalEjectaVolume !== undefined) merged.totalEjectaVolume = overrides.totalEjectaVolume;
+      if (overrides.volumeEruptionRate !== undefined)
+        merged.volumeEruptionRate = overrides.volumeEruptionRate;
+      if (overrides.totalEjectaVolume !== undefined)
+        merged.totalEjectaVolume = overrides.totalEjectaVolume;
       if (overrides.laharVolume !== undefined) merged.laharVolume = overrides.laharVolume;
       if (overrides.windSpeed !== undefined) merged.windSpeed = overrides.windSpeed;
-      if (overrides.windDirectionDegrees !== undefined) merged.windDirectionDegrees = overrides.windDirectionDegrees;
+      if (overrides.windDirectionDegrees !== undefined)
+        merged.windDirectionDegrees = overrides.windDirectionDegrees;
 
       const classification = classifyStoreInput('volcano', merged);
       if (!classification.ok) return state;
@@ -1180,7 +1186,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const merged: LandslideScenarioInput = { ...state.landslide.input };
       if (overrides.volumeM3 !== undefined) merged.volumeM3 = overrides.volumeM3;
       if (overrides.slopeAngleDeg !== undefined) merged.slopeAngleDeg = overrides.slopeAngleDeg;
-      if (overrides.meanOceanDepth !== undefined) merged.meanOceanDepth = m(overrides.meanOceanDepth);
+      if (overrides.meanOceanDepth !== undefined)
+        merged.meanOceanDepth = m(overrides.meanOceanDepth);
       if (overrides.regime !== undefined) merged.regime = overrides.regime;
 
       const classification = classifyStoreInput('landslide', merged);

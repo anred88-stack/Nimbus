@@ -18,9 +18,19 @@
     "warningCount": 0
   },
   "expectedOutputs": {
-    "blast.hobRegime": { "value": "SURFACE", "comment": "scaled-HOB z = 13.6 < 50 → still SURFACE by Glasstone classifier" },
-    "isContactWaterBurst": { "value": false, "comment": "absolute-HOB gate (>30 m) blocks the tsunami branch" },
+    "blast.hobRegime": {
+      "value": "SURFACE",
+      "comment": "scaled-HOB z = 13.6 < 50 → still SURFACE by Glasstone classifier"
+    },
+    "isContactWaterBurst": {
+      "value": false,
+      "comment": "absolute-HOB gate (>30 m) blocks the tsunami branch"
+    },
     "tsunami.exists": false,
-    "blast.overpressure5psiRadiusHob.km": { "min": 15, "max": 40, "comment": "Glasstone-Sublette 5 psi at 50 Mt scaled HOB" }
+    "blast.overpressure5psiRadiusHob.km": {
+      "min": 15,
+      "max": 40,
+      "comment": "Glasstone-Sublette 5 psi at 50 Mt scaled HOB"
+    }
   }
 }

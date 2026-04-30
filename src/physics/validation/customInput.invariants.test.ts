@@ -28,11 +28,7 @@ import { simulateExplosion } from '../events/explosion/simulate.js';
 import { simulateVolcano } from '../events/volcano/simulate.js';
 import { simulateLandslide } from '../events/landslide/simulate.js';
 import { simulateImpact } from '../simulate.js';
-import {
-  CRUSTAL_ROCK_DENSITY,
-  IRON_METEORITE_DENSITY,
-  STANDARD_GRAVITY,
-} from '../constants.js';
+import { CRUSTAL_ROCK_DENSITY, IRON_METEORITE_DENSITY, STANDARD_GRAVITY } from '../constants.js';
 import { deg, degreesToRadians, m, mps } from '../units.js';
 
 /**
@@ -60,7 +56,10 @@ describe('I1 SYNTACTIC — no NaN/Inf in any output field given finite input', (
     for (const Mw of [0.1, 1, 3, 5, 7, 9, 11, 12]) {
       const r = simulateEarthquake({ magnitude: Mw });
       const M0 = r.seismicMoment as unknown as number;
-      expect(Number.isFinite(M0), `Mw ${Mw.toString()}: seismicMoment = ${M0.toString()} (not finite)`).toBe(true);
+      expect(
+        Number.isFinite(M0),
+        `Mw ${Mw.toString()}: seismicMoment = ${M0.toString()} (not finite)`
+      ).toBe(true);
       expect(M0).toBeGreaterThan(0);
       expect(Number.isFinite(r.ruptureLength as number)).toBe(true);
       expect(Number.isFinite(r.shaking.mmi7Radius as number)).toBe(true);
@@ -71,7 +70,10 @@ describe('I1 SYNTACTIC — no NaN/Inf in any output field given finite input', (
   it('explosion simulator: any finite yield in [1e-6, 100] Mt gives finite blast/thermal radii', () => {
     for (const Mt of [1e-6, 1e-3, 0.015, 1, 15, 50, 100]) {
       const r = simulateExplosion({ yieldMegatons: Mt });
-      expect(Number.isFinite(r.blast.overpressure5psiRadius as number), `${Mt.toString()} Mt: overpressure5psiRadius`).toBe(true);
+      expect(
+        Number.isFinite(r.blast.overpressure5psiRadius as number),
+        `${Mt.toString()} Mt: overpressure5psiRadius`
+      ).toBe(true);
       expect(Number.isFinite(r.blast.overpressure1psiRadius as number)).toBe(true);
       expect(Number.isFinite(r.blast.lightDamageRadius as number)).toBe(true);
       expect(Number.isFinite(r.thermal.thirdDegreeBurnRadius as number)).toBe(true);
@@ -81,8 +83,10 @@ describe('I1 SYNTACTIC — no NaN/Inf in any output field given finite input', (
   it('volcano simulator: any finite eruption rate in [10, 1e7] m³/s gives finite plume', () => {
     for (const Vrate of [10, 1e3, 1e5, 1e6, 1e7]) {
       const r = simulateVolcano({ volumeEruptionRate: Vrate, totalEjectaVolume: 1e10 });
-      expect(Number.isFinite(r.plumeHeight as number), `V̇=${Vrate.toString()}: plumeHeight`).toBe(true);
-      expect((r.plumeHeight as number)).toBeGreaterThan(0);
+      expect(Number.isFinite(r.plumeHeight as number), `V̇=${Vrate.toString()}: plumeHeight`).toBe(
+        true
+      );
+      expect(r.plumeHeight as number).toBeGreaterThan(0);
     }
   });
 
@@ -91,8 +95,11 @@ describe('I1 SYNTACTIC — no NaN/Inf in any output field given finite input', (
       const r = simulateLandslide({ volumeM3: V, slopeAngleDeg: 20 });
       expect(r.tsunami).not.toBeNull();
       if (r.tsunami === null) continue;
-      expect(Number.isFinite(r.tsunami.sourceAmplitude as number), `V=${V.toString()}: sourceAmplitude`).toBe(true);
-      expect((r.tsunami.sourceAmplitude as number)).toBeGreaterThan(0);
+      expect(
+        Number.isFinite(r.tsunami.sourceAmplitude as number),
+        `V=${V.toString()}: sourceAmplitude`
+      ).toBe(true);
+      expect(r.tsunami.sourceAmplitude as number).toBeGreaterThan(0);
     }
   });
 
@@ -106,7 +113,10 @@ describe('I1 SYNTACTIC — no NaN/Inf in any output field given finite input', (
         impactAngle: degreesToRadians(deg(45)),
         surfaceGravity: STANDARD_GRAVITY,
       });
-      expect(Number.isFinite(r.crater.finalDiameter as number), `D=${D.toString()} m: finalDiameter`).toBe(true);
+      expect(
+        Number.isFinite(r.crater.finalDiameter as number),
+        `D=${D.toString()} m: finalDiameter`
+      ).toBe(true);
       expect(Number.isFinite(r.impactor.kineticEnergyMegatons)).toBe(true);
     }
   });
@@ -249,7 +259,10 @@ describe('I4 PHYSICAL PLAUSIBILITY — extreme inputs do not produce nonphysical
         impactAngle: degreesToRadians(deg(angleDeg)),
         surfaceGravity: STANDARD_GRAVITY,
       });
-      expect(r.ejecta.asymmetryFactor, `angle ${angleDeg.toString()}°: asymmetryFactor in [0, 1]`).toBeGreaterThanOrEqual(0);
+      expect(
+        r.ejecta.asymmetryFactor,
+        `angle ${angleDeg.toString()}°: asymmetryFactor in [0, 1]`
+      ).toBeGreaterThanOrEqual(0);
       expect(r.ejecta.asymmetryFactor).toBeLessThanOrEqual(1);
     }
   });
@@ -264,17 +277,29 @@ describe('I4 PHYSICAL PLAUSIBILITY — finite-non-negative contract on all radii
       assertFiniteNonNegative(r.ruptureLength, `Mw ${Mw.toString()}: ruptureLength`);
       assertFiniteNonNegative(r.ruptureWidth, `Mw ${Mw.toString()}: ruptureWidth`);
       assertFiniteNonNegative(r.shaking.mmi7Radius, `Mw ${Mw.toString()}: mmi7Radius`);
-      assertFiniteNonNegative(r.shaking.liquefactionRadius, `Mw ${Mw.toString()}: liquefactionRadius`);
+      assertFiniteNonNegative(
+        r.shaking.liquefactionRadius,
+        `Mw ${Mw.toString()}: liquefactionRadius`
+      );
     }
   });
 
   it('every yield from 0.001 to 100 Mt: blast/thermal radii finite non-negative', () => {
     for (const Mt of [0.001, 0.015, 1, 15, 50, 100]) {
       const r = simulateExplosion({ yieldMegatons: Mt });
-      assertFiniteNonNegative(r.blast.overpressure5psiRadius, `${Mt.toString()} Mt: overpressure5psiRadius`);
-      assertFiniteNonNegative(r.blast.overpressure1psiRadius, `${Mt.toString()} Mt: overpressure1psiRadius`);
+      assertFiniteNonNegative(
+        r.blast.overpressure5psiRadius,
+        `${Mt.toString()} Mt: overpressure5psiRadius`
+      );
+      assertFiniteNonNegative(
+        r.blast.overpressure1psiRadius,
+        `${Mt.toString()} Mt: overpressure1psiRadius`
+      );
       assertFiniteNonNegative(r.blast.lightDamageRadius, `${Mt.toString()} Mt: lightDamageRadius`);
-      assertFiniteNonNegative(r.thermal.thirdDegreeBurnRadius, `${Mt.toString()} Mt: thirdDegreeBurnRadius`);
+      assertFiniteNonNegative(
+        r.thermal.thirdDegreeBurnRadius,
+        `${Mt.toString()} Mt: thirdDegreeBurnRadius`
+      );
     }
   });
 });

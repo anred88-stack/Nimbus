@@ -175,12 +175,14 @@ export function simulateEarthquake(input: EarthquakeScenarioInput): EarthquakeSc
   const faultType = input.faultType ?? 'all';
   const vs30 = input.vs30 ?? 760;
   const seismicMoment = seismicMomentFromMagnitude(input.magnitude);
-  const ruptureLength = input.ruptureLengthOverride
-    ?? (input.subductionInterface
+  const ruptureLength =
+    input.ruptureLengthOverride ??
+    (input.subductionInterface
       ? megathrustRuptureLength(input.magnitude)
       : surfaceRuptureLength({ magnitude: input.magnitude, faultType }));
-  const ruptureWidth = input.ruptureWidthOverride
-    ?? (input.subductionInterface
+  const ruptureWidth =
+    input.ruptureWidthOverride ??
+    (input.subductionInterface
       ? megathrustRuptureWidth(input.magnitude)
       : surfaceRuptureWidth({ magnitude: input.magnitude, faultType }));
   // Extended-source threshold: 7.5 sits at the elbow where the W&C

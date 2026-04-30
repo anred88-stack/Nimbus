@@ -45,17 +45,13 @@ describe('Geometry → rendering equivalence — local case (Chelyabinsk-area, l
     if (!safe.ok) return;
     const damage = safe.result.damage;
 
-    const payload: DamageRingsPayload = buildDamageRingsPayload(
-      CHELYABINSK_LAT,
-      CHELYABINSK_LON,
-      {
-        thirdDegreeBurn: damage.thirdDegreeBurn,
-        secondDegreeBurn: damage.secondDegreeBurn,
-        overpressure5psi: damage.overpressure5psi,
-        overpressure1psi: damage.overpressure1psi,
-        lightDamage: damage.lightDamage,
-      },
-    );
+    const payload: DamageRingsPayload = buildDamageRingsPayload(CHELYABINSK_LAT, CHELYABINSK_LON, {
+      thirdDegreeBurn: damage.thirdDegreeBurn,
+      secondDegreeBurn: damage.secondDegreeBurn,
+      overpressure5psi: damage.overpressure5psi,
+      overpressure1psi: damage.overpressure1psi,
+      lightDamage: damage.lightDamage,
+    });
 
     // Centroid contract: equals the input centre.
     expect(payload.centerLatDeg).toBeCloseTo(CHELYABINSK_LAT, 12);
@@ -65,16 +61,24 @@ describe('Geometry → rendering equivalence — local case (Chelyabinsk-area, l
     for (const r of payload.rings) {
       expect(
         bboxContains(r.bbox, { latDeg: CHELYABINSK_LAT, lonDeg: CHELYABINSK_LON }),
-        `ring ${r.kind} bbox does not contain centre`,
+        `ring ${r.kind} bbox does not contain centre`
       ).toBe(true);
     }
 
     // Outer bbox encloses every ring bbox.
     for (const r of payload.rings) {
-      expect(r.bbox.minLat).toBeGreaterThanOrEqual(payload.outerBbox.minLat - TOL_LATLON_ROUNDTRIP_DEG);
-      expect(r.bbox.maxLat).toBeLessThanOrEqual(payload.outerBbox.maxLat + TOL_LATLON_ROUNDTRIP_DEG);
-      expect(r.bbox.minLon).toBeGreaterThanOrEqual(payload.outerBbox.minLon - TOL_LATLON_ROUNDTRIP_DEG);
-      expect(r.bbox.maxLon).toBeLessThanOrEqual(payload.outerBbox.maxLon + TOL_LATLON_ROUNDTRIP_DEG);
+      expect(r.bbox.minLat).toBeGreaterThanOrEqual(
+        payload.outerBbox.minLat - TOL_LATLON_ROUNDTRIP_DEG
+      );
+      expect(r.bbox.maxLat).toBeLessThanOrEqual(
+        payload.outerBbox.maxLat + TOL_LATLON_ROUNDTRIP_DEG
+      );
+      expect(r.bbox.minLon).toBeGreaterThanOrEqual(
+        payload.outerBbox.minLon - TOL_LATLON_ROUNDTRIP_DEG
+      );
+      expect(r.bbox.maxLon).toBeLessThanOrEqual(
+        payload.outerBbox.maxLon + TOL_LATLON_ROUNDTRIP_DEG
+      );
     }
 
     // Feature count matches the number of positive-radius rings.

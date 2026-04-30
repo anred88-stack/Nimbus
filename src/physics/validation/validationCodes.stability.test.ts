@@ -17,10 +17,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  validateScenario,
-  type ValidationCode,
-} from './inputSchema.js';
+import { validateScenario, type ValidationCode } from './inputSchema.js';
 
 /**
  * Canonical, frozen set of validation codes. Adding a code requires a
@@ -86,12 +83,20 @@ describe('Validation codes — stability gate', () => {
   });
 
   it('every "produced" code is actually produced by at least one validator path', () => {
-    const samples: { code: ValidationCode; type: 'earthquake' | 'explosion' | 'volcano' | 'landslide' | 'impact'; raw: Record<string, unknown> }[] = [
+    const samples: {
+      code: ValidationCode;
+      type: 'earthquake' | 'explosion' | 'volcano' | 'landslide' | 'impact';
+      raw: Record<string, unknown>;
+    }[] = [
       { code: 'NOT_FINITE', type: 'earthquake', raw: { magnitude: null } },
       { code: 'NEGATIVE_FORBIDDEN', type: 'earthquake', raw: { magnitude: 7, depth: -1 } },
       { code: 'ZERO_FORBIDDEN', type: 'earthquake', raw: { magnitude: 0 } },
       { code: 'OUT_OF_DOMAIN', type: 'landslide', raw: { volumeM3: 1e9, slopeAngleDeg: 0 } },
-      { code: 'NORMALIZED_AZIMUTH', type: 'volcano', raw: { volumeEruptionRate: 1e5, totalEjectaVolume: 1e10, windDirectionDegrees: 720 } },
+      {
+        code: 'NORMALIZED_AZIMUTH',
+        type: 'volcano',
+        raw: { volumeEruptionRate: 1e5, totalEjectaVolume: 1e10, windDirectionDegrees: 720 },
+      },
       {
         code: 'NORMALIZED_SLOPE',
         type: 'explosion',
@@ -108,7 +113,7 @@ describe('Validation codes — stability gate', () => {
       ];
       expect(
         allCodes,
-        `code "${s.code}" not produced by validateScenario('${s.type}', ${JSON.stringify(s.raw)})`,
+        `code "${s.code}" not produced by validateScenario('${s.type}', ${JSON.stringify(s.raw)})`
       ).toContain(s.code);
     }
   });
@@ -116,12 +121,18 @@ describe('Validation codes — stability gate', () => {
   it('"dead" codes are not produced by any validator path (sanity-check)', () => {
     // Cheap check: feed a wide range of inputs and verify dead codes
     // never surface. Catches accidental emissions.
-    const exercise: { type: 'earthquake' | 'explosion' | 'volcano' | 'landslide' | 'impact'; raw: Record<string, unknown> }[] = [
+    const exercise: {
+      type: 'earthquake' | 'explosion' | 'volcano' | 'landslide' | 'impact';
+      raw: Record<string, unknown>;
+    }[] = [
       { type: 'earthquake', raw: { magnitude: 7 } },
       { type: 'earthquake', raw: { magnitude: 7, strikeAzimuthDeg: 720 } },
       { type: 'earthquake', raw: { magnitude: -1 } },
       { type: 'explosion', raw: { yieldMegatons: 1, heightOfBurst: 500 } },
-      { type: 'volcano', raw: { volumeEruptionRate: 1e5, totalEjectaVolume: 1e10, windDirectionDegrees: -45 } },
+      {
+        type: 'volcano',
+        raw: { volumeEruptionRate: 1e5, totalEjectaVolume: 1e10, windDirectionDegrees: -45 },
+      },
       {
         type: 'landslide',
         raw: { volumeM3: 1e9, slopeAngleDeg: 5, regime: 'subaerial' },
@@ -147,7 +158,7 @@ describe('Validation codes — stability gate', () => {
     for (const dead of KNOWN_DEAD_CODES) {
       expect(
         seenCodes.has(dead),
-        `dead code "${dead}" was unexpectedly produced — promote it to KNOWN_PRODUCED_CODES`,
+        `dead code "${dead}" was unexpectedly produced — promote it to KNOWN_PRODUCED_CODES`
       ).toBe(false);
     }
   });

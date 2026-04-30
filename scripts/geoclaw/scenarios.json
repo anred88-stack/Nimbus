@@ -19,9 +19,7 @@
         "amrLevels": 2,
         "baseGridDeg": 0.5
       },
-      "probes": [
-        { "label": "DART 21413", "lat": 30.5, "lon": 152.1 }
-      ],
+      "probes": [{ "label": "DART 21413", "lat": 30.5, "lon": 152.1 }],
       "publishedReferences": [
         { "label": "DART 21413", "peakAmplitudeM": 0.3, "source": "Satake 2013 BSSA 103(2B):1473" },
         { "label": "DART 21418", "peakAmplitudeM": 1.85, "source": "Satake 2013 Fig. 6" },

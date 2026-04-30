@@ -49,7 +49,7 @@ export type SafeRunResult<TInput, TResult> = SafeRunOk<TInput, TResult> | SafeRu
 
 function runSafe<TInput, TResult>(
   v: ValidationResult<TInput>,
-  run: (input: TInput) => TResult,
+  run: (input: TInput) => TResult
 ): SafeRunResult<TInput, TResult> {
   if (v.status === 'invalid' || v.input === null) {
     return { ok: false, validation: v, result: null };
@@ -58,31 +58,31 @@ function runSafe<TInput, TResult>(
 }
 
 export function safeRunEarthquake(
-  raw: Record<string, unknown>,
+  raw: Record<string, unknown>
 ): SafeRunResult<Parameters<typeof simulateEarthquake>[0], EarthquakeScenarioResult> {
   return runSafe(validateEarthquakeInput(raw), simulateEarthquake);
 }
 
 export function safeRunExplosion(
-  raw: Record<string, unknown>,
+  raw: Record<string, unknown>
 ): SafeRunResult<Parameters<typeof simulateExplosion>[0], ExplosionScenarioResult> {
   return runSafe(validateExplosionInput(raw), simulateExplosion);
 }
 
 export function safeRunVolcano(
-  raw: Record<string, unknown>,
+  raw: Record<string, unknown>
 ): SafeRunResult<Parameters<typeof simulateVolcano>[0], VolcanoScenarioResult> {
   return runSafe(validateVolcanoInput(raw), simulateVolcano);
 }
 
 export function safeRunLandslide(
-  raw: Record<string, unknown>,
+  raw: Record<string, unknown>
 ): SafeRunResult<Parameters<typeof simulateLandslide>[0], LandslideScenarioResult> {
   return runSafe(validateLandslideInput(raw), simulateLandslide);
 }
 
 export function safeRunImpact(
-  raw: Record<string, unknown>,
+  raw: Record<string, unknown>
 ): SafeRunResult<Parameters<typeof simulateImpact>[0], ImpactScenarioResult> {
   return runSafe(validateImpactInput(raw), simulateImpact);
 }
@@ -97,7 +97,7 @@ export type SafeRunDispatchResult =
 
 export function safeRunByType(
   type: ScenarioType,
-  raw: Record<string, unknown>,
+  raw: Record<string, unknown>
 ): SafeRunDispatchResult {
   switch (type) {
     case 'earthquake':

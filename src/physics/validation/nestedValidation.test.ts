@@ -113,7 +113,11 @@ describe('Nested validation — volcano flankCollapse', () => {
       flankCollapse: { volumeM3: 5e13 },
     });
     expect(v.status).toBe('suspicious');
-    expect(v.warnings.some((w) => w.field === 'flankCollapse.volumeM3' && w.code === 'PHYS_SUSPICIOUS_HIGH')).toBe(true);
+    expect(
+      v.warnings.some(
+        (w) => w.field === 'flankCollapse.volumeM3' && w.code === 'PHYS_SUSPICIOUS_HIGH'
+      )
+    ).toBe(true);
   });
 
   it('non-object flankCollapse (e.g. string) → invalid + OUT_OF_DOMAIN', () => {
@@ -176,7 +180,11 @@ describe('Nested validation — volcano lateralBlast', () => {
     });
     expect(v.status).toBe('normalized');
     expect(v.input?.lateralBlast?.directionDeg).toBe(0);
-    expect(v.warnings.some((w) => w.field === 'lateralBlast.directionDeg' && w.code === 'NORMALIZED_AZIMUTH')).toBe(true);
+    expect(
+      v.warnings.some(
+        (w) => w.field === 'lateralBlast.directionDeg' && w.code === 'NORMALIZED_AZIMUTH'
+      )
+    ).toBe(true);
   });
 
   it('sectorAngleDeg out-of-domain (0°) → invalid', () => {

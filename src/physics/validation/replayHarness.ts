@@ -130,7 +130,7 @@ export function resolvePath(obj: unknown, path: string): unknown {
 function compareScalar(
   field: string,
   expected: ExpectedScalar | { value?: unknown; comment?: string },
-  actual: unknown,
+  actual: unknown
 ): ReplayViolation | null {
   const e = expected as ExpectedScalar;
   if (e.value !== undefined) {
@@ -265,8 +265,7 @@ export function runReplay(fixture: ReplayFixture): ReplayReport {
 export function loadReplayFixtures(): ReplayFixture[] {
   const dir = new URL('./replayFixtures/', import.meta.url).pathname;
   // On Windows, URL.pathname is `/C:/...`; strip the leading `/`.
-  const cleaned =
-    dir.startsWith('/') && /^\/[A-Za-z]:\//.test(dir) ? dir.slice(1) : dir;
+  const cleaned = dir.startsWith('/') && /^\/[A-Za-z]:\//.test(dir) ? dir.slice(1) : dir;
   const files = readdirSync(cleaned).filter((f) => f.endsWith('.json'));
   return files.map((f) => JSON.parse(readFileSync(join(cleaned, f), 'utf8')) as ReplayFixture);
 }

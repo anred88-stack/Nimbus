@@ -23,11 +23,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  validateScenario,
-  type ScenarioType,
-  type ValidationCode,
-} from './inputSchema.js';
+import { validateScenario, type ScenarioType, type ValidationCode } from './inputSchema.js';
 import { safeRunByType } from './safeRun.js';
 import { runReplay, type ReplayFixture } from './replayHarness.js';
 
@@ -207,17 +203,17 @@ describe('Cross-entrypoint equivalence — schema vs safeRun vs replay', () => {
       // Equivalence: all three paths produce the same signature.
       expect(
         sig2,
-        `safeRun signature differs from schema signature.\nSchema:\n${JSON.stringify(sig1, null, 2)}\nsafeRun:\n${JSON.stringify(sig2, null, 2)}`,
+        `safeRun signature differs from schema signature.\nSchema:\n${JSON.stringify(sig1, null, 2)}\nsafeRun:\n${JSON.stringify(sig2, null, 2)}`
       ).toEqual(sig1);
       expect(
         sig3,
-        `Replay-harness signature differs from schema signature.\nSchema:\n${JSON.stringify(sig1, null, 2)}\nReplay:\n${JSON.stringify(sig3, null, 2)}`,
+        `Replay-harness signature differs from schema signature.\nSchema:\n${JSON.stringify(sig1, null, 2)}\nReplay:\n${JSON.stringify(sig3, null, 2)}`
       ).toEqual(sig1);
 
       // Replay reports zero violations (because expected mirrored actual).
       expect(
         replay.violations,
-        `Synthetic-fixture replay has unexpected violations: ${JSON.stringify(replay.violations, null, 2)}`,
+        `Synthetic-fixture replay has unexpected violations: ${JSON.stringify(replay.violations, null, 2)}`
       ).toEqual([]);
 
       // When status is 'accepted' or 'suspicious' or 'normalized', the

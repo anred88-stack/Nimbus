@@ -17,6 +17,7 @@ The validator therefore never observes individual rejected fields
 the design) but observability is degraded.
 
 **Action.**
+
 1. Replace each `set*Input` body with a single pattern:
    ```ts
    const merged = mergeOverrides(state.<event>.input, overrides);
@@ -82,6 +83,7 @@ that wrap the antimeridian and are NOT pinned by any data-side test.
 A trans-Pacific scenario could render correctly but have wrong bbox.
 
 **Action.** Two-phase:
+
 1. Synthesize a fake bathymetric grid covering the date line, run
    `computeBathymetricTsunami` headlessly, and assert that emitted
    isochrones either split at lon=180° or have explicit
@@ -115,12 +117,14 @@ tests fail; the strict mode is a runtime flag but nothing currently
 enforces it in CI.
 
 **Action.** Add a CI step:
+
 ```yaml
 - run: pnpm validation-report --mode=strict
 - run: pnpm test
 - run: pnpm typecheck
 - run: pnpm lint
 ```
+
 in `.github/workflows/ci.yml` (or wherever the existing CI lives;
 discoverable via `gh workflow list`).
 
@@ -132,6 +136,7 @@ explosion regime. These regimes exist in the model but lack a
 "reference" anchor.
 
 **Action.** Add 3 cases:
+
 - `G-CHELYABINSK-AIRBURST` (cometary-class, COMPLETE_AIRBURST)
 - `G-LAQUILA-NORMAL` (Mw 6.3 normal-fault, MMI VII envelope)
 - `G-STARFISH-HEMP` (50 Mt, HOB > 100 km, HEMP regime — already in
@@ -161,6 +166,7 @@ the bbox actually drawn (D-RENDER class in `BUG_CLASSIFICATION.md`).
 Today this is implicit in Playwright screenshots — fragile.
 
 **Action.** Add a structured assertion in Globe.tsx test harness:
+
 - After every overlay update, expose `lastRenderedBbox`,
   `lastRenderedCentroid`, `lastRenderedFeatureCount` on a debug
   global (gated by `import.meta.env.DEV`).

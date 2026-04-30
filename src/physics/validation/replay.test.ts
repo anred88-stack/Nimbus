@@ -30,7 +30,7 @@ describe('Replay fixtures — every fixture in src/physics/validation/replayFixt
       const report = runReplay(fx);
       expect(
         report.violations,
-        `Replay ${fx.id} failed (${report.violations.length.toString()} violation(s)). Snapshot:\n${JSON.stringify(report.snapshot, null, 2)}\nViolations:\n${JSON.stringify(report.violations, null, 2)}`,
+        `Replay ${fx.id} failed (${report.violations.length.toString()} violation(s)). Snapshot:\n${JSON.stringify(report.snapshot, null, 2)}\nViolations:\n${JSON.stringify(report.violations, null, 2)}`
       ).toEqual([]);
     });
   }

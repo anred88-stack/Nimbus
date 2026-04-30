@@ -21,7 +21,7 @@ describe('Golden cases — executable dataset (see docs/GOLDEN_CASES.md)', () =>
       const report = runReplay(gc);
       expect(
         report.violations,
-        `Golden case ${gc.id} (${gc.citation}) violated:\n${JSON.stringify(report.violations, null, 2)}\nSnapshot:\n${JSON.stringify(report.snapshot, null, 2)}`,
+        `Golden case ${gc.id} (${gc.citation}) violated:\n${JSON.stringify(report.violations, null, 2)}\nSnapshot:\n${JSON.stringify(report.snapshot, null, 2)}`
       ).toEqual([]);
     });
   }

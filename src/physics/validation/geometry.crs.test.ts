@@ -95,7 +95,7 @@ describe('I5 GEODETIC SCALE — 1° latitude ≈ 111 km, 1° longitude at lat=60
     // passing 1.0 (intended as 1 deg) would be interpreted as 1 rad
     // ≈ 57.3 deg → 6378 km. That's ~57× too large. Spot-check.
     const dRightWay = haversineM(0, 0, 1, 0); // 1 deg → 111 km
-    const dWrongWay = haversineM(0, 0, (180 / Math.PI), 0); // 1 rad-as-deg → 6378 km
+    const dWrongWay = haversineM(0, 0, 180 / Math.PI, 0); // 1 rad-as-deg → 6378 km
     expect(dWrongWay / dRightWay).toBeGreaterThan(50);
     expect(dWrongWay / dRightWay).toBeLessThan(60);
   });
@@ -125,7 +125,10 @@ describe('I5 ANTIMERIDIAN (RFC 7946) — polygons spanning lon=180° handled cor
       // True great-circle distance still ≈ 500 km (haversine handles
       // wrap correctly internally)
       const d = haversineM(0, 179.5, v.latDeg, v.lonDeg);
-      expect(Math.abs(d - radius), `vertex ${JSON.stringify(v)}: dist ${d.toString()}`).toBeLessThan(10_000);
+      expect(
+        Math.abs(d - radius),
+        `vertex ${JSON.stringify(v)}: dist ${d.toString()}`
+      ).toBeLessThan(10_000);
       // The east cap (lon > 180 raw, or wrapped to -179.x) tells us
       // the antimeridian was crossed.
       if (v.lonDeg > 180 || v.lonDeg < -179) crossesEast = true;
@@ -181,7 +184,10 @@ describe('I5/I6 BBOX EQUIVALENCE — bbox computed from polygon == bbox expected
       contourRadiusM: 100_000,
       cornerSegments: 16,
     });
-    let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+    let minLat = Infinity,
+      maxLat = -Infinity,
+      minLon = Infinity,
+      maxLon = -Infinity;
     for (const v of ring) {
       if (v.latDeg < minLat) minLat = v.latDeg;
       if (v.latDeg > maxLat) maxLat = v.latDeg;
@@ -208,7 +214,10 @@ describe('I5/I6 BBOX EQUIVALENCE — bbox computed from polygon == bbox expected
       contourRadiusM: 50_000,
       cornerSegments: 16,
     });
-    let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+    let minLat = Infinity,
+      maxLat = -Infinity,
+      minLon = Infinity,
+      maxLon = -Infinity;
     for (const v of ring) {
       minLat = Math.min(minLat, v.latDeg);
       maxLat = Math.max(maxLat, v.latDeg);
@@ -232,7 +241,10 @@ describe('I5/I6 BBOX EQUIVALENCE — bbox computed from polygon == bbox expected
       contourRadiusM: 50_000,
       cornerSegments: 16,
     });
-    let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+    let minLat = Infinity,
+      maxLat = -Infinity,
+      minLon = Infinity,
+      maxLon = -Infinity;
     for (const v of ring) {
       minLat = Math.min(minLat, v.latDeg);
       maxLat = Math.max(maxLat, v.latDeg);
@@ -267,7 +279,7 @@ describe('I5 ROTATION INVARIANCE — same scenario, different strike azimuth →
       cornerSegments: 32,
     };
     const areas = [0, 30, 45, 60, 90, 180].map((az) =>
-      shoelaceDeg2(buildRuptureStadiumLatLon({ ...baseInput, strikeAzimuthDeg: az })),
+      shoelaceDeg2(buildRuptureStadiumLatLon({ ...baseInput, strikeAzimuthDeg: az }))
     );
     const maxA = Math.max(...areas);
     const minA = Math.min(...areas);

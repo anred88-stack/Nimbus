@@ -18,21 +18,21 @@ The single source of truth for "is this input valid":
 
 ## Production callers — fully routed through the boundary
 
-| Caller | Path | Status |
-|--------|------|--------|
-| Replay harness | `replayHarness.ts` calls `safeRunByType` | ✅ |
-| Golden dataset runner | `goldenDataset.test.ts` calls `runReplay` → `safeRunByType` | ✅ |
-| Validation report | `scripts/generate-validation-report.ts` runs both above | ✅ |
-| Store setters (audit pass) | `auditStoreInput` calls `validateScenario` and logs in dev | ✅ (but see L1 below) |
+| Caller                     | Path                                                        | Status                |
+| -------------------------- | ----------------------------------------------------------- | --------------------- |
+| Replay harness             | `replayHarness.ts` calls `safeRunByType`                    | ✅                    |
+| Golden dataset runner      | `goldenDataset.test.ts` calls `runReplay` → `safeRunByType` | ✅                    |
+| Validation report          | `scripts/generate-validation-report.ts` runs both above     | ✅                    |
+| Store setters (audit pass) | `auditStoreInput` calls `validateScenario` and logs in dev  | ✅ (but see L1 below) |
 
 ## Bypassable paths — known and intentional
 
-| Path | Bypass | Severity | Notes |
-|------|--------|----------|-------|
-| **Direct `simulate*()` calls** | Always permissive — no NaN/Inf gate inside the simulator | LOW | Documented contract: unit tests pinning isolated formulas may call directly. Production code MUST use `safeRun*`. |
-| **CLI `pnpm simulate`** (`scripts/simulate-impact.ts`) | Calls `simulateImpact/Explosion/Earthquake/Volcano` directly | **MEDIUM** | Hardened in this batch: now routes custom-input paths through `safeRunByType`; preset paths still call directly because the preset is statically valid. |
-| **Web Worker `saintVenantWorker.ts`** | Comlink-exposed Saint-Venant solver receives pre-built parameters | LOW | Caller is the store, which already validates. The worker entry point itself does not re-validate but only consumes structured numeric arrays. |
-| **Test files calling `simulate*` directly** | All over the codebase | LOW | Intentional — verification tests pin formulas without going through validation. Listed as L1 latent. |
+| Path                                                   | Bypass                                                            | Severity   | Notes                                                                                                                                                   |
+| ------------------------------------------------------ | ----------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Direct `simulate*()` calls**                         | Always permissive — no NaN/Inf gate inside the simulator          | LOW        | Documented contract: unit tests pinning isolated formulas may call directly. Production code MUST use `safeRun*`.                                       |
+| **CLI `pnpm simulate`** (`scripts/simulate-impact.ts`) | Calls `simulateImpact/Explosion/Earthquake/Volcano` directly      | **MEDIUM** | Hardened in this batch: now routes custom-input paths through `safeRunByType`; preset paths still call directly because the preset is statically valid. |
+| **Web Worker `saintVenantWorker.ts`**                  | Comlink-exposed Saint-Venant solver receives pre-built parameters | LOW        | Caller is the store, which already validates. The worker entry point itself does not re-validate but only consumes structured numeric arrays.           |
+| **Test files calling `simulate*` directly**            | All over the codebase                                             | LOW        | Intentional — verification tests pin formulas without going through validation. Listed as L1 latent.                                                    |
 
 ## Gaps still open after this batch
 
@@ -44,11 +44,11 @@ The single source of truth for "is this input valid":
     the original invalid override.
   - The dev-only console.warn never fires for individually-rejected
     fields.
-  Impact: observability gap, not a real bypass — input that survives
-  the inline guards is also valid for the schema.
-  Fix path: refactor `set*Input` to call `validateScenario` on the raw
-  override BEFORE merging. Out of scope for this batch (would require
-  a coordinated rewrite of 5 setters and the matching UI components).
+    Impact: observability gap, not a real bypass — input that survives
+    the inline guards is also valid for the schema.
+    Fix path: refactor `set*Input` to call `validateScenario` on the raw
+    override BEFORE merging. Out of scope for this batch (would require
+    a coordinated rewrite of 5 setters and the matching UI components).
 
 - **L2 — Replay fixture integrity is not enforced.**
   A malformed JSON in `replayFixtures/` (missing `expectedValidation`,

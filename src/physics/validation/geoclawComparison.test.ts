@@ -4,10 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { CRUSTAL_RIGIDITY, SEAWATER_DENSITY, STANDARD_GRAVITY } from '../constants.js';
 import { seismicMomentFromMagnitude } from '../events/earthquake/seismicMoment.js';
 import { dispersionAmplitudeFactor } from '../events/tsunami/extendedEffects.js';
-import {
-  impactCavityRadius,
-  impactSourceAmplitude,
-} from '../events/tsunami/impact.js';
+import { impactCavityRadius, impactSourceAmplitude } from '../events/tsunami/impact.js';
 import { simulateSaintVenant1D } from '../tsunami/saintVenant1D.js';
 import { J, m } from '../units.js';
 
@@ -179,10 +176,7 @@ function deriveSource(input: FixtureInput): { sourcePeakM: number; sigmaM: numbe
     return { sourcePeakM, sigmaM };
   }
   // impact-deep-ocean
-  const massKg =
-    (Math.PI / 6) *
-    input.impactorDensityKgPerM3 *
-    input.impactorDiameterM ** 3;
+  const massKg = (Math.PI / 6) * input.impactorDensityKgPerM3 * input.impactorDiameterM ** 3;
   const keJ = 0.5 * massKg * input.impactorVelocityMPerS ** 2;
   const cavityRadius = impactCavityRadius({
     kineticEnergy: J(keJ),

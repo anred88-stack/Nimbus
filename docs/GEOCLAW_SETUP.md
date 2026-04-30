@@ -123,16 +123,16 @@ Two groups:
 configure in the app, so any user-picked source falls within a
 validated parameter envelope):
 
-| Scenario                       | Type     | Parameter                            |
-| ------------------------------ | -------- | ------------------------------------ |
-| `custom-seismic-mw75-l300km`   | Seismic  | Mw 7.5, L=300 km                     |
-| `custom-seismic-mw85-l700km`   | Seismic  | Mw 8.5, L=700 km                     |
-| `custom-seismic-mw95-l1500km`  | Seismic  | Mw 9.5, L=1500 km                    |
-| `custom-volcanic-small`        | Volcanic | V=0.1 km³ collapse                   |
-| `custom-volcanic-large`        | Volcanic | V=20 km³ collapse                    |
-| `custom-landslide-small`       | Landslide| V=50 km³                             |
-| `custom-landslide-large`       | Landslide| V=5000 km³                           |
-| `custom-impact-3km`            | Impact   | D=3 km, 4 km basin                   |
+| Scenario                      | Type      | Parameter          |
+| ----------------------------- | --------- | ------------------ |
+| `custom-seismic-mw75-l300km`  | Seismic   | Mw 7.5, L=300 km   |
+| `custom-seismic-mw85-l700km`  | Seismic   | Mw 8.5, L=700 km   |
+| `custom-seismic-mw95-l1500km` | Seismic   | Mw 9.5, L=1500 km  |
+| `custom-volcanic-small`       | Volcanic  | V=0.1 km³ collapse |
+| `custom-volcanic-large`       | Volcanic  | V=20 km³ collapse  |
+| `custom-landslide-small`      | Landslide | V=50 km³           |
+| `custom-landslide-large`      | Landslide | V=5000 km³         |
+| `custom-impact-3km`           | Impact    | D=3 km, 4 km basin |
 
 Smaller impactors (D < 1 km) produce cavities R_C < 6 km that need
 sub-kilometre cells to fixture-pin properly. The

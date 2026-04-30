@@ -31,11 +31,7 @@ const MIN_PER_CATEGORY: Record<FixtureCategory, number> = {
 };
 
 /** Required oracles. Every dataset must exercise at least one of each. */
-const REQUIRED_ORACLES: readonly GoldenOracle[] = [
-  'historical',
-  'scaling',
-  'property',
-] as const;
+const REQUIRED_ORACLES: readonly GoldenOracle[] = ['historical', 'scaling', 'property'] as const;
 
 describe('Golden dataset consistency — structural invariants', () => {
   it('all golden ids are unique', () => {
@@ -52,7 +48,7 @@ describe('Golden dataset consistency — structural invariants', () => {
     for (const [cat, min] of Object.entries(MIN_PER_CATEGORY)) {
       expect(
         counts[cat] ?? 0,
-        `category "${cat}" has ${(counts[cat] ?? 0).toString()} case(s), required >= ${min.toString()}`,
+        `category "${cat}" has ${(counts[cat] ?? 0).toString()} case(s), required >= ${min.toString()}`
       ).toBeGreaterThanOrEqual(min);
     }
   });
@@ -66,11 +62,11 @@ describe('Golden dataset consistency — structural invariants', () => {
 
   it('every regression case has a linkedBug', () => {
     const orphans = GOLDEN_DATASET.filter(
-      (g) => g.category === 'regression' && (g.linkedBug === undefined || g.linkedBug === null),
+      (g) => g.category === 'regression' && (g.linkedBug === undefined || g.linkedBug === null)
     );
     expect(
       orphans.map((g) => g.id),
-      'regression cases must declare linkedBug (which row in BUG_REGISTRY.md)',
+      'regression cases must declare linkedBug (which row in BUG_REGISTRY.md)'
     ).toEqual([]);
   });
 
@@ -78,11 +74,11 @@ describe('Golden dataset consistency — structural invariants', () => {
     const missing = GOLDEN_DATASET.filter(
       (g) =>
         (g.category === 'reference' || g.category === 'regression') &&
-        (typeof g.citation !== 'string' || g.citation.trim().length === 0),
+        (typeof g.citation !== 'string' || g.citation.trim().length === 0)
     );
     expect(
       missing.map((g) => g.id),
-      'reference/regression cases require a non-empty citation',
+      'reference/regression cases require a non-empty citation'
     ).toEqual([]);
   });
 

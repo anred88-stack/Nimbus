@@ -164,10 +164,18 @@ describe('Historical bug regression registry — see docs/BUG_REGISTRY.md', () =
   // Smoke test: verify every preset still renders sensible numbers
   // (catches regressions from any unrelated change to a preset).
   it('all 5 event-type preset-bundles produce non-degenerate output (smoke)', () => {
-    expect(simulateImpact(IMPACT_PRESETS.CHICXULUB.input).crater.finalDiameter as number).toBeGreaterThan(100_000);
-    expect(simulateEarthquake(EARTHQUAKE_PRESETS.TOHOKU_2011.input).shaking.mmi7Radius as number).toBeGreaterThan(50_000);
-    expect(simulateVolcano(VOLCANO_PRESETS.PINATUBO_1991.input).plumeHeight as number).toBeGreaterThan(20_000);
-    expect(simulateLandslide(LANDSLIDE_PRESETS.STOREGGA_8200_BP.input).tsunami?.sourceAmplitude as number).toBeGreaterThan(2);
+    expect(
+      simulateImpact(IMPACT_PRESETS.CHICXULUB.input).crater.finalDiameter as number
+    ).toBeGreaterThan(100_000);
+    expect(
+      simulateEarthquake(EARTHQUAKE_PRESETS.TOHOKU_2011.input).shaking.mmi7Radius as number
+    ).toBeGreaterThan(50_000);
+    expect(
+      simulateVolcano(VOLCANO_PRESETS.PINATUBO_1991.input).plumeHeight as number
+    ).toBeGreaterThan(20_000);
+    expect(
+      simulateLandslide(LANDSLIDE_PRESETS.STOREGGA_8200_BP.input).tsunami?.sourceAmplitude as number
+    ).toBeGreaterThan(2);
     // Tunguska airburst: no crater (correct), high atmosphere yield
     const tg = simulateImpact(IMPACT_PRESETS.TUNGUSKA.input);
     expect(tg.crater.finalDiameter as number).toBe(0); // no surface crater
