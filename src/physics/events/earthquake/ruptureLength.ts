@@ -56,6 +56,15 @@ export interface SurfaceRuptureLengthInput {
  * that range the simulator extrapolates, which Wells–Coppersmith
  * explicitly flag as unreliable but which we still render for the
  * popular-science display envelope.
+ *
+ * **Uncertainty (published).** Wells & Coppersmith (1994) Table 2A
+ * reports σ_log10(SRL) = 0.22–0.34 across fault types (mean ≈ 0.28),
+ * i.e. ±factor 1.91 in surface rupture length at 1-σ. The aggregated
+ * "all" coefficients carry the largest scatter because they pool
+ * tectonically distinct events; per-fault coefficients are tighter.
+ * The Monte-Carlo path samples log10(SRL) ~ 𝒩(predicted, σ²) before
+ * geometry construction so the displayed stadium polygon reflects
+ * the published band.
  */
 export function surfaceRuptureLength(input: SurfaceRuptureLengthInput): Meters {
   const { magnitude, faultType = 'all' } = input;
@@ -76,6 +85,11 @@ export function surfaceRuptureLength(input: SurfaceRuptureLengthInput): Meters {
  * intraslab events (Chile 1960, Alaska 1964, Sumatra 2004, Tōhoku
  * 2011), producing saner estimates for megathrusts. Use this helper
  * when the event is explicitly a subduction-zone thrust.
+ *
+ * **Uncertainty (published).** Strasser et al. (2010) Table 2 reports
+ * σ_log10(L) ≈ 0.18 for interface events — tighter than Wells &
+ * Coppersmith (σ ≈ 0.28) because the subduction-event population is
+ * more homogeneous. ±factor 1.51 in length at 1-σ.
  *
  * Source: Strasser, F. O., Arango, M. C. & Bommer, J. J. (2010).
  * "Scaling of the source dimensions of interface and intraslab

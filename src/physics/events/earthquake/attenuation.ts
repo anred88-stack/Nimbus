@@ -30,6 +30,15 @@ export interface PeakGroundAccelerationInput {
  * popular-science display envelope (the headline number is meaningful
  * to one significant figure everywhere).
  *
+ * **Uncertainty (published).** Joyner & Boore (1981) Table 4 reports a
+ * standard error of σ_log10(A) ≈ 0.26 — i.e. ±factor 1.82 in linear
+ * acceleration at a 1-σ confidence level. The popular-science display
+ * shows the central value; the Monte-Carlo path (`montecarlo/...`)
+ * samples this σ to produce P10/P50/P90 bands. Outside the calibration
+ * window (Mw < 5.0, Mw > 7.7, R > 370 km) σ is larger and biases are
+ * possible — the V&V suite uses `TOL_SCALING_LAW` (`tolerances.ts`)
+ * to absorb the published scatter.
+ *
  * Source: Joyner & Boore (1981), "Peak horizontal acceleration and
  * velocity from strong-motion records…", BSSA 71(6), pp. 2011–2038.
  */
@@ -95,6 +104,14 @@ export function distanceForPga(magnitude: number, target: MetersPerSecondSquared
  * For megathrust subduction events, callers should prefer the
  * Zhao et al. (2006) / Abrahamson et al. (2016) BC-Hydro families; we
  * still surface the BSSA14 number as the best available upper bound.
+ *
+ * **Uncertainty (published).** Boore et al. (2014) Table 11 reports
+ * total standard deviation σ_lnY ≈ 0.502 for PGA at the rock
+ * reference (Vs30 = 760 m/s) — i.e. ±factor 1.65 in PGA at 1-σ. The
+ * inter-event component τ ≈ 0.397 and the intra-event component
+ * φ ≈ 0.308 combine in quadrature; either alone bounds the
+ * site-specific scatter for a known event. Outside the validity
+ * window σ_lnY widens by ~30 %.
  */
 
 /** BSSA14 hinge magnitude. */

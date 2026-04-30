@@ -3,7 +3,17 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clampToGreatCircle, isGlobalReach } from '../../physics/earthScale.js';
 import { useAppStore, type ActiveResult } from '../../store/index.js';
+import {
+  formatWithUnitTiers,
+  NON_FINITE_PLACEHOLDER,
+  type UnitTier,
+} from '../utils/numberFormat.js';
 import styles from './RingLegend.module.css';
+
+const TIERS_RANGE: readonly UnitTier[] = [
+  { scale: 1, digits: 0, label: 'm' },
+  { scale: 1_000, digits: 1, label: 'km' },
+];
 
 /**
  * Mirror of the swatch hexes used by `Globe.tsx` for each ring kind.
@@ -55,9 +65,9 @@ interface LegendRow {
 }
 
 function formatRange(radiusM: number): string {
-  if (!Number.isFinite(radiusM) || radiusM <= 0) return '—';
+  if (!Number.isFinite(radiusM) || radiusM <= 0) return NON_FINITE_PLACEHOLDER;
   const clamped = clampToGreatCircle(radiusM) as number;
-  return clamped < 1_000 ? `${clamped.toFixed(0)} m` : `${(clamped / 1_000).toFixed(1)} km`;
+  return formatWithUnitTiers(clamped, TIERS_RANGE);
 }
 
 /**

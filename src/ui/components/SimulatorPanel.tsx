@@ -27,6 +27,14 @@ import {
   type EventType,
 } from '../../store/index.js';
 import { cx } from '../utils/cx.js';
+import {
+  formatDecimal,
+  formatInteger,
+  formatScientific,
+  formatWithUnitTiers,
+  NON_FINITE_PLACEHOLDER,
+  type UnitTier,
+} from '../utils/numberFormat.js';
 import { CascadeTimeline } from './CascadeTimeline.js';
 import { CitationTooltip } from './CitationTooltip.js';
 import { EarthquakeCustomInputs } from './EarthquakeCustomInputs.js';
@@ -90,16 +98,29 @@ const LANDSLIDE_PRESET_IDS: LandslidePresetId[] = [
 ];
 const EVENT_TYPES: EventType[] = ['impact', 'explosion', 'earthquake', 'volcano', 'landslide'];
 
+// Unit tier tables for the multi-scale formatters. Order matters:
+// the formatter walks tiers smallest-unit first and accepts the
+// first one whose rounded value is < 1000, so a 999.6 m value
+// correctly promotes to "1.0 km" instead of rendering as "1000 m".
+// See `formatWithUnitTiers` in `../utils/numberFormat.ts`.
+const TIERS_MEGATONS: readonly UnitTier[] = [
+  { scale: 1 / 1_000_000, digits: 0, label: 't' },
+  { scale: 1 / 1_000, digits: 1, label: 'kt' },
+  { scale: 1, digits: 1, label: 'Mt' },
+  { scale: 1_000, digits: 2, label: 'Gt' },
+];
+
+const TIERS_METERS: readonly UnitTier[] = [
+  { scale: 1, digits: 0, label: 'm' },
+  { scale: 1_000, digits: 1, label: 'km' },
+];
+
 function formatMegatons(mt: number): string {
-  if (mt < 0.001) return `${(mt * 1_000_000).toFixed(0)} t`;
-  if (mt < 1) return `${(mt * 1_000).toFixed(1)} kt`;
-  if (mt < 1_000) return `${mt.toFixed(1)} Mt`;
-  return `${(mt / 1_000).toFixed(2)} Gt`;
+  return formatWithUnitTiers(mt, TIERS_MEGATONS);
 }
 
 function formatKilometres(m: number): string {
-  if (m < 1_000) return `${m.toFixed(0)} m`;
-  return `${(m / 1_000).toFixed(1)} km`;
+  return formatWithUnitTiers(m, TIERS_METERS);
 }
 
 /**
@@ -173,20 +194,23 @@ function AreaWithBand({ m2, field }: { m2: number; field: ConfidenceField }): JS
 }
 
 function formatDurationMinutes(seconds: number): string {
+  if (!Number.isFinite(seconds)) return NON_FINITE_PLACEHOLDER;
   const minutes = seconds / 60;
-  if (minutes < 60) return `${minutes.toFixed(0)} min`;
+  if (minutes < 60) return `${formatInteger(minutes)} min`;
   const hours = Math.floor(minutes / 60);
   const rem = Math.round(minutes % 60);
-  return rem === 0 ? `${hours.toFixed(0)} h` : `${hours.toFixed(0)} h ${rem.toFixed(0)} min`;
+  return rem === 0
+    ? `${formatInteger(hours)} h`
+    : `${formatInteger(hours)} h ${formatInteger(rem)} min`;
 }
 
 /** Tsunami celerity printout — "X m/s · ≈ Y km/h" so the popular-
  *  science viewer reads the speed in both SI and the everyday-vehicle
  *  unit. At 4 km mean depth this surfaces as "≈ 198 m/s · 713 km/h". */
 function formatTsunamiCelerity(celerityMs: number): string {
-  if (!Number.isFinite(celerityMs) || celerityMs <= 0) return '—';
+  if (!Number.isFinite(celerityMs) || celerityMs <= 0) return NON_FINITE_PLACEHOLDER;
   const kmh = celerityMs * 3.6;
-  return `${celerityMs.toFixed(0)} m/s · ≈ ${kmh.toFixed(0)} km/h`;
+  return `${formatInteger(celerityMs)} m/s · ≈ ${formatInteger(kmh)} km/h`;
 }
 
 /**
@@ -197,13 +221,13 @@ function formatTsunamiCelerity(celerityMs: number): string {
  * plane-beach fallback.
  */
 function formatBeachSlope(slopeRad: number, fromDEM: boolean, t: (key: string) => string): string {
-  if (!Number.isFinite(slopeRad) || slopeRad <= 0) return '—';
+  if (!Number.isFinite(slopeRad) || slopeRad <= 0) return NON_FINITE_PLACEHOLDER;
   const deg = (slopeRad * 180) / Math.PI;
   const ratio = Math.round(1 / Math.tan(slopeRad));
   const sourceLabel = fromDEM
     ? t('simulator.tsunamiSlopeSourceDEM')
     : t('simulator.tsunamiSlopeSourceReference');
-  return `${deg.toFixed(2)}° · 1:${ratio.toString()} · ${sourceLabel}`;
+  return `${formatDecimal(deg, 2)}° · 1:${formatInteger(ratio)} · ${sourceLabel}`;
 }
 
 /**
@@ -230,42 +254,50 @@ function coastalDamageTierKey(runupM: number): string {
   return 'simulator.tsunamiDamage.tier5';
 }
 
-function formatScientific(n: number, digits = 2): string {
-  if (n === 0) return '0';
-  const exp = Math.floor(Math.log10(Math.abs(n)));
-  const mantissa = n / 10 ** exp;
-  return `${mantissa.toFixed(digits)} × 10${toSuperscript(exp)}`;
-}
+// `formatScientific` lives in `../utils/numberFormat.ts` (locale-aware
+// + NaN-guarded + Unicode-minus mantissa). The previous home-grown
+// version with ASCII-minus mantissa was removed.
+
+const TIERS_PASCALS: readonly UnitTier[] = [
+  { scale: 1, digits: 0, label: 'Pa' },
+  { scale: 1_000, digits: 1, label: 'kPa' },
+  { scale: 1_000_000, digits: 1, label: 'MPa' },
+];
 
 function formatKilopascals(pa: number): string {
-  const kpa = pa / 1_000;
-  if (kpa >= 1_000) return `${(kpa / 1_000).toFixed(1)} MPa`;
-  if (kpa >= 1) return `${kpa.toFixed(1)} kPa`;
-  return `${pa.toFixed(0)} Pa`;
+  return formatWithUnitTiers(pa, TIERS_PASCALS);
 }
 
 function formatG(accel: number): string {
+  if (!Number.isFinite(accel)) return NON_FINITE_PLACEHOLDER;
   const g = accel / 9.80665;
-  if (g >= 0.01) return `${g.toFixed(2)} g`;
-  return `${(g * 1_000).toFixed(0)} mg`;
+  if (g >= 0.01) return `${formatDecimal(g, 2)} g`;
+  return `${formatInteger(g * 1_000)} mg`;
 }
 
 function formatJoules(j: number): string {
   return `${formatScientific(j)} J`;
 }
 
+const TIERS_KILOTONS: readonly UnitTier[] = [
+  { scale: 1 / 1_000, digits: 0, label: 't' },
+  { scale: 1, digits: 1, label: 'kt' },
+  { scale: 1_000, digits: 2, label: 'Mt' },
+];
+
 function formatKilotons(kt: number): string {
-  if (kt < 1) return `${(kt * 1_000).toFixed(0)} t`;
-  if (kt < 1_000) return `${kt.toFixed(1)} kt`;
-  return `${(kt / 1_000).toFixed(2)} Mt`;
+  return formatWithUnitTiers(kt, TIERS_KILOTONS);
 }
 
+const TIERS_AREA_M2: readonly UnitTier[] = [
+  { scale: 1, digits: 0, label: 'm²' },
+  { scale: 1_000_000, digits: 1, label: 'km²' },
+  { scale: 1e12, digits: 1, label: 'M km²' },
+];
+
 function formatArea(m2: number): string {
-  if (!Number.isFinite(m2) || m2 <= 0) return '0 m²';
-  const km2 = m2 / 1_000_000;
-  if (km2 >= 1_000_000) return `${(km2 / 1_000_000).toFixed(1)} M km²`;
-  if (km2 >= 1) return `${km2.toFixed(1)} km²`;
-  return `${m2.toFixed(0)} m²`;
+  if (!Number.isFinite(m2) || m2 <= 0) return `0 m²`;
+  return formatWithUnitTiers(m2, TIERS_AREA_M2);
 }
 
 /**
@@ -286,34 +318,22 @@ function SectionHeading({ labelKey }: { labelKey: string }): JSX.Element {
 }
 
 function formatMass(kilograms: number): string {
-  if (!Number.isFinite(kilograms) || kilograms <= 0) return '0 kg';
+  if (!Number.isFinite(kilograms) || kilograms <= 0) return `0 kg`;
+  // Above 1 Tt (10¹² kg) the dynamic range collapses readability —
+  // fall back to scientific notation. Below that, walk the kg → t →
+  // Mt → Gt tiers with rounding-crossing detection.
   if (kilograms >= 1e12) return `${formatScientific(kilograms)} kg`;
-  if (kilograms >= 1e9) return `${(kilograms / 1e9).toFixed(2)} Gt`;
-  if (kilograms >= 1e6) return `${(kilograms / 1e6).toFixed(2)} Mt`;
-  if (kilograms >= 1_000) return `${(kilograms / 1_000).toFixed(2)} t`;
-  return `${kilograms.toFixed(0)} kg`;
+  return formatWithUnitTiers(kilograms, [
+    { scale: 1, digits: 0, label: 'kg' },
+    { scale: 1_000, digits: 2, label: 't' },
+    { scale: 1e6, digits: 2, label: 'Mt' },
+    { scale: 1e9, digits: 2, label: 'Gt' },
+  ]);
 }
 
-function toSuperscript(n: number): string {
-  const map: Record<string, string> = {
-    '0': '⁰',
-    '1': '¹',
-    '2': '²',
-    '3': '³',
-    '4': '⁴',
-    '5': '⁵',
-    '6': '⁶',
-    '7': '⁷',
-    '8': '⁸',
-    '9': '⁹',
-    '-': '⁻',
-  };
-  return n
-    .toString()
-    .split('')
-    .map((c) => map[c] ?? c)
-    .join('');
-}
+// `toSuperscript` was inlined into `../utils/numberFormat.ts` as the
+// internal helper for `formatScientific`. Removed from this file to
+// keep one source of truth for super/subscript glyphs.
 
 export function SimulatorPanel(): JSX.Element {
   const { t } = useTranslation();
@@ -1629,9 +1649,12 @@ function DeepDivePanel({ dd }: { dd: DeepDiveResult }): JSX.Element {
 /** Compact MC-cell formatter — keys with known units use a compact
  *  physical rendering, the rest fall back to scientific notation.
  *  Range-like keys go through the great-circle clamp so headline
- *  outputs never show "17 000 km" for a radius that wraps the Earth. */
+ *  outputs never show "17 000 km" for a radius that wraps the Earth.
+ *  All units delegate to the locale-aware helpers in
+ *  `../utils/numberFormat.ts` (NaN guard + tier rounding-crossing
+ *  detection + `Intl.NumberFormat` thousands separators). */
 function formatMcValue(key: string, value: number, t: (key: string) => string): string {
-  if (!Number.isFinite(value)) return '—';
+  if (!Number.isFinite(value)) return NON_FINITE_PLACEHOLDER;
   if (
     key.endsWith('Radius') ||
     key === 'ruptureLength' ||
@@ -1649,29 +1672,16 @@ function formatMcValue(key: string, value: number, t: (key: string) => string): 
   ) {
     const clamped = clampToGreatCircle(value) as number;
     const global = isGlobalReach(value) ? ` (${t('globe.legend.globalBadge')})` : '';
-    return clamped < 1_000
-      ? `${clamped.toFixed(0)} m${global}`
-      : `${(clamped / 1_000).toFixed(1)} km${global}`;
+    return `${formatKilometres(clamped)}${global}`;
   }
-  if (key === 'plumeHeight') {
-    return `${(value / 1_000).toFixed(1)} km`;
-  }
-  if (key === 'ashfallArea') {
-    const km2 = value / 1_000_000;
-    return km2 >= 1 ? `${km2.toFixed(0)} km²` : `${value.toFixed(0)} m²`;
-  }
-  if (key === 'kineticEnergyMt' || key === 'yieldMt') {
-    if (value < 0.001) return `${(value * 1_000_000).toFixed(0)} t`;
-    if (value < 1) return `${(value * 1_000).toFixed(1)} kt`;
-    if (value < 1_000) return `${value.toFixed(1)} Mt`;
-    if (value < 1_000_000) return `${(value / 1_000).toFixed(1)} Gt`;
-    return `${(value / 1_000).toExponential(1)} Gt`;
-  }
-  if (key === 'kineticEnergy') return formatScientific(value) + ' J';
-  if (key === 'climateCoolingK') return `${value.toFixed(2)} K`;
+  if (key === 'plumeHeight') return formatKilometres(value);
+  if (key === 'ashfallArea') return formatArea(value);
+  if (key === 'kineticEnergyMt' || key === 'yieldMt') return formatMegatons(value);
+  if (key === 'kineticEnergy') return formatJoules(value);
+  if (key === 'climateCoolingK') return `${formatDecimal(value, 2)} K`;
   if (key === 'magnitude' || key === 'seismicMw' || key === 'mmiAtEpicenter' || key === 'vei') {
-    return value.toFixed(1);
+    return formatDecimal(value, 1);
   }
-  if (key === 'pgaAt20kmNGA') return `${(value / 9.80665).toFixed(2)} g`;
-  return value.toFixed(2);
+  if (key === 'pgaAt20kmNGA') return `${formatDecimal(value / 9.80665, 2)} g`;
+  return formatDecimal(value, 2);
 }
