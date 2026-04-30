@@ -30,6 +30,15 @@ function bullet(rows: string[]): string {
   return rows.map((r) => `- ${r}`).join('\n');
 }
 
+interface SuspiciousCase {
+  /** Fixture / golden-case ID, e.g. `G-PHYS-SUSPICIOUS-MW`. */
+  id: string;
+  /** Human-readable title from the fixture / golden definition. */
+  title: string;
+  /** Warning codes attached to this case (typically PHYS_SUSPICIOUS_*). */
+  warningCodes: string[];
+}
+
 interface AggregateBucket {
   total: number;
   passed: number;
@@ -39,6 +48,12 @@ interface AggregateBucket {
   topErrorCodes: { code: string; count: number }[];
   topWarningCodes: { code: string; count: number }[];
   failures: { id: string; violations: string[] }[];
+  /**
+   * S3 cases (validation.status === 'suspicious') with their identity.
+   * Lifts the advisory from "presence-only" to "presence + identity"
+   * so the release-readiness consumer can name the case in the summary.
+   */
+  suspiciousCases: SuspiciousCase[];
 }
 
 function topN(counts: Record<string, number>, n: number): { code: string; count: number }[] {
@@ -48,12 +63,22 @@ function topN(counts: Record<string, number>, n: number): { code: string; count:
     .slice(0, n);
 }
 
-function aggregateReports(reports: ReplayReport[]): AggregateBucket {
+function aggregateReports(
+  reports: ReplayReport[],
+  /**
+   * Source fixtures, indexed by `id`. Used to resolve `title` for
+   * suspicious cases — the harness's `ReplayReport` carries only the
+   * id, not the human-readable title, so we look it up here without
+   * adding noise to the harness contract.
+   */
+  fixturesById: Map<string, { title: string }>
+): AggregateBucket {
   const byCategory: Record<string, number> = {};
   const byStatus: Record<string, number> = {};
   const errorCodeCounts: Record<string, number> = {};
   const warningCodeCounts: Record<string, number> = {};
   const failures: { id: string; violations: string[] }[] = [];
+  const suspiciousCases: SuspiciousCase[] = [];
   let passed = 0;
   for (const r of reports) {
     byCategory[r.category] = (byCategory[r.category] ?? 0) + 1;
@@ -64,6 +89,15 @@ function aggregateReports(reports: ReplayReport[]): AggregateBucket {
     }
     for (const w of r.snapshot.validation.warnings) {
       warningCodeCounts[w.code] = (warningCodeCounts[w.code] ?? 0) + 1;
+    }
+    // Lift S3 (suspicious) reports to a structured advisory entry.
+    if (status === 'suspicious') {
+      const fx = fixturesById.get(r.fixtureId);
+      suspiciousCases.push({
+        id: r.fixtureId,
+        title: fx?.title ?? '(unknown — fixture not found in source map)',
+        warningCodes: Array.from(new Set(r.snapshot.validation.warnings.map((w) => w.code))).sort(),
+      });
     }
     if (r.passed) {
       passed += 1;
@@ -77,6 +111,8 @@ function aggregateReports(reports: ReplayReport[]): AggregateBucket {
       });
     }
   }
+  // Sort by id for deterministic JSON diff across runs.
+  suspiciousCases.sort((a, b) => a.id.localeCompare(b.id));
   return {
     total: reports.length,
     passed,
@@ -86,6 +122,7 @@ function aggregateReports(reports: ReplayReport[]): AggregateBucket {
     topErrorCodes: topN(errorCodeCounts, 5),
     topWarningCodes: topN(warningCodeCounts, 5),
     failures,
+    suspiciousCases,
   };
 }
 
@@ -204,8 +241,13 @@ function main(): void {
   const replayReports = replayFixtures.map(runReplay);
   const goldenReports = GOLDEN_DATASET.map(runReplay);
 
-  const replayAgg = aggregateReports(replayReports);
-  const goldenAgg = aggregateReports(goldenReports);
+  // Build id → {title} maps so the aggregator can name suspicious
+  // cases without modifying the harness's ReplayReport interface.
+  const replayById = new Map(replayFixtures.map((f) => [f.id, { title: f.title }]));
+  const goldenById = new Map(GOLDEN_DATASET.map((g) => [g.id, { title: g.title }]));
+
+  const replayAgg = aggregateReports(replayReports, replayById);
+  const goldenAgg = aggregateReports(goldenReports, goldenById);
 
   const mode = selectMode();
   const decision = gate(replayAgg, goldenAgg, mode);
@@ -334,6 +376,7 @@ ${bullet([
       byStatus: replayAgg.byStatus,
       topErrorCodes: replayAgg.topErrorCodes,
       topWarningCodes: replayAgg.topWarningCodes,
+      suspiciousCases: replayAgg.suspiciousCases,
     },
     golden: {
       total: goldenAgg.total,
@@ -343,6 +386,7 @@ ${bullet([
       byStatus: goldenAgg.byStatus,
       topErrorCodes: goldenAgg.topErrorCodes,
       topWarningCodes: goldenAgg.topWarningCodes,
+      suspiciousCases: goldenAgg.suspiciousCases,
     },
   };
   writeFileSync(jsonOut, `${JSON.stringify(jsonSummary, null, 2)}\n`, 'utf8');

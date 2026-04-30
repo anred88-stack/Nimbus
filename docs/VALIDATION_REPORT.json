@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T09:44:56.739Z",
+  "generatedAt": "2026-04-30T10:12:07.084Z",
   "mode": "strict",
   "gate": {
     "decision": "pass",
@@ -26,7 +26,8 @@
         "count": 1
       }
     ],
-    "topWarningCodes": []
+    "topWarningCodes": [],
+    "suspiciousCases": []
   },
   "golden": {
     "total": 12,
@@ -58,6 +59,15 @@
       {
         "code": "PHYS_SUSPICIOUS_HIGH",
         "count": 1
+      }
+    ],
+    "suspiciousCases": [
+      {
+        "id": "G-PHYS-SUSPICIOUS-MW",
+        "title": "Mw 11 → suspicious (largest recorded is Mw 9.5)",
+        "warningCodes": [
+          "PHYS_SUSPICIOUS_HIGH"
+        ]
       }
     ]
   }

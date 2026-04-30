@@ -23,8 +23,37 @@ failure ⇒ CONDITIONAL GO at most).
 pnpm release:check
 ```
 
-Runs every blocker locally in CI order and prints the GO / CONDITIONAL
-GO / NO-GO verdict. Source: `scripts/release-readiness.ts`.
+Runs every **structural** blocker locally in CI order and prints the
+GO / CONDITIONAL GO / NO-GO verdict. Source: `scripts/release-readiness.ts`.
+
+### Coverage split: local script vs CI workflows
+
+`pnpm release:check` deliberately covers only the gates that are
+**fast and self-contained** (typecheck, lint, format, test,
+validation-report --mode=strict, build, bundle-size, BUG_REGISTRY).
+Heavy gates run as their own GitHub Actions workflows; the release
+manager verifies them by reading the workflow status on the release
+PR — they are NOT re-executed locally.
+
+| Gate                                                         | Where it runs                                        | Source of truth                |
+| ------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------ |
+| Typecheck / lint / format / test / build / bundle-size       | local + `ci.yml`                                     | `pnpm release:check` exit code |
+| Strict validation gate (replay + golden)                     | local + `ci.yml`                                     | `docs/VALIDATION_REPORT.json`  |
+| BUG_REGISTRY fix-commit completeness                         | local                                                | `pnpm release:check` parser    |
+| Storybook builds                                             | `ci.yml` only                                        | GitHub status check            |
+| **E2E matrix (5 projects)**                                  | `e2e.yml` only                                       | GitHub status check            |
+| **Lighthouse (a11y = 1.0 ERROR + perf/best-practices WARN)** | `lighthouse.yml` only                                | GitHub status check            |
+| Cloudflare deploy preview                                    | `deploy.yml` only (gated on `ENABLE_CF_DEPLOY=true`) | Cloudflare Pages dashboard     |
+
+Before tagging, **both signals must be green**: `pnpm release:check`
+verdict ∈ {GO, CONDITIONAL GO} **and** the GitHub Actions checks for
+`E2E`, `Lighthouse`, and `CI` on the release PR head commit.
+
+The Lighthouse a11y assertion (`accessibility = 1.0` as ERROR in
+`lighthouserc.json`) is a **mandatory blocker** that lives only in
+the workflow — it is intentionally not duplicated in
+`release:check` because rendering Cesium + LH desktop preset takes
+~3 min and would 6× the local sweep cost.
 
 ## A. Build & static quality
 
@@ -47,16 +76,33 @@ GO / NO-GO verdict. Source: `scripts/release-readiness.ts`.
 
 ## C. Validation gates
 
-|     | Check                                           | Command                                   | Source-of-truth                                            |
-| --- | ----------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------- |
-| B   | Strict validation gate passes                   | `pnpm validation-report -- --mode=strict` | `docs/VALIDATION_REPORT.json` → `gate.decision === "pass"` |
-| B   | All replay fixtures pass                        | (same)                                    | `replay.failed === 0` in JSON                              |
-| B   | All golden cases pass                           | (same)                                    | `golden.failed === 0` in JSON                              |
-| A   | Suspicious-but-accepted golden cases ≤ baseline | (same)                                    | `golden.byStatus.suspicious`                               |
+|     | Check                                                 | Command                                   | Source-of-truth                                            |
+| --- | ----------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------- |
+| B   | Strict validation gate passes                         | `pnpm validation-report -- --mode=strict` | `docs/VALIDATION_REPORT.json` → `gate.decision === "pass"` |
+| B   | All replay fixtures pass                              | (same)                                    | `replay.failed === 0` in JSON                              |
+| B   | All golden cases pass                                 | (same)                                    | `golden.failed === 0` in JSON                              |
+| A   | Suspicious-but-accepted cases (S3) named individually | (same)                                    | `golden.suspiciousCases[]` + `replay.suspiciousCases[]`    |
 
 The strict gate is the cumulative scientific regression check. Any new
 formula touch must keep it at PASS or accompany the change with a new
 golden / replay fixture that justifies the diff.
+
+**S3 advisory granularity.** The JSON sidecar emits a structured
+`suspiciousCases[]` array per source (replay + golden) carrying
+`{ id, title, warningCodes[] }` for every case whose validation
+status is `'suspicious'`. The release-readiness script lifts each
+entry into a one-line advisory in the summary, e.g.
+
+```
+✗ [ADVIS] S3 (suspicious-but-accepted) cases: 1
+        G-PHYS-SUSPICIOUS-MW — Mw 11 → suspicious (largest recorded is Mw 9.5) [PHYS_SUSPICIOUS_HIGH]
+```
+
+This makes the advisory actionable without grepping the dataset:
+the release manager either acknowledges the named case in the
+release notes (CONDITIONAL GO) or removes it from the source
+(GO). A sudden change in the list across releases is itself a
+signal worth investigating.
 
 ## D. Scientific / model confidence
 

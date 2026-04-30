@@ -95,15 +95,26 @@ function checkValidationReportArtifact(outcomes: GateOutcome[]): void {
     return;
   }
   try {
+    interface SuspiciousCase {
+      id: string;
+      title: string;
+      warningCodes: string[];
+    }
     const json = JSON.parse(readFileSync(path, 'utf-8')) as {
       mode?: string;
       gate?: { decision?: string; exitCode?: number; blocking?: string[] };
-      replay?: { failed?: number; passed?: number; total?: number };
+      replay?: {
+        failed?: number;
+        passed?: number;
+        total?: number;
+        suspiciousCases?: SuspiciousCase[];
+      };
       golden?: {
         failed?: number;
         passed?: number;
         total?: number;
         byStatus?: Record<string, number>;
+        suspiciousCases?: SuspiciousCase[];
       };
     };
     const decision = json.gate?.decision ?? 'unknown';
@@ -123,15 +134,24 @@ function checkValidationReportArtifact(outcomes: GateOutcome[]): void {
         ? `decision=${decision}, replay=${replayPassed.toString()}/${replayTotal.toString()}, golden=${goldenPassed.toString()}/${goldenTotal.toString()}`
         : `decision=${decision}, replayFailed=${replayFailed.toString()}, goldenFailed=${goldenFailed.toString()}`,
     });
-    // Advisory: suspicious golden status surface (informational).
-    const suspicious = json.golden?.byStatus?.suspicious ?? 0;
-    if (suspicious > 0) {
+    // Advisory: suspicious cases (S3) by IDENTITY, not just count.
+    // Aggregates replay.suspiciousCases + golden.suspiciousCases so a
+    // future suspicious replay fixture is also surfaced. Each S3 case
+    // becomes a one-line advisory entry with its id + warning codes,
+    // so the release manager can confirm the case is documented
+    // without grepping the golden dataset.
+    const suspicious = [
+      ...(json.replay?.suspiciousCases ?? []),
+      ...(json.golden?.suspiciousCases ?? []),
+    ];
+    if (suspicious.length > 0) {
+      const lines = suspicious.map((c) => `${c.id} — ${c.title} [${c.warningCodes.join(', ')}]`);
       outcomes.push({
         id: 'golden.suspicious',
-        label: 'Golden cases with suspicious-but-accepted status',
+        label: `S3 (suspicious-but-accepted) cases: ${suspicious.length.toString()}`,
         severity: 'advisory',
         result: 'fail',
-        detail: `${suspicious.toString()} S3 golden case(s) — confirm each is documented in goldenDataset.ts`,
+        detail: lines.join('\n'),
       });
     }
   } catch (e) {
